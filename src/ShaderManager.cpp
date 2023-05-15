@@ -2,23 +2,25 @@
 
 #include "util/Error.h"
 
-void ShaderManager::destroyShaderModules()
-{
-	for (auto& pair : mLoadedShaders)
+void ShaderManager::destroyShaderModules() {
+	for (auto& pair : mLoadedShaders) {
 		mDevice.destroyShaderModule(pair.second);
+	}
 	mLoadedShaders.clear();
 }
 
-vk::ShaderModule ShaderManager::createShaderModule(const File::path& path, ShaderLoadOp operation)
-{
-	if (mLoadedShaders.find(path) != mLoadedShaders.end())
+vk::ShaderModule ShaderManager::createShaderModule(const File::path& path, ShaderLoadOp operation) {
+	if (mLoadedShaders.find(path) != mLoadedShaders.end()) {
 		return mLoadedShaders[path];
+	}
 
 	Log::bracketLine<0>("Loading shader: " + File::absolute(path).generic_string());
 
 	std::ifstream file(File::absolute(path), std::ios::ate | std::ios::binary);
-	if (!file.is_open())
+
+	if (!file.is_open()) {
 		Log::exit("not found");
+	}
 	size_t size = file.tellg();
 
 	std::vector<char> buffer(size);
@@ -30,16 +32,17 @@ vk::ShaderModule ShaderManager::createShaderModule(const File::path& path, Shade
 		.setCodeSize(buffer.size());
 
 	auto shaderModule = mDevice.createShaderModule(createInfo);
-	if (operation == ShaderLoadOp::Normal)
+	if (operation == ShaderLoadOp::Normal) {
 		mLoadedShaders[path] = shaderModule;
+	}
 	return shaderModule;
 }
 
 vk::PipelineShaderStageCreateInfo ShaderManager::shaderStageCreateInfo(
 	vk::ShaderModule module,
 	vk::ShaderStageFlagBits stage,
-	const char* entrance)
-{
+	const char* entrance
+) {
 	return vk::PipelineShaderStageCreateInfo()
 		.setModule(module)
 		.setStage(stage)

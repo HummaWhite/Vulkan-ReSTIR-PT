@@ -3,21 +3,21 @@
 std::optional<uint32_t> findMemoryType(
 	vk::PhysicalDeviceMemoryProperties physicalDeviceMemProps, 
 	vk::MemoryRequirements requirements, 
-	vk::MemoryPropertyFlags requestedProps)
-{
-	for (uint32_t i = 0; i < physicalDeviceMemProps.memoryTypeCount; i++)
-	{
+	vk::MemoryPropertyFlags requestedProps
+) {
+	for (uint32_t i = 0; i < physicalDeviceMemProps.memoryTypeCount; i++) {
 		if ((requirements.memoryTypeBits & (1 << i) &&
-			((requestedProps & physicalDeviceMemProps.memoryTypes[i].propertyFlags) == requestedProps)))
+			((requestedProps & physicalDeviceMemProps.memoryTypes[i].propertyFlags) == requestedProps))) {
 			return i;
+		}
 	}
 	return std::nullopt;
 }
 
 BufferMemory createBufferMemory(
 	vk::Device device, vk::PhysicalDevice physicalDevice,
-	vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)
-{
+	vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties
+) {
 	auto bufferCreateInfo = vk::BufferCreateInfo()
 		.setSize(size)
 		.setUsage(usage)
@@ -27,8 +27,9 @@ BufferMemory createBufferMemory(
 	auto requirements = device.getBufferMemoryRequirements(buffer);
 	auto memTypeIndex = findMemoryType(physicalDevice.getMemoryProperties(), requirements, properties);
 
-	if (!memTypeIndex)
+	if (!memTypeIndex) {
 		throw std::runtime_error("Required memory type not found");
+	}
 
 	auto allocInfo = vk::MemoryAllocateInfo()
 		.setAllocationSize(requirements.size)
@@ -41,8 +42,8 @@ BufferMemory createBufferMemory(
 
 void copyBuffer(
 	vk::Device device, vk::CommandPool cmdPool, vk::Queue queue,
-	vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size)
-{
+	vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size
+) {
 	auto cmdBufferAllocInfo = vk::CommandBufferAllocateInfo()
 		.setCommandPool(cmdPool)
 		.setCommandBufferCount(1)
@@ -66,8 +67,8 @@ void copyBuffer(
 
 BufferMemory createDeviceLocalBufferMemory(
 	vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
-	const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage)
-{
+	const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
+) {
 	auto [transferBuf, transferMem] = createBufferMemory(
 		device, physicalDevice, size,
 		vk::BufferUsageFlagBits::eTransferSrc,

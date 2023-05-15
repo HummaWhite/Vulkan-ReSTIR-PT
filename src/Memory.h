@@ -5,14 +5,12 @@
 #include <iostream>
 #include <optional>
 
-struct BufferMemory
-{
+struct BufferMemory {
 	vk::Buffer buffer;
 	vk::DeviceMemory memory;
 };
 
-struct DeviceLocalBufferMemoryCreateInfo
-{
+struct DeviceLocalBufferMemoryCreateInfo {
 	vk::Device device;
 	vk::PhysicalDevice physicalDevice;
 	vk::CommandPool cmdPool;

@@ -8,13 +8,11 @@
 
 #include "util/File.h"
 
-enum class ShaderLoadOp
-{
+enum class ShaderLoadOp {
 	Normal, NoRecord, InstantDestroy
 };
 
-class ShaderManager
-{
+class ShaderManager {
 public:
 	ShaderManager() = default;
 	ShaderManager(vk::Device device) : mDevice(device) {}

@@ -18,23 +18,20 @@
 #include "ShaderManager.h"
 #include "Memory.h"
 
-struct QueueFamilyIndices
-{
+struct QueueFamilyIndices {
 	uint32_t graphicsIndex;
 	uint32_t presentIndex;
 };
 
-struct SwapchainCapabilityDetails
-{
+struct SwapchainCapabilityDetails {
 	vk::SurfaceCapabilitiesKHR capabilities;
 	std::vector<vk::SurfaceFormatKHR> formats;
 	std::vector<vk::PresentModeKHR> presentModes;
 };
 
-class Application
-{
+class Renderer {
 public:
-	Application(const std::string& name, int width, int height) :
+	Renderer(const std::string& name, int width, int height) :
 		mName(name), mWidth(width), mHeight(height) {}
 
 	void exec();

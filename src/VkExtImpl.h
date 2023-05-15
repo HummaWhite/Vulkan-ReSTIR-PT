@@ -3,8 +3,7 @@
 #include <vulkan/vulkan.hpp>
 #include "util/Error.h"
 
-class ZvkExt
-{
+class ZvkExt {
 public:
 	ZvkExt() = default;
 	ZvkExt(vk::Instance instance);

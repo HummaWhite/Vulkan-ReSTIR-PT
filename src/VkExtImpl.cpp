@@ -16,8 +16,7 @@ ZvkExt::ZvkExt(vk::Instance instance) :
 		Log::bracketLine<1>("vkDestroyDebugUtilsMessengerEXT");
 }
 
-vk::DebugUtilsMessengerEXT ZvkExt::createDebugUtilsMessenger(const vk::DebugUtilsMessengerCreateInfoEXT& createInfo)
-{
+vk::DebugUtilsMessengerEXT ZvkExt::createDebugUtilsMessenger(const vk::DebugUtilsMessengerCreateInfoEXT& createInfo) {
 	VkDebugUtilsMessengerEXT messenger;
 	zvkCreateDebugUtilsMessenger(mInstance,
 		reinterpret_cast<const VkDebugUtilsMessengerCreateInfoEXT*>(&createInfo),
@@ -25,7 +24,6 @@ vk::DebugUtilsMessengerEXT ZvkExt::createDebugUtilsMessenger(const vk::DebugUtil
 	return vk::DebugUtilsMessengerEXT(messenger);
 }
 
-void ZvkExt::destroyDebugUtilsMessenger(vk::DebugUtilsMessengerEXT messenger)
-{
+void ZvkExt::destroyDebugUtilsMessenger(vk::DebugUtilsMessengerEXT messenger) {
 	zvkDestroyDebugUtilsMessenger(mInstance, messenger, nullptr);
 }

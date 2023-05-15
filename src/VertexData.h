@@ -5,10 +5,8 @@
 #include <vector>
 #include <array>
 
-struct Vertex
-{
-	constexpr static vk::VertexInputBindingDescription bindingDescription()
-	{
+struct Vertex {
+	constexpr static vk::VertexInputBindingDescription bindingDescription() {
 		return vk::VertexInputBindingDescription()
 			.setBinding(0)
 			.setStride(sizeof(Vertex))
@@ -16,10 +14,8 @@ struct Vertex
 		// return { 0, sizeof(Vertex), vk::VertexInputRate::eVertex };
 	}
 
-	constexpr static std::array<vk::VertexInputAttributeDescription, 2> attributeDescription()
-	{
-		return
-		{
+	constexpr static std::array<vk::VertexInputAttributeDescription, 2> attributeDescription() {
+		return {
 			vk::VertexInputAttributeDescription()
 				.setBinding(0)
 				.setLocation(0)
@@ -44,15 +40,13 @@ struct Vertex
 	glm::vec3 color;
 };
 
-const std::vector<Vertex> VertexData =
-{
+const std::vector<Vertex> VertexData = {
 	{ { -0.5f, -0.5f, 0.f }, { 1.f, 0.f, 0.f } },
 	{ { 0.5f, -0.5f, 0.f }, { 0.f, 1.f, 0.f } },
 	{ { 0.5f, 0.5f, 0.f }, { 0.f, 0.f, 1.f } },
 	{ { -0.5f, 0.5f, 0.f }, { 1.f, 1.f, 1.f } }
 };
 
-const std::vector<uint32_t> IndexData =
-{
+const std::vector<uint32_t> IndexData = {
 	0, 1, 2, 2, 3, 0
 };

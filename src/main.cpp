@@ -1,7 +1,6 @@
-#include "Application.h"
+#include "Renderer.h"
 
-int main()
-{
-    Application app("Vulkan-Try", 1280, 720);
-    app.exec();
+int main() {
+    Renderer renderer("ReSTIR PT", 1280, 720);
+    renderer.exec();
 }
