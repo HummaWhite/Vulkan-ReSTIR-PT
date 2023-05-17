@@ -1,4 +1,8 @@
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+file(GLOB_RECURSE core_sources
+	"${CMAKE_CURRENT_SOURCE_DIR}/*.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/*.c"
+	"${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 #file(GLOB IMAGES
 #    ${CMAKE_CURRENT_SOURCE_DIR}/images/*.jpg
@@ -22,11 +26,30 @@ file(GLOB_RECURSE SHADER_SOURCES
 
 source_group("Shaders" FILES ${SHADER_SOURCES})
 
+if(MSVC_IDE)
+	# Macro to preserve source files hierarchy in the IDE
+	macro(GroupSources curdir)
+		file(GLOB children RELATIVE ${PROJECT_SOURCE_DIR}/${curdir} ${PROJECT_SOURCE_DIR}/${curdir}/*)
+
+		foreach(child ${children})
+			if(IS_DIRECTORY ${PROJECT_SOURCE_DIR}/${curdir}/${child})
+				GroupSources(${curdir}/${child})
+			else()
+				string(REPLACE "/" "\\" groupname ${curdir})
+				string(REPLACE "src" "Sources" groupname ${groupname})
+				source_group(${groupname} FILES ${PROJECT_SOURCE_DIR}/${curdir}/${child})
+			endif()
+		endforeach()
+	endmacro()
+
+	GroupSources(${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
 if(WIN32)
-    add_executable(Vulkan_ReSTIR_PT ${SOURCES} ${SHADER_SOURCES})
+    add_executable(Vulkan_ReSTIR_PT ${core_sources} ${SHADER_SOURCES})
     target_link_libraries(Vulkan_ReSTIR_PT ${WINLIBS})
 else(WIN32)
-    add_executable(Vulkan_ReSTIR_PT ${SOURCES})
+    add_executable(Vulkan_ReSTIR_PT ${core_sources})
     target_link_libraries(Vulkan_ReSTIR_PT ${CMAKE_THREAD_LIBS_INIT})
 endif(WIN32)
 

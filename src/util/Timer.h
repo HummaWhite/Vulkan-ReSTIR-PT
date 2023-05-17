@@ -6,23 +6,19 @@
 
 const auto InitTime = std::chrono::high_resolution_clock::now();
 
-static int64_t getTime()
-{
+static int64_t getTime() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - InitTime).count();
 }
 
-class Timer
-{
+class Timer {
 public:
     Timer() : mStartTime(getTime()) {}
 
-    double get() const
-    {
+    double get() const {
         return getTime() - mStartTime;
     }
 
-    void reset()
-    {
+    void reset() {
         mStartTime = getTime();
     }
 

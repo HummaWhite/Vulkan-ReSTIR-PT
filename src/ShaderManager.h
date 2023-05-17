@@ -7,6 +7,9 @@
 #include <map>
 
 #include "util/File.h"
+#include "util/NamespaceDecl.h"
+
+NAMESPACE_BEGIN(zvk)
 
 enum class ShaderLoadOp {
 	Normal, NoRecord, InstantDestroy
@@ -32,3 +35,5 @@ private:
 	vk::Device mDevice;
 	std::map<File::path, vk::ShaderModule> mLoadedShaders;
 };
+
+NAMESPACE_END(zvk)

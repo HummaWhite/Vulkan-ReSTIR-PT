@@ -2,6 +2,8 @@
 
 #include "util/Error.h"
 
+NAMESPACE_BEGIN(zvk)
+
 void ShaderManager::destroyShaderModules() {
 	for (auto& pair : mLoadedShaders) {
 		mDevice.destroyShaderModule(pair.second);
@@ -48,3 +50,5 @@ vk::PipelineShaderStageCreateInfo ShaderManager::shaderStageCreateInfo(
 		.setStage(stage)
 		.setPName(entrance);
 }
+
+NAMESPACE_END(zvk)

@@ -1,5 +1,7 @@
 #include "Memory.h"
 
+NAMESPACE_BEGIN(zvk)
+
 std::optional<uint32_t> findMemoryType(
 	vk::PhysicalDeviceMemoryProperties physicalDeviceMemProps, 
 	vk::MemoryRequirements requirements, 
@@ -14,9 +16,9 @@ std::optional<uint32_t> findMemoryType(
 	return std::nullopt;
 }
 
-BufferMemory createBufferMemory(
+vk::Buffer Buffer::create(
 	vk::Device device, vk::PhysicalDevice physicalDevice,
-	vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties
+	vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::DeviceMemory& memory
 ) {
 	auto bufferCreateInfo = vk::BufferCreateInfo()
 		.setSize(size)
@@ -35,12 +37,47 @@ BufferMemory createBufferMemory(
 		.setAllocationSize(requirements.size)
 		.setMemoryTypeIndex(memTypeIndex.value());
 
-	auto memory = device.allocateMemory(allocInfo);
+	memory = device.allocateMemory(allocInfo);
 	device.bindBufferMemory(buffer, memory, 0);
-	return { buffer, memory };
+
+	return buffer;
 }
 
-void copyBuffer(
+Buffer Buffer::create(
+	vk::Device device, vk::PhysicalDevice physicalDevice,
+	vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties
+) {
+	Buffer buffer;
+
+	auto bufferCreateInfo = vk::BufferCreateInfo()
+		.setSize(size)
+		.setUsage(usage)
+		.setSharingMode(vk::SharingMode::eExclusive);
+
+	buffer.buffer = device.createBuffer(bufferCreateInfo);
+	auto requirements = device.getBufferMemoryRequirements(buffer.buffer);
+	auto memTypeIndex = findMemoryType(physicalDevice.getMemoryProperties(), requirements, properties);
+
+	if (!memTypeIndex) {
+		throw std::runtime_error("Required memory type not found");
+	}
+
+	auto allocInfo = vk::MemoryAllocateInfo()
+		.setAllocationSize(requirements.size)
+		.setMemoryTypeIndex(memTypeIndex.value());
+
+	buffer.memory = device.allocateMemory(allocInfo);
+	device.bindBufferMemory(buffer.buffer, buffer.memory, 0);
+
+	buffer.size = size;
+	buffer.realSize = requirements.size;
+	buffer.properties = properties;
+	buffer.usage = usage;
+
+	return buffer;
+}
+
+void Buffer::copy(
 	vk::Device device, vk::CommandPool cmdPool, vk::Queue queue,
 	vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size
 ) {
@@ -65,26 +102,62 @@ void copyBuffer(
 	queue.waitIdle();
 }
 
-BufferMemory createDeviceLocalBufferMemory(
+vk::Buffer Buffer::createDeviceLocal(
 	vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
-	const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
+	const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory
 ) {
-	auto [transferBuf, transferMem] = createBufferMemory(
+	vk::DeviceMemory transferMem;
+	auto transferBuf = create(
 		device, physicalDevice, size,
 		vk::BufferUsageFlagBits::eTransferSrc,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		transferMem
+	);
 
 	auto transferMemHandle = device.mapMemory(transferMem, 0, size);
 	memcpy(transferMemHandle, data, size);
 	device.unmapMemory(transferMem);
 
-	auto [localBuf, localMem] = createBufferMemory(
+	auto localBuf = create(
 		device, physicalDevice, size,
 		vk::BufferUsageFlagBits::eTransferDst | usage,
-		vk::MemoryPropertyFlagBits::eDeviceLocal);
+		vk::MemoryPropertyFlagBits::eDeviceLocal,
+		memory
+	);
 
-	copyBuffer(device, cmdPool, queue, localBuf, transferBuf, size);
+	copy(device, cmdPool, queue, localBuf, transferBuf, size);
 	device.destroyBuffer(transferBuf);
 	device.freeMemory(transferMem);
-	return { localBuf, localMem };
+	return localBuf;
 }
+
+Buffer Buffer::createDeviceLocal(
+	vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
+	const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
+) {
+	vk::DeviceMemory transferMem;
+	auto transferBuf = create(
+		device, physicalDevice, size,
+		vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		transferMem
+	);
+
+	auto transferMemHandle = device.mapMemory(transferMem, 0, size);
+	memcpy(transferMemHandle, data, size);
+	device.unmapMemory(transferMem);
+
+	auto localBuf = create(
+		device, physicalDevice, size,
+		vk::BufferUsageFlagBits::eTransferDst | usage,
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
+
+	copy(device, cmdPool, queue, localBuf.buffer, transferBuf, size);
+	device.destroyBuffer(transferBuf);
+	device.freeMemory(transferMem);
+
+	return localBuf;
+}
+
+NAMESPACE_END(zvk)

@@ -21,7 +21,11 @@ const bool EnableValidationLayer = false;
 #endif
 
 const std::vector<const char*> DeviceExtensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+	VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+	VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+	VK_KHR_RAY_QUERY_EXTENSION_NAME,
 };
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL zvkDebugCallback(
@@ -92,6 +96,7 @@ void Renderer::initVulkan() {
 		createSwapchain();
 		createSwapchainImageViews();
 		createRenderPass();
+		createDescriptorSetLayout();
 		createPipeline();
 		createFramebuffers();
 		createCommandPool();
@@ -159,7 +164,7 @@ void Renderer::createInstance() {
 		.setPNext(EnableValidationLayer ? &debugInfo : nullptr);
 
 	mInstance = vk::createInstance(instanceInfo);
-	mZvkExt = ZvkExt(mInstance);
+	mExtFunctions = zvk::ExtFunctions(mInstance);
 }
 
 void Renderer::createSurface() {
@@ -179,7 +184,7 @@ void Renderer::setupDebugMessenger() {
 	}
 	auto createInfo = zvkNormalDebugCreateInfo();
 	//mVkDebugMessenger = mVkInstance.createDebugUtilsMessengerEXT(createInfo);
-	mDebugMessenger = mZvkExt.createDebugUtilsMessenger(createInfo);
+	mDebugMessenger = mExtFunctions.createDebugUtilsMessenger(createInfo);
 }
 
 void Renderer::selectPhysicalDevice() {
@@ -191,8 +196,9 @@ void Renderer::selectPhysicalDevice() {
 	for (const auto& device : mPhysicalDevices) {
 		auto props = device.getProperties();
 		auto features = device.getFeatures();
+		
 		Log::bracketLine<1>("Device " + std::to_string(props.deviceID) + ", " +
-			props.deviceName.data());
+			props.deviceName.data() + ", ");
 
 		if (isDeviceAvailable(device)) {
 			mPhysicalDevice = device;
@@ -408,14 +414,28 @@ void Renderer::createRenderPass() {
 	mRenderPass = mDevice.createRenderPass(renderPassCreateInfo);
 }
 
-void Renderer::createPipeline() {
-	mShaderManager = ShaderManager(mDevice);
+void Renderer::createDescriptorSetLayout() {
+	auto cameraBinding = vk::DescriptorSetLayoutBinding()
+		.setBinding(0)
+		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+		.setDescriptorCount(1)
+		.setStageFlags(vk::ShaderStageFlagBits::eVertex);
 
-	auto vertStageInfo = ShaderManager::shaderStageCreateInfo(
+	auto createInfo = vk::DescriptorSetLayoutCreateInfo()
+		.setBindingCount(1)
+		.setPBindings(&cameraBinding);
+
+	mDescriptorSetLayout = mDevice.createDescriptorSetLayout(createInfo);
+}
+
+void Renderer::createPipeline() {
+	mShaderManager = zvk::ShaderManager(mDevice);
+
+	auto vertStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
 		mShaderManager.createShaderModule("shaders/test.vert.spv"),
 		vk::ShaderStageFlagBits::eVertex);
 
-	auto fragStageInfo = ShaderManager::shaderStageCreateInfo(
+	auto fragStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
 		mShaderManager.createShaderModule("shaders/test.frag.spv"),
 		vk::ShaderStageFlagBits::eFragment);
 
@@ -479,7 +499,7 @@ void Renderer::createPipeline() {
 		.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
 
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts({})
+		.setSetLayouts(mDescriptorSetLayout)
 		.setPushConstantRanges({});
 
 	mPipelineLayout = mDevice.createPipelineLayout(pipelineLayoutCreateInfo);
@@ -533,23 +553,19 @@ void Renderer::createCommandPool() {
 void Renderer::createVertexBuffer() {
 	size_t size = VertexData.size() * sizeof(Vertex);
 
-	auto [buffer, memory] = createDeviceLocalBufferMemory(
+	mVertexBuffer = zvk::Buffer::createDeviceLocal(
 		mDevice, mPhysicalDevice, mCommandPool, mGraphicsQueue,
-		VertexData.data(), size, vk::BufferUsageFlagBits::eVertexBuffer);
-
-	mVertexBuffer = buffer;
-	mVertexBufferMemory = memory;
+		VertexData.data(), size, vk::BufferUsageFlagBits::eVertexBuffer
+	);
 }
 
 void Renderer::createIndexBuffer() {
 	size_t size = IndexData.size() * sizeof(uint32_t);
 
-	auto [buffer, memory] = createDeviceLocalBufferMemory(
+	mIndexBuffer = zvk::Buffer::createDeviceLocal(
 		mDevice, mPhysicalDevice, mCommandPool, mGraphicsQueue,
-		IndexData.data(), size, vk::BufferUsageFlagBits::eIndexBuffer);
-
-	mIndexBuffer = buffer;
-	mIndexBufferMemory = memory;
+		IndexData.data(), size, vk::BufferUsageFlagBits::eIndexBuffer
+	);
 }
 
 void Renderer::createCommandBuffer() {
@@ -598,8 +614,8 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer cmdBuffer, uint32_t imgInde
 
 	cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mGraphicsPipeline);
 
-	cmdBuffer.bindVertexBuffers(0, mVertexBuffer, vk::DeviceSize(0));
-	cmdBuffer.bindIndexBuffer(mIndexBuffer, 0, vk::IndexType::eUint32);
+	cmdBuffer.bindVertexBuffers(0, mVertexBuffer.buffer, vk::DeviceSize(0));
+	cmdBuffer.bindIndexBuffer(mIndexBuffer.buffer, 0, vk::IndexType::eUint32);
 
 	cmdBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, mSwapchainExtent.width, mSwapchainExtent.height, 0.0f, 1.0f));
 	cmdBuffer.setScissor(0, vk::Rect2D({ 0, 0 }, mSwapchainExtent));
@@ -697,10 +713,10 @@ void Renderer::cleanupSwapchain() {
 void Renderer::cleanupVulkan() {
 	cleanupSwapchain();
 
-	mDevice.destroyBuffer(mVertexBuffer);
-	mDevice.freeMemory(mVertexBufferMemory);
-	mDevice.destroyBuffer(mIndexBuffer);
-	mDevice.freeMemory(mIndexBufferMemory);
+	mDevice.destroyDescriptorSetLayout(mDescriptorSetLayout);
+
+	mVertexBuffer.destroy(mDevice);
+	mIndexBuffer.destroy(mDevice);
 
 	mDevice.destroyPipeline(mGraphicsPipeline);
 	mDevice.destroyPipelineLayout(mPipelineLayout);
@@ -725,7 +741,7 @@ void Renderer::cleanupVulkan() {
 
 	if (EnableValidationLayer) {
 		//mVkInstance.destroyDebugUtilsMessengerEXT(mVkDebugMessenger);
-		mZvkExt.destroyDebugUtilsMessenger(mDebugMessenger);
+		mExtFunctions.destroyDebugUtilsMessenger(mDebugMessenger);
 	}
 
 	mInstance.destroySurfaceKHR(mSurface);

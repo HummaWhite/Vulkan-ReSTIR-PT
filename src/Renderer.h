@@ -14,7 +14,7 @@
 #include <set>
 
 #include "util/Error.h"
-#include "VkExtImpl.h"
+#include "VkExtFunctions.h"
 #include "ShaderManager.h"
 #include "Memory.h"
 
@@ -65,6 +65,7 @@ private:
 	void createSwapchainImageViews();
 
 	void createRenderPass();
+	void createDescriptorSetLayout();
 	void createPipeline();
 
 	void createFramebuffers();
@@ -95,7 +96,7 @@ private:
 	std::vector<char*> mRequiredVkLayers;
 
 	vk::Instance mInstance;
-	ZvkExt mZvkExt;
+	zvk::ExtFunctions mExtFunctions;
 	bool mEnableValidationLayer = true;
 	vk::DebugUtilsMessengerEXT mDebugMessenger;
 
@@ -119,8 +120,9 @@ private:
 	std::vector<vk::ImageView> mSwapchainImageViews;
 
 	vk::Pipeline mGraphicsPipeline;
-	ShaderManager mShaderManager;
+	zvk::ShaderManager mShaderManager;
 	vk::RenderPass mRenderPass;
+	vk::DescriptorSetLayout mDescriptorSetLayout;
 	vk::PipelineLayout mPipelineLayout;
 
 	std::vector<vk::Framebuffer> mSwapchainFramebuffers;
@@ -133,10 +135,8 @@ private:
 	std::vector<vk::Fence> mInFlightFences;
 	uint32_t mCurFrameIdx = 0;
 
-	vk::Buffer mVertexBuffer;
-	vk::DeviceMemory mVertexBufferMemory;
-	vk::Buffer mIndexBuffer;
-	vk::DeviceMemory mIndexBufferMemory;
+	zvk::Buffer mVertexBuffer;
+	zvk::Buffer mIndexBuffer;
 
 	bool mShouldResetSwapchain = false;
 };
