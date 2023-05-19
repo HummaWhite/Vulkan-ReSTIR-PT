@@ -160,4 +160,13 @@ Buffer Buffer::createDeviceLocal(
 	return localBuf;
 }
 
+void Buffer::mapMemory(vk::Device device) {
+	mappedMemory = device.mapMemory(memory, 0, size);
+}
+
+void Buffer::unmapMemory(vk::Device device) {
+	device.unmapMemory(memory);
+	mappedMemory = nullptr;
+}
+
 NAMESPACE_END(zvk)

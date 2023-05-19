@@ -1,6 +1,5 @@
 #include "Renderer.h"
-
-#include "VertexData.h"
+#include "RenderData.h"
 
 #if defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__) ) || defined(_M_X64) || defined(__ia64) || defined (_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
 	#define VK_NULL_HANDLE_REPLACED nullptr
@@ -101,6 +100,9 @@ void Renderer::initVulkan() {
 		createFramebuffers();
 		createCommandPool();
 		createVertexBuffer();
+		createUniformBuffers();
+		createDescriptorPool();
+		createDescriptorSets();
 		createIndexBuffer();
 		createCommandBuffer();
 		createSyncObjects();
@@ -422,8 +424,7 @@ void Renderer::createDescriptorSetLayout() {
 		.setStageFlags(vk::ShaderStageFlagBits::eVertex);
 
 	auto createInfo = vk::DescriptorSetLayoutCreateInfo()
-		.setBindingCount(1)
-		.setPBindings(&cameraBinding);
+		.setBindings(cameraBinding);
 
 	mDescriptorSetLayout = mDevice.createDescriptorSetLayout(createInfo);
 }
@@ -473,7 +474,7 @@ void Renderer::createPipeline() {
 		.setPolygonMode(vk::PolygonMode::eFill)
 		.setLineWidth(1.0f)
 		.setCullMode(vk::CullModeFlagBits::eBack)
-		.setFrontFace(vk::FrontFace::eClockwise)
+		.setFrontFace(vk::FrontFace::eCounterClockwise)
 		.setDepthBiasEnable(false);
 
 	auto multisamplingStateInfo = vk::PipelineMultisampleStateCreateInfo()
@@ -499,8 +500,7 @@ void Renderer::createPipeline() {
 		.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
 
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts(mDescriptorSetLayout)
-		.setPushConstantRanges({});
+		.setSetLayouts(mDescriptorSetLayout);
 
 	mPipelineLayout = mDevice.createPipelineLayout(pipelineLayoutCreateInfo);
 
@@ -568,6 +568,55 @@ void Renderer::createIndexBuffer() {
 	);
 }
 
+void Renderer::createUniformBuffers() {
+	size_t size = sizeof(CameraData);
+
+	mCameraUniforms = zvk::Buffer::create(mDevice, mPhysicalDevice, size,
+		vk::BufferUsageFlagBits::eUniformBuffer,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+	);
+	mCameraUniforms.mapMemory(mDevice);
+}
+
+void Renderer::createDescriptorPool() {
+	vk::DescriptorPoolSize size(vk::DescriptorType::eUniformBuffer, NumFramesConcurrent);
+
+	auto createInfo = vk::DescriptorPoolCreateInfo()
+		.setPoolSizes(size)
+		.setMaxSets(NumFramesConcurrent);
+
+	mDescriptorPool = mDevice.createDescriptorPool(createInfo);
+}
+
+void Renderer::createDescriptorSets() {
+	std::vector<vk::DescriptorSetLayout> layouts(NumFramesConcurrent, mDescriptorSetLayout);
+
+	auto allocInfo = vk::DescriptorSetAllocateInfo()
+		.setDescriptorPool(mDescriptorPool)
+		.setSetLayouts(layouts);
+
+	mDescriptorSets = mDevice.allocateDescriptorSets(allocInfo);
+
+	std::vector<vk::WriteDescriptorSet> updates;
+
+	for (auto& set : mDescriptorSets) {
+		auto bufferInfo = vk::DescriptorBufferInfo()
+			.setBuffer(mCameraUniforms.buffer)
+			.setOffset(0)
+			.setRange(sizeof(CameraData));
+
+		updates.push_back(vk::WriteDescriptorSet()
+			.setDstSet(set)
+			.setDstBinding(0)
+			.setDstArrayElement(0)
+			.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+			.setDescriptorCount(1)
+			.setBufferInfo(bufferInfo)
+		);
+	}
+	mDevice.updateDescriptorSets(updates, {});
+}
+
 void Renderer::createCommandBuffer() {
 	auto allocateInfo = vk::CommandBufferAllocateInfo()
 		.setCommandPool(mCommandPool)
@@ -619,6 +668,9 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer cmdBuffer, uint32_t imgInde
 
 	cmdBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, mSwapchainExtent.width, mSwapchainExtent.height, 0.0f, 1.0f));
 	cmdBuffer.setScissor(0, vk::Rect2D({ 0, 0 }, mSwapchainExtent));
+
+	cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, 0, mDescriptorSets[mCurFrameIdx], {});
+
 	//cmdBuffer.draw(VertexData.size(), 1, 0, 0);
 	cmdBuffer.drawIndexed(IndexData.size(), 1, 0, 0, 0);
 
@@ -645,6 +697,8 @@ void Renderer::drawFrame() {
 
 	mCommandBuffers[mCurFrameIdx].reset();
 	recordCommandBuffer(mCommandBuffers[mCurFrameIdx], imgIndex);
+
+	updateUniformBuffer();
 
 	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 	auto submitInfo = vk::SubmitInfo()
@@ -683,6 +737,15 @@ void Renderer::drawFrame() {
 	}*/
 }
 
+void Renderer::updateUniformBuffer() {
+	CameraData data;
+	data.model = glm::rotate(glm::mat4(1.f), static_cast<float>(mTimer.get() * 1e-9), glm::vec3(0.f, 0.f, 1.f));
+	data.view = glm::lookAt(glm::vec3(2.f), glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f));
+	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchainExtent.width) / mSwapchainExtent.height, .1f, 10.f);
+	data.proj[1][1] *= -1.f;
+	memcpy(mCameraUniforms.mappedMemory, &data, sizeof(CameraData));
+}
+
 void Renderer::recreateSwapchain() {
 	int width, height;
 	glfwGetFramebufferSize(mMainWindow, &width, &height);
@@ -712,6 +775,10 @@ void Renderer::cleanupSwapchain() {
 
 void Renderer::cleanupVulkan() {
 	cleanupSwapchain();
+
+	mDevice.destroyDescriptorPool(mDescriptorPool);
+
+	mCameraUniforms.destroy(mDevice);
 
 	mDevice.destroyDescriptorSetLayout(mDescriptorSetLayout);
 
@@ -752,6 +819,8 @@ void Renderer::exec() {
 	initWindow();
 	initVulkan();
 	glfwShowWindow(mMainWindow);
+
+	mTimer.reset();
 	
 	while (!glfwWindowShouldClose(mMainWindow)) {
 		glfwPollEvents();

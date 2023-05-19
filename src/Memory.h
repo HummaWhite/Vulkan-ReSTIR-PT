@@ -54,12 +54,16 @@ struct Buffer {
 		vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
 		vk::Buffer buffer, vk::DeviceSize offset, vk::DeviceSize size, const void* data);
 
+	void mapMemory(vk::Device device);
+	void unmapMemory(vk::Device device);
+
 	vk::Buffer buffer;
 	vk::DeviceMemory memory;
 	vk::DeviceSize size;
 	vk::DeviceSize realSize;
 	vk::MemoryPropertyFlags properties;
 	vk::BufferUsageFlags usage;
+	void* mappedMemory = nullptr;
 };
 
 NAMESPACE_END(zvk)

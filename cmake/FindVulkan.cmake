@@ -70,7 +70,7 @@ find_package_handle_standard_args(Vulkan
 DEFAULT_MSG
 Vulkan_LIBRARY Vulkan_INCLUDE_DIR)
 
-mark_as_advanced(Vulkan_INCLUDE_DIR Vulkan_LIBRARY)
+#mark_as_advanced(Vulkan_INCLUDE_DIR Vulkan_LIBRARY)
 
 if(Vulkan_FOUND AND NOT TARGET Vulkan::Vulkan)
 add_library(Vulkan::Vulkan UNKNOWN IMPORTED)

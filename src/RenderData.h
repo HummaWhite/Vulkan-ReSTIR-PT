@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <vector>
 #include <array>
 
@@ -38,6 +40,12 @@ struct Vertex {
 
 	glm::vec3 pos;
 	glm::vec3 color;
+};
+
+struct CameraData {
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
 };
 
 const std::vector<Vertex> VertexData = {

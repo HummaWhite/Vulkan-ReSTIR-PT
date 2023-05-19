@@ -8,15 +8,12 @@ layout(location = 1) in vec3 aColor;
 
 layout(location = 0) out vec3 vColor;
 
-struct CameraData {
+
+layout(binding = 0) uniform _CameraBuffer {
 	mat4 model;
 	mat4 view;
 	mat4 proj;
-};
-
-layout(binding = 0) uniform _CameraBuffer {
-	CameraData cam;
-};
+} cam;
 
 void main() {
 	gl_Position = cam.proj * cam.view * cam.model * vec4(aPos, 1.0);

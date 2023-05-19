@@ -5,5 +5,12 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation")
 set(GLFW_INSTALL OFF CACHE BOOL "Generate installation target")
 add_subdirectory(GLFW)
 
-set(GLM_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/glm PARENT_SCOPE)
-set(STB_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/stb PARENT_SCOPE)
+file(GLOB stb_sources
+	"${CMAKE_CURRENT_SOURCE_DIR}/stb.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/stb/*.h")
+
+add_library(stb ${stb_sources})
+
+target_include_directories(stb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/stb")
+
+#add_subdirectory(assimp)

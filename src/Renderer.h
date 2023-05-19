@@ -17,6 +17,7 @@
 #include "VkExtFunctions.h"
 #include "ShaderManager.h"
 #include "Memory.h"
+#include "util/Timer.h"
 
 struct QueueFamilyIndices {
 	uint32_t graphicsIndex;
@@ -73,11 +74,15 @@ private:
 	void createCommandPool();
 	void createVertexBuffer();
 	void createIndexBuffer();
+	void createUniformBuffers();
+	void createDescriptorPool();
+	void createDescriptorSets();
 	void createCommandBuffer();
 
 	void createSyncObjects();
 	void recordCommandBuffer(vk::CommandBuffer cmdBuffer, uint32_t imgIndex);
 	void drawFrame();
+	void updateUniformBuffer();
 
 	void recreateSwapchain();
 	void cleanupSwapchain();
@@ -137,6 +142,11 @@ private:
 
 	zvk::Buffer mVertexBuffer;
 	zvk::Buffer mIndexBuffer;
+	zvk::Buffer mCameraUniforms;
+	vk::DescriptorPool mDescriptorPool;
+	std::vector<vk::DescriptorSet> mDescriptorSets;
 
 	bool mShouldResetSwapchain = false;
+
+	Timer mTimer;
 };
