@@ -7,3 +7,6 @@
 [submodule "ext/assimp"]
 	path = ext/assimp
 	url = https://github.com/assimp/assimp
+[submodule "ext/imgui"]
+	path = ext/imgui
+	url = https://github.com/ocornut/imgui
