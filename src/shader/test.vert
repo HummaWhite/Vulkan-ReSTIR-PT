@@ -10,6 +10,9 @@ layout(location = 0) out vec3 vColor;
 
 
 layout(binding = 0) uniform _CameraBuffer {
+	float pad0;
+	vec3 pad2;
+
 	mat4 model;
 	mat4 view;
 	mat4 proj;

@@ -42,6 +42,8 @@ struct Buffer {
 		vk::Device device, vk::CommandPool cmdPool, vk::Queue queue,
 		vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size);
 
+	static Buffer createTempTransfer(vk::Device device, vk::PhysicalDevice physicalDevice, vk::DeviceSize size);
+
 	static vk::Buffer createDeviceLocal(
 		vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory);

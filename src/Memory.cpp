@@ -102,21 +102,22 @@ void Buffer::copy(
 	queue.waitIdle();
 }
 
+Buffer Buffer::createTempTransfer(vk::Device device, vk::PhysicalDevice physicalDevice, vk::DeviceSize size) {
+	return create(
+		device, physicalDevice, size,
+		vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+	);
+}
+
 vk::Buffer Buffer::createDeviceLocal(
 	vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
 	const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory
 ) {
-	vk::DeviceMemory transferMem;
-	auto transferBuf = create(
-		device, physicalDevice, size,
-		vk::BufferUsageFlagBits::eTransferSrc,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-		transferMem
-	);
-
-	auto transferMemHandle = device.mapMemory(transferMem, 0, size);
-	memcpy(transferMemHandle, data, size);
-	device.unmapMemory(transferMem);
+	auto transferBuf = createTempTransfer(device, physicalDevice, size);
+	transferBuf.mapMemory(device);
+	memcpy(transferBuf.mappedMemory, data, size);
+	transferBuf.unmapMemory(device);
 
 	auto localBuf = create(
 		device, physicalDevice, size,
@@ -125,9 +126,8 @@ vk::Buffer Buffer::createDeviceLocal(
 		memory
 	);
 
-	copy(device, cmdPool, queue, localBuf, transferBuf, size);
-	device.destroyBuffer(transferBuf);
-	device.freeMemory(transferMem);
+	copy(device, cmdPool, queue, localBuf, transferBuf.buffer, size);
+	transferBuf.destroy(device);
 	return localBuf;
 }
 
@@ -135,17 +135,10 @@ Buffer Buffer::createDeviceLocal(
 	vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
 	const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
 ) {
-	vk::DeviceMemory transferMem;
-	auto transferBuf = create(
-		device, physicalDevice, size,
-		vk::BufferUsageFlagBits::eTransferSrc,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-		transferMem
-	);
-
-	auto transferMemHandle = device.mapMemory(transferMem, 0, size);
-	memcpy(transferMemHandle, data, size);
-	device.unmapMemory(transferMem);
+	auto transferBuf = createTempTransfer(device, physicalDevice, size);
+	transferBuf.mapMemory(device);
+	memcpy(transferBuf.mappedMemory, data, size);
+	transferBuf.unmapMemory(device);
 
 	auto localBuf = create(
 		device, physicalDevice, size,
@@ -153,10 +146,8 @@ Buffer Buffer::createDeviceLocal(
 		vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
 
-	copy(device, cmdPool, queue, localBuf.buffer, transferBuf, size);
-	device.destroyBuffer(transferBuf);
-	device.freeMemory(transferMem);
-
+	copy(device, cmdPool, queue, localBuf.buffer, transferBuf.buffer, size);
+	transferBuf.destroy(device);
 	return localBuf;
 }
 

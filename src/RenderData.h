@@ -7,6 +7,8 @@
 #include <vector>
 #include <array>
 
+#include "Alignment.h"
+
 struct Vertex {
 	constexpr static vk::VertexInputBindingDescription bindingDescription() {
 		return vk::VertexInputBindingDescription()
@@ -43,9 +45,12 @@ struct Vertex {
 };
 
 struct CameraData {
-	glm::mat4 model;
-	glm::mat4 view;
-	glm::mat4 proj;
+	std140(float, pad0);
+	std140(glm::vec3, pad2);
+
+	std140(glm::mat4, model);
+	std140(glm::mat4, view);
+	std140(glm::mat4, proj);
 };
 
 const std::vector<Vertex> VertexData = {

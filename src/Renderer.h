@@ -72,6 +72,7 @@ private:
 	void createFramebuffers();
 
 	void createCommandPool();
+	void createImage();
 	void createVertexBuffer();
 	void createIndexBuffer();
 	void createUniformBuffers();
