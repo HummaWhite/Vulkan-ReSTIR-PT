@@ -13,12 +13,13 @@
 #include <limits>
 #include <set>
 
-#include "util/Error.h"
-#include "VkExtFunctions.h"
-#include "ShaderManager.h"
-#include "Memory.h"
 #include "Instance.h"
 #include "Context.h"
+#include "Swapchain.h"
+#include "ShaderManager.h"
+#include "Memory.h"
+
+#include "util/Error.h"
 #include "util/Timer.h"
 
 struct SwapchainCapabilityDetails {
@@ -42,13 +43,6 @@ private:
 	void initWindow();
 	void initVulkan();
 
-	void createSwapchain();
-	std::tuple<vk::SurfaceFormatKHR, vk::PresentModeKHR> selectSwapchainFormatAndMode(
-		const std::vector<vk::SurfaceFormatKHR>& formats,
-		const std::vector<vk::PresentModeKHR>& presentModes);
-	vk::Extent2D selectSwapchainExtent(const vk::SurfaceCapabilitiesKHR& capabilities);
-	void createSwapchainImageViews();
-
 	void createRenderPass();
 	void createDescriptorSetLayout();
 	void createPipeline();
@@ -69,8 +63,8 @@ private:
 	void drawFrame();
 	void updateUniformBuffer();
 
-	void recreateSwapchain();
-	void cleanupSwapchain();
+	void recreateFrames();
+	void cleanupFrames();
 
 	void cleanupVulkan();
 
@@ -82,16 +76,10 @@ private:
 	int mHeight;
 
 	vk::ApplicationInfo mAppInfo;
-
 	zvk::Instance mInstance;
 	zvk::Context mContext;
 	vk::Device mDevice;
-
-	vk::SwapchainKHR mSwapchain;
-	std::vector<vk::Image> mSwapchainImages;
-	vk::Format mSwapchainFormat;
-	vk::Extent2D mSwapchainExtent;
-	std::vector<vk::ImageView> mSwapchainImageViews;
+	zvk::Swapchain mSwapchain;
 
 	vk::Pipeline mGraphicsPipeline;
 	zvk::ShaderManager mShaderManager;
@@ -99,7 +87,7 @@ private:
 	vk::DescriptorSetLayout mDescriptorSetLayout;
 	vk::PipelineLayout mPipelineLayout;
 
-	std::vector<vk::Framebuffer> mSwapchainFramebuffers;
+	std::vector<vk::Framebuffer> mFramebuffers;
 
 	vk::CommandPool mCommandPool;
 	std::vector<vk::CommandBuffer> mCommandBuffers;

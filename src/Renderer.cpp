@@ -55,9 +55,8 @@ void Renderer::initVulkan() {
 		mInstance = zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
 		mContext = zvk::Context(mInstance, DeviceExtensions);
 		mDevice = mContext.device;
+		mSwapchain = zvk::Swapchain(mInstance, mContext, mWidth, mHeight);
 		
-		createSwapchain();
-		createSwapchainImageViews();
 		createRenderPass();
 		createDescriptorSetLayout();
 		createPipeline();
@@ -78,108 +77,9 @@ void Renderer::initVulkan() {
 	}
 }
 
-void Renderer::createSwapchain() {
-	auto physicalDevice = mInstance.physicalDevice();
-
-	auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(mInstance.surface());
-	auto formats = physicalDevice.getSurfaceFormatsKHR(mInstance.surface());
-	auto presentModes = physicalDevice.getSurfacePresentModesKHR(mInstance.surface());
-
-	auto [format, presentMode] = selectSwapchainFormatAndMode(formats, presentModes);
-	auto extent = selectSwapchainExtent(capabilities);
-
-	uint32_t nImages = capabilities.minImageCount + 1;
-	if (capabilities.maxImageCount) {
-		nImages = std::min(nImages, capabilities.maxImageCount);
-	}
-
-	bool sameQueueFamily = mContext.graphicsQueue.familyIdx == mContext.presentQueue.familyIdx;
-	auto sharingMode = sameQueueFamily ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
-	auto queueFamilyIndices = sameQueueFamily ? std::vector<uint32_t>() :
-		std::vector<uint32_t>({ mContext.graphicsQueue.familyIdx, mContext.presentQueue.familyIdx });
-
-	auto createInfo = vk::SwapchainCreateInfoKHR()
-		.setSurface(mInstance.surface())
-		.setMinImageCount(nImages)
-		.setImageFormat(format.format)
-		.setImageColorSpace(format.colorSpace)
-		.setImageExtent(extent)
-		.setImageArrayLayers(1)
-		.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment)
-		.setImageSharingMode(sharingMode)
-		.setQueueFamilyIndices(queueFamilyIndices)
-		.setPreTransform(capabilities.currentTransform)
-		.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
-		.setPresentMode(presentMode)
-		.setClipped(true);
-
-	mSwapchain = mContext.device.createSwapchainKHR(createInfo);
-	mSwapchainImages = mContext.device.getSwapchainImagesKHR(mSwapchain);
-	mSwapchainFormat = format.format;
-	mSwapchainExtent = extent;
-}
-
-std::tuple<vk::SurfaceFormatKHR, vk::PresentModeKHR> Renderer::selectSwapchainFormatAndMode(
-	const std::vector<vk::SurfaceFormatKHR>& formats, const std::vector<vk::PresentModeKHR>& presentModes
-) {
-	vk::SurfaceFormatKHR format;
-	vk::PresentModeKHR presentMode;
-
-	for (const auto& i : formats) {
-		if (i.format == vk::Format::eB8G8R8A8Srgb && i.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
-			format = i;
-		}
-	}
-	format = formats[0];
-
-	for (const auto& i : presentModes) {
-		if (i == vk::PresentModeKHR::eMailbox) {
-			presentMode = i;
-		}
-	}
-	presentMode = vk::PresentModeKHR::eFifo;
-	return { format, presentMode };
-}
-
-vk::Extent2D Renderer::selectSwapchainExtent(const vk::SurfaceCapabilitiesKHR& capabilities) {
-	if (capabilities.currentExtent.width != UINT32_MAX) {
-		return capabilities.currentExtent;
-	}
-	int width, height;
-	glfwGetFramebufferSize(mMainWindow, &width, &height);
-
-	vk::Extent2D extent(width, height);
-	extent.width = std::clamp(extent.width, capabilities.minImageExtent.width,
-		capabilities.maxImageExtent.width);
-	extent.height = std::clamp(extent.height, capabilities.minImageExtent.height,
-		capabilities.maxImageExtent.height);
-	return extent;
-}
-
-void Renderer::createSwapchainImageViews() {
-	mSwapchainImageViews.resize(mSwapchainImages.size());
-
-	for (size_t i = 0; i < mSwapchainImages.size(); i++) {
-		auto createInfo = vk::ImageViewCreateInfo()
-			.setImage(mSwapchainImages[i])
-			.setViewType(vk::ImageViewType::e2D)
-			.setFormat(mSwapchainFormat)
-			.setComponents(vk::ComponentMapping())
-			.setSubresourceRange(
-				vk::ImageSubresourceRange()
-				.setAspectMask(vk::ImageAspectFlagBits::eColor)
-				.setBaseMipLevel(0)
-				.setLevelCount(1)
-				.setBaseArrayLayer(0)
-				.setLayerCount(1)
-			);
-		mSwapchainImageViews[i] = mContext.device.createImageView(createInfo);
-	}
-}
-
 void Renderer::createRenderPass() {
 	auto colorAttachment = vk::AttachmentDescription()
-		.setFormat(mSwapchainFormat)
+		.setFormat(mSwapchain.format())
 		.setSamples(vk::SampleCountFlagBits::e1)
 		.setLoadOp(vk::AttachmentLoadOp::eClear)
 		.setStoreOp(vk::AttachmentStoreOp::eStore)
@@ -242,10 +142,10 @@ void Renderer::createPipeline() {
 
 	vk::Viewport viewport(
 		0.0f, 0.0f,
-		float(mSwapchainExtent.width), float(mSwapchainExtent.height),
+		float(mSwapchain.width()), float(mSwapchain.height()),
 		0.0f, 1.0f);
 
-	vk::Rect2D scissor({ 0, 0 }, mSwapchainExtent);
+	vk::Rect2D scissor({ 0, 0 }, mSwapchain.extent());
 
 	auto viewportStateInfo = vk::PipelineViewportStateCreateInfo()
 		.setViewports(viewport)
@@ -324,17 +224,17 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::createFramebuffers() {
-	mSwapchainFramebuffers.resize(mSwapchainImages.size());
+	mFramebuffers.resize(mSwapchain.size());
 
-	for (size_t i = 0; i < mSwapchainFramebuffers.size(); i++) {
+	for (size_t i = 0; i < mFramebuffers.size(); i++) {
 		auto framebufferCreateInfo = vk::FramebufferCreateInfo()
 			.setRenderPass(mRenderPass)
-			.setAttachments(mSwapchainImageViews[i])
-			.setWidth(mSwapchainExtent.width)
-			.setHeight(mSwapchainExtent.height)
+			.setAttachments(mSwapchain.imageViews()[i])
+			.setWidth(mSwapchain.width())
+			.setHeight(mSwapchain.height())
 			.setLayers(1);
 
-		mSwapchainFramebuffers[i] = mContext.device.createFramebuffer(framebufferCreateInfo);
+		mFramebuffers[i] = mContext.device.createFramebuffer(framebufferCreateInfo);
 	}
 }
 
@@ -412,7 +312,7 @@ void Renderer::createCommandBuffer() {
 	auto allocateInfo = vk::CommandBufferAllocateInfo()
 		.setCommandPool(mCommandPool)
 		.setLevel(vk::CommandBufferLevel::ePrimary)
-		.setCommandBufferCount(mSwapchainImages.size());
+		.setCommandBufferCount(mSwapchain.size());
 
 	mCommandBuffers = mContext.device.allocateCommandBuffers(allocateInfo);
 }
@@ -446,8 +346,8 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer cmdBuffer, uint32_t imgInde
 
 	auto renderPassBeginInfo = vk::RenderPassBeginInfo()
 		.setRenderPass(mRenderPass)
-		.setFramebuffer(mSwapchainFramebuffers[imgIndex])
-		.setRenderArea({ { 0, 0 }, mSwapchainExtent })
+		.setFramebuffer(mFramebuffers[imgIndex])
+		.setRenderArea({ { 0, 0 }, mSwapchain.extent() })
 		.setClearValues(clearValue);
 
 	cmdBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
@@ -457,8 +357,8 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer cmdBuffer, uint32_t imgInde
 	cmdBuffer.bindVertexBuffers(0, mVertexBuffer.buffer, vk::DeviceSize(0));
 	cmdBuffer.bindIndexBuffer(mIndexBuffer.buffer, 0, vk::IndexType::eUint32);
 
-	cmdBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, mSwapchainExtent.width, mSwapchainExtent.height, 0.0f, 1.0f));
-	cmdBuffer.setScissor(0, vk::Rect2D({ 0, 0 }, mSwapchainExtent));
+	cmdBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, mSwapchain.width(), mSwapchain.height(), 0.0f, 1.0f));
+	cmdBuffer.setScissor(0, vk::Rect2D({ 0, 0 }, mSwapchain.extent()));
 
 	cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, 0, mDescriptorSets[mCurFrameIdx], {});
 
@@ -473,11 +373,13 @@ void Renderer::drawFrame() {
 	if (mContext.device.waitForFences(mInFlightFences[mCurFrameIdx], true, UINT64_MAX) != vk::Result::eSuccess)
 		throw std::runtime_error("Failed to wait for any fences");
 
-	auto [acquireRes, imgIndex] = mContext.device.acquireNextImageKHR(mSwapchain, UINT64_MAX,
-		mImageAvailableSemaphores[mCurFrameIdx]);
+	auto [acquireRes, imgIndex] = mContext.device.acquireNextImageKHR(
+		mSwapchain.swapchain(), UINT64_MAX,
+		mImageAvailableSemaphores[mCurFrameIdx]
+	);
 
 	if (acquireRes == vk::Result::eErrorOutOfDateKHR) {
-		recreateSwapchain();
+		recreateFrames();
 		return;
 	}
 	else if (acquireRes != vk::Result::eSuccess && acquireRes != vk::Result::eSuboptimalKHR) {
@@ -500,19 +402,20 @@ void Renderer::drawFrame() {
 
 	mContext.graphicsQueue.queue.submit(submitInfo, mInFlightFences[mCurFrameIdx]);
 
+	auto swapchain = mSwapchain.swapchain();
 	auto presentInfo = vk::PresentInfoKHR()
 		.setWaitSemaphores(mRenderFinishedSemaphores[mCurFrameIdx])
-		.setSwapchains(mSwapchain)
+		.setSwapchains(swapchain)
 		.setImageIndices(imgIndex);
 
 	try {
 		auto presentRes = mContext.presentQueue.queue.presentKHR(presentInfo);
 	}
 	catch (const vk::SystemError& e) {
-		recreateSwapchain();
+		recreateFrames();
 	}
 	if (mShouldResetSwapchain) {
-		recreateSwapchain();
+		recreateFrames();
 	}
 
 	mCurFrameIdx = (mCurFrameIdx + 1) % NumFramesConcurrent;
@@ -532,12 +435,12 @@ void Renderer::updateUniformBuffer() {
 	CameraData data;
 	data.model = glm::rotate(glm::mat4(1.f), static_cast<float>(mTimer.get() * 1e-9), glm::vec3(0.f, 0.f, 1.f));
 	data.view = glm::lookAt(glm::vec3(2.f), glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f));
-	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchainExtent.width) / mSwapchainExtent.height, .1f, 10.f);
+	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchain.width()) / mSwapchain.height(), .1f, 10.f);
 	data.proj[1][1] *= -1.f;
 	memcpy(mCameraUniforms.mappedMem, &data, sizeof(CameraData));
 }
 
-void Renderer::recreateSwapchain() {
+void Renderer::recreateFrames() {
 	int width, height;
 	glfwGetFramebufferSize(mMainWindow, &width, &height);
 
@@ -547,25 +450,21 @@ void Renderer::recreateSwapchain() {
 	}
 
 	mContext.device.waitIdle();
-	cleanupSwapchain();
+	cleanupFrames();
 
-	createSwapchain();
-	createSwapchainImageViews();
+	mSwapchain = zvk::Swapchain(mInstance, mContext, width, height);
 	createFramebuffers();
 }
 
-void Renderer::cleanupSwapchain() {
-	for (auto& framebuffer : mSwapchainFramebuffers) {
+void Renderer::cleanupFrames() {
+	for (auto& framebuffer : mFramebuffers) {
 		mContext.device.destroyFramebuffer(framebuffer);
 	}
-	for (auto& imageView : mSwapchainImageViews) {
-		mContext.device.destroyImageView(imageView);
-	}
-	mContext.device.destroySwapchainKHR(mSwapchain);
+	mSwapchain.destroy(mContext);
 }
 
 void Renderer::cleanupVulkan() {
-	cleanupSwapchain();
+	cleanupFrames();
 
 	mContext.device.destroyDescriptorPool(mDescriptorPool);
 
