@@ -7,18 +7,6 @@
 	#define VK_NULL_HANDLE_REPLACED 0
 #endif
 
-#define ZVK_DEBUG
-
-#if defined(ZVK_DEBUG)
-const std::vector<const char*> ValidationLayers = {
-	"VK_LAYER_KHRONOS_validation"
-};
-const bool EnableValidationLayer = true;
-#else
-const std::vector<const char*> ValidationLayers;
-const bool EnableValidationLayer = false;
-#endif
-
 const std::vector<const char*> DeviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
@@ -26,28 +14,6 @@ const std::vector<const char*> DeviceExtensions = {
 	VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
 	VK_KHR_RAY_QUERY_EXTENSION_NAME,
 };
-
-static VKAPI_ATTR VkBool32 VKAPI_CALL zvkDebugCallback(
-	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-	VkDebugUtilsMessageTypeFlagsEXT messageType,
-	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-	void* pUserData
-) {
-	Log::bracketLine<0>("Validation layer: " + std::string(pCallbackData->pMessage));
-	return VK_FALSE;
-}
-
-vk::DebugUtilsMessengerCreateInfoEXT zvkNormalDebugCreateInfo() {
-	using Severity = vk::DebugUtilsMessageSeverityFlagBitsEXT;
-	using MsgType = vk::DebugUtilsMessageTypeFlagBitsEXT;
-
-	auto createInfo = vk::DebugUtilsMessengerCreateInfoEXT()
-		.setMessageSeverity(Severity::eWarning | Severity::eError)
-		.setMessageType(MsgType::eGeneral | MsgType::eValidation | MsgType::ePerformance)
-		.setPfnUserCallback(zvkDebugCallback);
-
-	return createInfo;
-}
 
 void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 	// Log::bracketLine<0>("Resize to " + std::to_string(width) + "x" + std::to_string(height));
@@ -86,12 +52,10 @@ void Renderer::initVulkan() {
 		.setApiVersion(VK_API_VERSION_1_2);
 
 	try {
-		queryExtensionsAndLayers();
-		createInstance();
-		setupDebugMessenger();
-		createSurface();
-		selectPhysicalDevice();
-		createLogicalDevice();
+		mInstance = zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
+		mContext = zvk::Context(mInstance, DeviceExtensions);
+		mDevice = mContext.device;
+		
 		createSwapchain();
 		createSwapchainImageViews();
 		createRenderPass();
@@ -114,174 +78,13 @@ void Renderer::initVulkan() {
 	}
 }
 
-void Renderer::queryExtensionsAndLayers() {
-	auto extensionProps = vk::enumerateInstanceExtensionProperties();
-	Log::bracketLine<0>("Vulkan extensions");
-	for (const auto& i : extensionProps) {
-		Log::bracketLine<1>(i.extensionName);
-	}
-
-	uint32_t nExtensions;
-	auto extensions = glfwGetRequiredInstanceExtensions(&nExtensions);
-	mRequiredVkExtensions.resize(nExtensions);
-	std::memcpy(mRequiredVkExtensions.data(), extensions, sizeof(char*) * nExtensions);
-	if (EnableValidationLayer) {
-		mRequiredVkExtensions.push_back((char*)VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-	}
-
-	Log::bracketLine<0>("Required extensions");
-	for (auto extension : mRequiredVkExtensions) {
-		Log::bracketLine<1>(extension);
-	}
-
-	auto layerProps = vk::enumerateInstanceLayerProperties();
-	Log::bracketLine<0>("Vulkan layers");
-	for (const auto& i : layerProps) {
-		Log::bracketLine<1>(i.layerName);
-	}
-
-	if (!EnableValidationLayer) {
-		return;
-	}
-	for (const auto& layerName : ValidationLayers) {
-		bool found = false;
-		for (const auto& prop : layerProps) {
-			if (!std::strcmp(prop.layerName, layerName)) {
-				found = true;
-				break;
-			}
-		}
-		if (!found) {
-			throw std::runtime_error("Required layer: " + std::string(layerName) + " not supported");
-		}
-	}
-}
-
-void Renderer::createInstance() {
-	auto debugInfo = zvkNormalDebugCreateInfo();
-	auto instanceInfo = vk::InstanceCreateInfo()
-		.setPApplicationInfo(&mAppInfo)
-		.setPEnabledExtensionNames(mRequiredVkExtensions)
-		.setPEnabledLayerNames(ValidationLayers)
-		.setPNext(EnableValidationLayer ? &debugInfo : nullptr);
-
-	mInstance = vk::createInstance(instanceInfo);
-	mExtFunctions = zvk::ExtFunctions(mInstance);
-}
-
-void Renderer::createSurface() {
-	if (glfwCreateWindowSurface(mInstance, mMainWindow, nullptr,
-		reinterpret_cast<VkSurfaceKHR*>(&mSurface)) != VK_SUCCESS) {
-		throw std::runtime_error("Cannot create surface");
-	}
-	/*auto createInfo = vk::Win32SurfaceCreateInfoKHR()
-		.setHwnd(glfwGetWin32Window(mMainWindow))
-		.setHinstance(GetModuleHandle(nullptr));
-	mVkSurface = mVkInstance.createWin32SurfaceKHR(createInfo);*/
-}
-
-void Renderer::setupDebugMessenger() {
-	if (!EnableValidationLayer) {
-		return;
-	}
-	auto createInfo = zvkNormalDebugCreateInfo();
-	//mVkDebugMessenger = mVkInstance.createDebugUtilsMessengerEXT(createInfo);
-	mDebugMessenger = mExtFunctions.createDebugUtilsMessenger(createInfo);
-}
-
-void Renderer::selectPhysicalDevice() {
-	mPhysicalDevices = mInstance.enumeratePhysicalDevices();
-	if (mPhysicalDevices.empty()) {
-		throw std::runtime_error("No physical device found");
-	}
-	Log::bracketLine<0>(std::to_string(mPhysicalDevices.size()) + " physical device(s) found");
-	for (const auto& device : mPhysicalDevices) {
-		auto props = device.getProperties();
-		auto features = device.getFeatures();
-		
-		Log::bracketLine<1>("Device " + std::to_string(props.deviceID) + ", " +
-			props.deviceName.data() + ", ");
-
-		if (isDeviceAvailable(device)) {
-			mPhysicalDevice = device;
-		}
-	}
-	if (!mPhysicalDevice) {
-		throw std::runtime_error("No physical device available");
-	}
-	Log::bracketLine<0>("Selected device: " + std::string(mPhysicalDevice.getProperties().deviceName.data()));
-
-	auto queueFamilyIndices = *getDeviceQueueFamilyIndices(mPhysicalDevice);
-	mGraphicsQueueFamilyIndex = queueFamilyIndices.graphicsIndex;
-	mPresentQueueFamilyIndex = queueFamilyIndices.presentIndex;
-	mPhysicalDeviceMemProps = mPhysicalDevice.getMemoryProperties();
-}
-
-bool Renderer::isDeviceAvailable(vk::PhysicalDevice device) {
-	if (!getDeviceQueueFamilyIndices(device)) {
-		return false;
-	}
-	if (!hasDeviceExtension(device)) {
-		return false;
-	}
-	auto swapchainCapability = querySwapchainCapability(device);
-	return swapchainCapability.formats.size() && swapchainCapability.presentModes.size();
-}
-
-std::optional<QueueFamilyIndices> Renderer::getDeviceQueueFamilyIndices(vk::PhysicalDevice device) {
-	auto queueFamilyProps = device.getQueueFamilyProperties();
-	std::optional<uint32_t> graphics, present;
-
-	for (size_t i = 0; i < queueFamilyProps.size(); i++) {
-		if (queueFamilyProps[i].queueFlags & vk::QueueFlagBits::eGraphics) {
-			graphics = i;
-		}
-		if (device.getSurfaceSupportKHR(i, mSurface)) {
-			present = i;
-		}
-		if (graphics && present) {
-			return QueueFamilyIndices{ *graphics, *present };
-		}
-	};
-	return std::nullopt;
-}
-
-bool Renderer::hasDeviceExtension(vk::PhysicalDevice device) {
-	auto extensionProps = device.enumerateDeviceExtensionProperties();
-	std::set<std::string> requiredExtensions(DeviceExtensions.begin(), DeviceExtensions.end());
-
-	for (const auto& e : extensionProps) {
-		requiredExtensions.erase(e.extensionName);
-	}
-	return requiredExtensions.empty();
-}
-
-void Renderer::createLogicalDevice() {
-	std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-	std::set<uint32_t> uniqueQueueFamilies = { mGraphicsQueueFamilyIndex, mPresentQueueFamilyIndex };
-
-	for (const auto& i : uniqueQueueFamilies) {
-		const auto prior = { 1.0f };
-		auto createInfo = vk::DeviceQueueCreateInfo()
-			.setQueueFamilyIndex(i)
-			.setQueuePriorities(prior);
-		queueCreateInfos.push_back(createInfo);
-	}
-	auto deviceFeatures = vk::PhysicalDeviceFeatures();
-
-	auto deviceCreateInfo = vk::DeviceCreateInfo()
-		.setQueueCreateInfos(queueCreateInfos)
-		.setPEnabledFeatures(&deviceFeatures)
-		.setPEnabledLayerNames(ValidationLayers)
-		.setPEnabledExtensionNames(DeviceExtensions);
-
-	mDevice = mPhysicalDevice.createDevice(deviceCreateInfo);
-	mGraphicsQueue = mDevice.getQueue(mGraphicsQueueFamilyIndex, 0);
-	mPresentQueue = mDevice.getQueue(mPresentQueueFamilyIndex, 0);
-}
-
 void Renderer::createSwapchain() {
-	auto [capabilities, formats, presentModes] = querySwapchainCapability(mPhysicalDevice);
+	auto physicalDevice = mInstance.physicalDevice();
+
+	auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(mInstance.surface());
+	auto formats = physicalDevice.getSurfaceFormatsKHR(mInstance.surface());
+	auto presentModes = physicalDevice.getSurfacePresentModesKHR(mInstance.surface());
+
 	auto [format, presentMode] = selectSwapchainFormatAndMode(formats, presentModes);
 	auto extent = selectSwapchainExtent(capabilities);
 
@@ -290,13 +93,13 @@ void Renderer::createSwapchain() {
 		nImages = std::min(nImages, capabilities.maxImageCount);
 	}
 
-	bool sameQueue = mGraphicsQueueFamilyIndex == mPresentQueueFamilyIndex;
-	auto sharingMode = sameQueue ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
-	auto queueFamilyIndices = sameQueue ? std::vector<uint32_t>() :
-		std::vector<uint32_t>({ mGraphicsQueueFamilyIndex, mPresentQueueFamilyIndex });
+	bool sameQueueFamily = mContext.graphicsQueue.familyIdx == mContext.presentQueue.familyIdx;
+	auto sharingMode = sameQueueFamily ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
+	auto queueFamilyIndices = sameQueueFamily ? std::vector<uint32_t>() :
+		std::vector<uint32_t>({ mContext.graphicsQueue.familyIdx, mContext.presentQueue.familyIdx });
 
 	auto createInfo = vk::SwapchainCreateInfoKHR()
-		.setSurface(mSurface)
+		.setSurface(mInstance.surface())
 		.setMinImageCount(nImages)
 		.setImageFormat(format.format)
 		.setImageColorSpace(format.colorSpace)
@@ -310,17 +113,10 @@ void Renderer::createSwapchain() {
 		.setPresentMode(presentMode)
 		.setClipped(true);
 
-	mSwapchain = mDevice.createSwapchainKHR(createInfo);
-	mSwapchainImages = mDevice.getSwapchainImagesKHR(mSwapchain);
+	mSwapchain = mContext.device.createSwapchainKHR(createInfo);
+	mSwapchainImages = mContext.device.getSwapchainImagesKHR(mSwapchain);
 	mSwapchainFormat = format.format;
 	mSwapchainExtent = extent;
-}
-
-SwapchainCapabilityDetails Renderer::querySwapchainCapability(vk::PhysicalDevice device) {
-	auto capabilities = device.getSurfaceCapabilitiesKHR(mSurface);
-	auto formats = device.getSurfaceFormatsKHR(mSurface);
-	auto presentModes = device.getSurfacePresentModesKHR(mSurface);
-	return { capabilities, formats, presentModes };
 }
 
 std::tuple<vk::SurfaceFormatKHR, vk::PresentModeKHR> Renderer::selectSwapchainFormatAndMode(
@@ -377,7 +173,7 @@ void Renderer::createSwapchainImageViews() {
 				.setBaseArrayLayer(0)
 				.setLayerCount(1)
 			);
-		mSwapchainImageViews[i] = mDevice.createImageView(createInfo);
+		mSwapchainImageViews[i] = mContext.device.createImageView(createInfo);
 	}
 }
 
@@ -413,7 +209,7 @@ void Renderer::createRenderPass() {
 		.setSubpasses(subpass)
 		.setDependencies(subpassDependency);
 
-	mRenderPass = mDevice.createRenderPass(renderPassCreateInfo);
+	mRenderPass = mContext.device.createRenderPass(renderPassCreateInfo);
 }
 
 void Renderer::createDescriptorSetLayout() {
@@ -426,11 +222,11 @@ void Renderer::createDescriptorSetLayout() {
 	auto createInfo = vk::DescriptorSetLayoutCreateInfo()
 		.setBindings(cameraBinding);
 
-	mDescriptorSetLayout = mDevice.createDescriptorSetLayout(createInfo);
+	mDescriptorSetLayout = mContext.device.createDescriptorSetLayout(createInfo);
 }
 
 void Renderer::createPipeline() {
-	mShaderManager = zvk::ShaderManager(mDevice);
+	mShaderManager = zvk::ShaderManager(mContext.device);
 
 	auto vertStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
 		mShaderManager.createShaderModule("shaders/test.vert.spv"),
@@ -502,7 +298,7 @@ void Renderer::createPipeline() {
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
 		.setSetLayouts(mDescriptorSetLayout);
 
-	mPipelineLayout = mDevice.createPipelineLayout(pipelineLayoutCreateInfo);
+	mPipelineLayout = mContext.device.createPipelineLayout(pipelineLayoutCreateInfo);
 
 	auto pipelineCreateInfo = vk::GraphicsPipelineCreateInfo()
 		.setStages(shaderStages)
@@ -520,7 +316,7 @@ void Renderer::createPipeline() {
 		.setBasePipelineHandle(nullptr)
 		.setBasePipelineIndex(-1);
 
-	auto result = mDevice.createGraphicsPipeline(nullptr, pipelineCreateInfo);
+	auto result = mContext.device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
 	if (result.result != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to create pipeline");
 	}
@@ -538,44 +334,39 @@ void Renderer::createFramebuffers() {
 			.setHeight(mSwapchainExtent.height)
 			.setLayers(1);
 
-		mSwapchainFramebuffers[i] = mDevice.createFramebuffer(framebufferCreateInfo);
+		mSwapchainFramebuffers[i] = mContext.device.createFramebuffer(framebufferCreateInfo);
 	}
 }
 
 void Renderer::createCommandPool() {
 	auto commandPoolCreateInfo = vk::CommandPoolCreateInfo()
 		.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
-		.setQueueFamilyIndex(mGraphicsQueueFamilyIndex);
+		.setQueueFamilyIndex(mContext.graphicsQueue.familyIdx);
 
-	mCommandPool = mDevice.createCommandPool(commandPoolCreateInfo);
+	mCommandPool = mContext.device.createCommandPool(commandPoolCreateInfo);
 }
 
 void Renderer::createVertexBuffer() {
 	size_t size = VertexData.size() * sizeof(Vertex);
-
 	mVertexBuffer = zvk::Buffer::createDeviceLocal(
-		mDevice, mPhysicalDevice, mCommandPool, mGraphicsQueue,
-		VertexData.data(), size, vk::BufferUsageFlagBits::eVertexBuffer
+		mContext, mCommandPool, VertexData.data(), size, vk::BufferUsageFlagBits::eVertexBuffer
 	);
 }
 
 void Renderer::createIndexBuffer() {
 	size_t size = IndexData.size() * sizeof(uint32_t);
-
 	mIndexBuffer = zvk::Buffer::createDeviceLocal(
-		mDevice, mPhysicalDevice, mCommandPool, mGraphicsQueue,
-		IndexData.data(), size, vk::BufferUsageFlagBits::eIndexBuffer
+		mContext, mCommandPool, IndexData.data(), size, vk::BufferUsageFlagBits::eIndexBuffer
 	);
 }
 
 void Renderer::createUniformBuffers() {
 	size_t size = sizeof(CameraData);
-
-	mCameraUniforms = zvk::Buffer::create(mDevice, mPhysicalDevice, size,
+	mCameraUniforms = zvk::Buffer::create(mContext, size,
 		vk::BufferUsageFlagBits::eUniformBuffer,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 	);
-	mCameraUniforms.mapMemory(mDevice);
+	mCameraUniforms.mapMemory(mContext);
 }
 
 void Renderer::createDescriptorPool() {
@@ -585,7 +376,7 @@ void Renderer::createDescriptorPool() {
 		.setPoolSizes(size)
 		.setMaxSets(NumFramesConcurrent);
 
-	mDescriptorPool = mDevice.createDescriptorPool(createInfo);
+	mDescriptorPool = mContext.device.createDescriptorPool(createInfo);
 }
 
 void Renderer::createDescriptorSets() {
@@ -595,7 +386,7 @@ void Renderer::createDescriptorSets() {
 		.setDescriptorPool(mDescriptorPool)
 		.setSetLayouts(layouts);
 
-	mDescriptorSets = mDevice.allocateDescriptorSets(allocInfo);
+	mDescriptorSets = mContext.device.allocateDescriptorSets(allocInfo);
 
 	std::vector<vk::WriteDescriptorSet> updates;
 
@@ -614,7 +405,7 @@ void Renderer::createDescriptorSets() {
 			.setBufferInfo(bufferInfo)
 		);
 	}
-	mDevice.updateDescriptorSets(updates, {});
+	mContext.device.updateDescriptorSets(updates, {});
 }
 
 void Renderer::createCommandBuffer() {
@@ -623,7 +414,7 @@ void Renderer::createCommandBuffer() {
 		.setLevel(vk::CommandBufferLevel::ePrimary)
 		.setCommandBufferCount(mSwapchainImages.size());
 
-	mCommandBuffers = mDevice.allocateCommandBuffers(allocateInfo);
+	mCommandBuffers = mContext.device.allocateCommandBuffers(allocateInfo);
 }
 
 void Renderer::createSyncObjects() {
@@ -637,9 +428,9 @@ void Renderer::createSyncObjects() {
 	mInFlightFences.resize(NumFramesConcurrent);
 
 	for (size_t i = 0; i < NumFramesConcurrent; i++) {
-		mImageAvailableSemaphores[i] = mDevice.createSemaphore(semaphoreCreateInfo);
-		mRenderFinishedSemaphores[i] = mDevice.createSemaphore(semaphoreCreateInfo);
-		mInFlightFences[i] = mDevice.createFence(fenceCreateInfo);
+		mImageAvailableSemaphores[i] = mContext.device.createSemaphore(semaphoreCreateInfo);
+		mRenderFinishedSemaphores[i] = mContext.device.createSemaphore(semaphoreCreateInfo);
+		mInFlightFences[i] = mContext.device.createFence(fenceCreateInfo);
 	}
 }
 
@@ -679,10 +470,10 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer cmdBuffer, uint32_t imgInde
 }
 
 void Renderer::drawFrame() {
-	if (mDevice.waitForFences(mInFlightFences[mCurFrameIdx], true, UINT64_MAX) != vk::Result::eSuccess)
+	if (mContext.device.waitForFences(mInFlightFences[mCurFrameIdx], true, UINT64_MAX) != vk::Result::eSuccess)
 		throw std::runtime_error("Failed to wait for any fences");
 
-	auto [acquireRes, imgIndex] = mDevice.acquireNextImageKHR(mSwapchain, UINT64_MAX,
+	auto [acquireRes, imgIndex] = mContext.device.acquireNextImageKHR(mSwapchain, UINT64_MAX,
 		mImageAvailableSemaphores[mCurFrameIdx]);
 
 	if (acquireRes == vk::Result::eErrorOutOfDateKHR) {
@@ -693,7 +484,7 @@ void Renderer::drawFrame() {
 		throw std::runtime_error("Failed to acquire image from swapchain");
 	}
 
-	mDevice.resetFences(mInFlightFences[mCurFrameIdx]);
+	mContext.device.resetFences(mInFlightFences[mCurFrameIdx]);
 
 	mCommandBuffers[mCurFrameIdx].reset();
 	recordCommandBuffer(mCommandBuffers[mCurFrameIdx], imgIndex);
@@ -707,7 +498,7 @@ void Renderer::drawFrame() {
 		.setWaitDstStageMask(waitStage)
 		.setSignalSemaphores(mRenderFinishedSemaphores[mCurFrameIdx]);
 
-	mGraphicsQueue.submit(submitInfo, mInFlightFences[mCurFrameIdx]);
+	mContext.graphicsQueue.queue.submit(submitInfo, mInFlightFences[mCurFrameIdx]);
 
 	auto presentInfo = vk::PresentInfoKHR()
 		.setWaitSemaphores(mRenderFinishedSemaphores[mCurFrameIdx])
@@ -715,7 +506,7 @@ void Renderer::drawFrame() {
 		.setImageIndices(imgIndex);
 
 	try {
-		auto presentRes = mPresentQueue.presentKHR(presentInfo);
+		auto presentRes = mContext.presentQueue.queue.presentKHR(presentInfo);
 	}
 	catch (const vk::SystemError& e) {
 		recreateSwapchain();
@@ -743,7 +534,7 @@ void Renderer::updateUniformBuffer() {
 	data.view = glm::lookAt(glm::vec3(2.f), glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f));
 	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchainExtent.width) / mSwapchainExtent.height, .1f, 10.f);
 	data.proj[1][1] *= -1.f;
-	memcpy(mCameraUniforms.mappedMemory, &data, sizeof(CameraData));
+	memcpy(mCameraUniforms.mappedMem, &data, sizeof(CameraData));
 }
 
 void Renderer::recreateSwapchain() {
@@ -755,7 +546,7 @@ void Renderer::recreateSwapchain() {
 		glfwWaitEvents();
 	}
 
-	mDevice.waitIdle();
+	mContext.device.waitIdle();
 	cleanupSwapchain();
 
 	createSwapchain();
@@ -765,54 +556,46 @@ void Renderer::recreateSwapchain() {
 
 void Renderer::cleanupSwapchain() {
 	for (auto& framebuffer : mSwapchainFramebuffers) {
-		mDevice.destroyFramebuffer(framebuffer);
+		mContext.device.destroyFramebuffer(framebuffer);
 	}
 	for (auto& imageView : mSwapchainImageViews) {
-		mDevice.destroyImageView(imageView);
+		mContext.device.destroyImageView(imageView);
 	}
-	mDevice.destroySwapchainKHR(mSwapchain);
+	mContext.device.destroySwapchainKHR(mSwapchain);
 }
 
 void Renderer::cleanupVulkan() {
 	cleanupSwapchain();
 
-	mDevice.destroyDescriptorPool(mDescriptorPool);
+	mContext.device.destroyDescriptorPool(mDescriptorPool);
 
-	mCameraUniforms.destroy(mDevice);
+	mCameraUniforms.destroy(mContext.device);
 
-	mDevice.destroyDescriptorSetLayout(mDescriptorSetLayout);
+	mContext.device.destroyDescriptorSetLayout(mDescriptorSetLayout);
 
-	mVertexBuffer.destroy(mDevice);
-	mIndexBuffer.destroy(mDevice);
+	mVertexBuffer.destroy(mContext.device);
+	mIndexBuffer.destroy(mContext.device);
 
-	mDevice.destroyPipeline(mGraphicsPipeline);
-	mDevice.destroyPipelineLayout(mPipelineLayout);
+	mContext.device.destroyPipeline(mGraphicsPipeline);
+	mContext.device.destroyPipelineLayout(mPipelineLayout);
 
-	mDevice.destroyRenderPass(mRenderPass);
+	mContext.device.destroyRenderPass(mRenderPass);
 
 	for (auto& fence : mInFlightFences) {
-		mDevice.destroyFence(fence);
+		mContext.device.destroyFence(fence);
 	}
 	for (auto& sema : mImageAvailableSemaphores) {
-		mDevice.destroySemaphore(sema);
+		mContext.device.destroySemaphore(sema);
 	}
 	for (auto& sema : mRenderFinishedSemaphores) {
-		mDevice.destroySemaphore(sema);
+		mContext.device.destroySemaphore(sema);
 	}
 
-	mDevice.destroyCommandPool(mCommandPool);
+	mContext.device.destroyCommandPool(mCommandPool);
 
 	mShaderManager.destroyShaderModules();
 
-	mDevice.destroy();
-
-	if (EnableValidationLayer) {
-		//mVkInstance.destroyDebugUtilsMessengerEXT(mVkDebugMessenger);
-		mExtFunctions.destroyDebugUtilsMessenger(mDebugMessenger);
-	}
-
-	mInstance.destroySurfaceKHR(mSurface);
-	mInstance.destroy();
+	mContext.destroy();
 }
 
 void Renderer::exec() {
@@ -826,7 +609,7 @@ void Renderer::exec() {
 		glfwPollEvents();
 		drawFrame();
 	}
-	mDevice.waitIdle();
+	mContext.device.waitIdle();
 
 	cleanupVulkan();
 	glfwDestroyWindow(mMainWindow);

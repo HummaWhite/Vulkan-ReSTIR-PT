@@ -17,12 +17,9 @@
 #include "VkExtFunctions.h"
 #include "ShaderManager.h"
 #include "Memory.h"
+#include "Instance.h"
+#include "Context.h"
 #include "util/Timer.h"
-
-struct QueueFamilyIndices {
-	uint32_t graphicsIndex;
-	uint32_t presentIndex;
-};
 
 struct SwapchainCapabilityDetails {
 	vk::SurfaceCapabilitiesKHR capabilities;
@@ -45,20 +42,7 @@ private:
 	void initWindow();
 	void initVulkan();
 
-	void queryExtensionsAndLayers();
-	void createInstance();
-	void setupDebugMessenger();
-
-	void createSurface();
-
-	void selectPhysicalDevice();
-	bool isDeviceAvailable(vk::PhysicalDevice device);
-	std::optional<QueueFamilyIndices> getDeviceQueueFamilyIndices(vk::PhysicalDevice device);
-	bool hasDeviceExtension(vk::PhysicalDevice device);
-
-	void createLogicalDevice();
 	void createSwapchain();
-	SwapchainCapabilityDetails querySwapchainCapability(vk::PhysicalDevice device);
 	std::tuple<vk::SurfaceFormatKHR, vk::PresentModeKHR> selectSwapchainFormatAndMode(
 		const std::vector<vk::SurfaceFormatKHR>& formats,
 		const std::vector<vk::PresentModeKHR>& presentModes);
@@ -98,26 +82,10 @@ private:
 	int mHeight;
 
 	vk::ApplicationInfo mAppInfo;
-	std::vector<char*> mRequiredVkExtensions;
-	std::vector<char*> mRequiredVkLayers;
 
-	vk::Instance mInstance;
-	zvk::ExtFunctions mExtFunctions;
-	bool mEnableValidationLayer = true;
-	vk::DebugUtilsMessengerEXT mDebugMessenger;
-
-	std::vector<vk::PhysicalDevice> mPhysicalDevices;
-	vk::PhysicalDevice mPhysicalDevice;
-	vk::PhysicalDeviceMemoryProperties mPhysicalDeviceMemProps;
-
-	uint32_t mGraphicsQueueFamilyIndex;
-	uint32_t mPresentQueueFamilyIndex;
-	vk::Queue mGraphicsQueue;
-	vk::Queue mPresentQueue;
-
+	zvk::Instance mInstance;
+	zvk::Context mContext;
 	vk::Device mDevice;
-
-	vk::SurfaceKHR mSurface;
 
 	vk::SwapchainKHR mSwapchain;
 	std::vector<vk::Image> mSwapchainImages;

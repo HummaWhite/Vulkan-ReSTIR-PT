@@ -3,7 +3,7 @@
 NAMESPACE_BEGIN(zvk)
 
 std::optional<uint32_t> findMemoryType(
-	vk::PhysicalDeviceMemoryProperties physicalDeviceMemProps, 
+	const vk::PhysicalDeviceMemoryProperties& physicalDeviceMemProps, 
 	vk::MemoryRequirements requirements, 
 	vk::MemoryPropertyFlags requestedProps
 ) {
@@ -17,7 +17,7 @@ std::optional<uint32_t> findMemoryType(
 }
 
 vk::Buffer Buffer::create(
-	vk::Device device, vk::PhysicalDevice physicalDevice,
+	vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
 	vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::DeviceMemory& memory
 ) {
 	auto bufferCreateInfo = vk::BufferCreateInfo()
@@ -27,7 +27,7 @@ vk::Buffer Buffer::create(
 
 	auto buffer = device.createBuffer(bufferCreateInfo);
 	auto requirements = device.getBufferMemoryRequirements(buffer);
-	auto memTypeIndex = findMemoryType(physicalDevice.getMemoryProperties(), requirements, properties);
+	auto memTypeIndex = findMemoryType(memProps, requirements, properties);
 
 	if (!memTypeIndex) {
 		throw std::runtime_error("Required memory type not found");
@@ -44,7 +44,7 @@ vk::Buffer Buffer::create(
 }
 
 Buffer Buffer::create(
-	vk::Device device, vk::PhysicalDevice physicalDevice,
+	vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
 	vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties
 ) {
 	Buffer buffer;
@@ -56,7 +56,7 @@ Buffer Buffer::create(
 
 	buffer.buffer = device.createBuffer(bufferCreateInfo);
 	auto requirements = device.getBufferMemoryRequirements(buffer.buffer);
-	auto memTypeIndex = findMemoryType(physicalDevice.getMemoryProperties(), requirements, properties);
+	auto memTypeIndex = findMemoryType(memProps, requirements, properties);
 
 	if (!memTypeIndex) {
 		throw std::runtime_error("Required memory type not found");
@@ -77,6 +77,12 @@ Buffer Buffer::create(
 	return buffer;
 }
 
+Buffer Buffer::create(
+	const Context& ctx, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties
+) {
+	return create(ctx.device, ctx.memProperties, size, usage, properties);
+}
+
 void Buffer::copy(
 	vk::Device device, vk::CommandPool cmdPool, vk::Queue queue,
 	vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size
@@ -90,6 +96,7 @@ void Buffer::copy(
 	auto cmdBeginInfo = vk::CommandBufferBeginInfo()
 		.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
+
 	auto copyInfo = vk::BufferCopy().setSrcOffset(0).setDstOffset(0).setSize(size);
 
 	cmdBuffer.begin(cmdBeginInfo);
@@ -102,25 +109,28 @@ void Buffer::copy(
 	queue.waitIdle();
 }
 
-Buffer Buffer::createTempTransfer(vk::Device device, vk::PhysicalDevice physicalDevice, vk::DeviceSize size) {
+Buffer Buffer::createTempTransfer(
+	vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps, vk::DeviceSize size
+) {
 	return create(
-		device, physicalDevice, size,
+		device, memProps, size,
 		vk::BufferUsageFlagBits::eTransferSrc,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 	);
 }
 
 vk::Buffer Buffer::createDeviceLocal(
-	vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
+	vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
+	vk::CommandPool cmdPool, vk::Queue queue,
 	const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory
 ) {
-	auto transferBuf = createTempTransfer(device, physicalDevice, size);
+	auto transferBuf = createTempTransfer(device, memProps, size);
 	transferBuf.mapMemory(device);
-	memcpy(transferBuf.mappedMemory, data, size);
+	memcpy(transferBuf.mappedMem, data, size);
 	transferBuf.unmapMemory(device);
 
 	auto localBuf = create(
-		device, physicalDevice, size,
+		device, memProps, size,
 		vk::BufferUsageFlagBits::eTransferDst | usage,
 		vk::MemoryPropertyFlagBits::eDeviceLocal,
 		memory
@@ -132,16 +142,17 @@ vk::Buffer Buffer::createDeviceLocal(
 }
 
 Buffer Buffer::createDeviceLocal(
-	vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
+	vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
+	vk::CommandPool cmdPool, vk::Queue queue,
 	const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
 ) {
-	auto transferBuf = createTempTransfer(device, physicalDevice, size);
+	auto transferBuf = createTempTransfer(device, memProps, size);
 	transferBuf.mapMemory(device);
-	memcpy(transferBuf.mappedMemory, data, size);
+	memcpy(transferBuf.mappedMem, data, size);
 	transferBuf.unmapMemory(device);
 
 	auto localBuf = create(
-		device, physicalDevice, size,
+		device, memProps, size,
 		vk::BufferUsageFlagBits::eTransferDst | usage,
 		vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
@@ -151,13 +162,23 @@ Buffer Buffer::createDeviceLocal(
 	return localBuf;
 }
 
+Buffer Buffer::createDeviceLocal(
+	const Context& ctx, vk::CommandPool cmdPool,
+	const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
+) {
+	return createDeviceLocal(
+		ctx.device, ctx.memProperties, cmdPool, ctx.graphicsQueue.queue,
+		data, size, usage
+	);
+}
+
 void Buffer::mapMemory(vk::Device device) {
-	mappedMemory = device.mapMemory(memory, 0, size);
+	mappedMem = device.mapMemory(memory, 0, size);
 }
 
 void Buffer::unmapMemory(vk::Device device) {
 	device.unmapMemory(memory);
-	mappedMemory = nullptr;
+	mappedMem = nullptr;
 }
 
 NAMESPACE_END(zvk)

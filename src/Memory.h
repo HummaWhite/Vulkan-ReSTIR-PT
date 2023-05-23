@@ -5,6 +5,8 @@
 #include <iostream>
 #include <optional>
 
+#include "Context.h"
+
 #include "util/NamespaceDecl.h"
 #include "util/EnumBitField.h"
 
@@ -12,7 +14,7 @@ NAMESPACE_BEGIN(zvk)
 
 struct DeviceLocalBufferMemoryCreateInfo {
 	vk::Device device;
-	vk::PhysicalDevice physicalDevice;
+	vk::PhysicalDeviceMemoryProperties physicalDeviceMemProps;
 	vk::CommandPool cmdPool;
 	vk::Queue queue;
 	void* data;
@@ -31,33 +33,47 @@ struct Buffer {
 	}
 
 	static vk::Buffer create(
-		vk::Device device, vk::PhysicalDevice physicalDevice,
+		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
 		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::DeviceMemory& memory);
 
 	static Buffer create(
-		vk::Device device, vk::PhysicalDevice physicalDevice,
+		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
+		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+
+	static Buffer create(
+		const Context& ctx,
 		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
 
 	static void copy(
 		vk::Device device, vk::CommandPool cmdPool, vk::Queue queue,
 		vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size);
 
-	static Buffer createTempTransfer(vk::Device device, vk::PhysicalDevice physicalDevice, vk::DeviceSize size);
+	static Buffer createTempTransfer(
+		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps, vk::DeviceSize size);
 
 	static vk::Buffer createDeviceLocal(
-		vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
+		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
+		vk::CommandPool cmdPool, vk::Queue queue,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory);
 
 	static Buffer createDeviceLocal(
-		vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
+		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
+		vk::CommandPool cmdPool, vk::Queue queue,
+		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
+
+	static Buffer createDeviceLocal(
+		const Context& ctx, vk::CommandPool cmdPool,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
 
 	void writeBuffer(
-		vk::Device device, vk::PhysicalDevice physicalDevice, vk::CommandPool cmdPool, vk::Queue queue,
+		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
+		vk::CommandPool cmdPool, vk::Queue queue,
 		vk::Buffer buffer, vk::DeviceSize offset, vk::DeviceSize size, const void* data);
 
 	void mapMemory(vk::Device device);
 	void unmapMemory(vk::Device device);
+	void mapMemory(const Context& ctx) { mapMemory(ctx.device); }
+	void unmapMemory(const Context& ctx) { unmapMemory(ctx.device); }
 
 	vk::Buffer buffer;
 	vk::DeviceMemory memory;
@@ -65,7 +81,7 @@ struct Buffer {
 	vk::DeviceSize realSize;
 	vk::MemoryPropertyFlags properties;
 	vk::BufferUsageFlags usage;
-	void* mappedMemory = nullptr;
+	void* mappedMem = nullptr;
 };
 
 NAMESPACE_END(zvk)
