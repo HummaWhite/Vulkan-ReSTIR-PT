@@ -67,6 +67,7 @@ void Renderer::initVulkan() {
 		createDescriptorPool();
 		createDescriptorSets();
 		createIndexBuffer();
+		createTextureImage();
 		createCommandBuffer();
 		createSyncObjects();
 	}
@@ -246,27 +247,48 @@ void Renderer::createCommandPool() {
 	mCommandPool = mContext.device.createCommandPool(commandPoolCreateInfo);
 }
 
+void Renderer::createTextureImage() {
+	auto hostImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, 4);
+
+	mStagingBuffer = zvk::Memory::createBuffer(mContext, hostImage->byteSize(),
+		vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+	);
+
+	mStagingBuffer.mapMemory();
+	memcpy(mStagingBuffer.data, hostImage->data(), hostImage->byteSize());
+	mStagingBuffer.unmapMemory();
+
+	mTextureImage = zvk::Memory::createImage2D(
+		mContext, hostImage->extent(), hostImage->format(),
+		vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+		vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
+
+	delete hostImage;
+}
+
 void Renderer::createVertexBuffer() {
 	size_t size = VertexData.size() * sizeof(Vertex);
-	mVertexBuffer = zvk::Buffer::createDeviceLocal(
+	mVertexBuffer = zvk::Memory::createLocalBuffer(
 		mContext, mCommandPool, VertexData.data(), size, vk::BufferUsageFlagBits::eVertexBuffer
 	);
 }
 
 void Renderer::createIndexBuffer() {
 	size_t size = IndexData.size() * sizeof(uint32_t);
-	mIndexBuffer = zvk::Buffer::createDeviceLocal(
+	mIndexBuffer = zvk::Memory::createLocalBuffer(
 		mContext, mCommandPool, IndexData.data(), size, vk::BufferUsageFlagBits::eIndexBuffer
 	);
 }
 
 void Renderer::createUniformBuffers() {
 	size_t size = sizeof(CameraData);
-	mCameraUniforms = zvk::Buffer::create(mContext, size,
+	mCameraUniforms = zvk::Memory::createBuffer(mContext, size,
 		vk::BufferUsageFlagBits::eUniformBuffer,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 	);
-	mCameraUniforms.mapMemory(mContext);
+	mCameraUniforms.mapMemory();
 }
 
 void Renderer::createDescriptorPool() {
@@ -437,7 +459,7 @@ void Renderer::updateUniformBuffer() {
 	data.view = glm::lookAt(glm::vec3(2.f), glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f));
 	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchain.width()) / mSwapchain.height(), .1f, 10.f);
 	data.proj[1][1] *= -1.f;
-	memcpy(mCameraUniforms.mappedMem, &data, sizeof(CameraData));
+	memcpy(mCameraUniforms.data, &data, sizeof(CameraData));
 }
 
 void Renderer::recreateFrames() {
@@ -468,12 +490,13 @@ void Renderer::cleanupVulkan() {
 
 	mContext.device.destroyDescriptorPool(mDescriptorPool);
 
-	mCameraUniforms.destroy(mContext.device);
+	mCameraUniforms.destroy();
 
 	mContext.device.destroyDescriptorSetLayout(mDescriptorSetLayout);
 
-	mVertexBuffer.destroy(mContext.device);
-	mIndexBuffer.destroy(mContext.device);
+	mVertexBuffer.destroy();
+	mIndexBuffer.destroy();
+	mTextureImage.destroy();
 
 	mContext.device.destroyPipeline(mGraphicsPipeline);
 	mContext.device.destroyPipelineLayout(mPipelineLayout);

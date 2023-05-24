@@ -18,6 +18,7 @@
 #include "Swapchain.h"
 #include "ShaderManager.h"
 #include "Memory.h"
+#include "Image.h"
 
 #include "util/Error.h"
 #include "util/Timer.h"
@@ -50,7 +51,7 @@ private:
 	void createFramebuffers();
 
 	void createCommandPool();
-	void createImage();
+	void createTextureImage();
 	void createVertexBuffer();
 	void createIndexBuffer();
 	void createUniformBuffers();
@@ -102,6 +103,9 @@ private:
 	zvk::Buffer mCameraUniforms;
 	vk::DescriptorPool mDescriptorPool;
 	std::vector<vk::DescriptorSet> mDescriptorSets;
+
+	zvk::Image mTextureImage;
+	zvk::Buffer mStagingBuffer;
 
 	bool mShouldResetSwapchain = false;
 
