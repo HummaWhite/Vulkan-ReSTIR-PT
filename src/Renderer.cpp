@@ -61,14 +61,13 @@ void Renderer::initVulkan() {
 		createDescriptorSetLayout();
 		createPipeline();
 		createFramebuffers();
-		createCommandPool();
 		createVertexBuffer();
 		createUniformBuffers();
 		createDescriptorPool();
 		createDescriptorSets();
 		createIndexBuffer();
 		createTextureImage();
-		createCommandBuffer();
+		createRenderCmdBuffers();
 		createSyncObjects();
 	}
 	catch (const std::exception& e) {
@@ -239,14 +238,6 @@ void Renderer::createFramebuffers() {
 	}
 }
 
-void Renderer::createCommandPool() {
-	auto createInfo = vk::CommandPoolCreateInfo()
-		.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
-		.setQueueFamilyIndex(mContext.queGeneralUse.familyIdx);
-
-	mCommandPool = mContext.device.createCommandPool(createInfo);
-}
-
 void Renderer::createTextureImage() {
 	auto hostImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, 4);
 
@@ -262,14 +253,14 @@ void Renderer::createTextureImage() {
 void Renderer::createVertexBuffer() {
 	size_t size = VertexData.size() * sizeof(Vertex);
 	mVertexBuffer = zvk::Memory::createLocalBuffer(
-		mContext, mCommandPool, VertexData.data(), size, vk::BufferUsageFlagBits::eVertexBuffer
+		mContext, zvk::QueueIdx::GeneralUse, VertexData.data(), size, vk::BufferUsageFlagBits::eVertexBuffer
 	);
 }
 
 void Renderer::createIndexBuffer() {
 	size_t size = IndexData.size() * sizeof(uint32_t);
 	mIndexBuffer = zvk::Memory::createLocalBuffer(
-		mContext, mCommandPool, IndexData.data(), size, vk::BufferUsageFlagBits::eIndexBuffer
+		mContext, zvk::QueueIdx::GeneralUse, IndexData.data(), size, vk::BufferUsageFlagBits::eIndexBuffer
 	);
 }
 
@@ -321,13 +312,8 @@ void Renderer::createDescriptorSets() {
 	mContext.device.updateDescriptorSets(updates, {});
 }
 
-void Renderer::createCommandBuffer() {
-	auto allocateInfo = vk::CommandBufferAllocateInfo()
-		.setCommandPool(mCommandPool)
-		.setLevel(vk::CommandBufferLevel::ePrimary)
-		.setCommandBufferCount(mSwapchain.size());
-
-	mCommandBuffers = mContext.device.allocateCommandBuffers(allocateInfo);
+void Renderer::createRenderCmdBuffers() {
+	mGCTCmdBuffers = zvk::Command::createPrimary(mContext, zvk::QueueIdx::GeneralUse, NumFramesConcurrent);
 }
 
 void Renderer::createSyncObjects() {
@@ -347,7 +333,7 @@ void Renderer::createSyncObjects() {
 	}
 }
 
-void Renderer::recordCommandBuffer(vk::CommandBuffer cmdBuffer, uint32_t imgIndex) {
+void Renderer::recordRenderCommands(vk::CommandBuffer cmdBuffer, uint32_t imgIndex) {
 	auto beginInfo = vk::CommandBufferBeginInfo()
 		.setFlags(vk::CommandBufferUsageFlagBits{})
 		.setPInheritanceInfo(nullptr);
@@ -402,19 +388,21 @@ void Renderer::drawFrame() {
 
 	mContext.device.resetFences(mInFlightFences[mCurFrameIdx]);
 
-	mCommandBuffers[mCurFrameIdx].reset();
-	recordCommandBuffer(mCommandBuffers[mCurFrameIdx], imgIndex);
+	mGCTCmdBuffers[mCurFrameIdx].cmd.reset();
+	recordRenderCommands(mGCTCmdBuffers[mCurFrameIdx].cmd, imgIndex);
 
 	updateUniformBuffer();
 
 	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 	auto submitInfo = vk::SubmitInfo()
-		.setCommandBuffers(mCommandBuffers[mCurFrameIdx])
+		.setCommandBuffers(mGCTCmdBuffers[mCurFrameIdx].cmd)
 		.setWaitSemaphores(mImageAvailableSemaphores[mCurFrameIdx])
 		.setWaitDstStageMask(waitStage)
 		.setSignalSemaphores(mRenderFinishedSemaphores[mCurFrameIdx]);
 
-	mContext.queGeneralUse.queue.submit(submitInfo, mInFlightFences[mCurFrameIdx]);
+	mContext.queues[zvk::QueueIdx::GeneralUse].queue.submit(
+		submitInfo, mInFlightFences[mCurFrameIdx]
+	);
 
 	auto swapchain = mSwapchain.swapchain();
 	auto presentInfo = vk::PresentInfoKHR()
@@ -423,7 +411,7 @@ void Renderer::drawFrame() {
 		.setImageIndices(imgIndex);
 
 	try {
-		auto presentRes = mContext.quePresent.queue.presentKHR(presentInfo);
+		auto presentRes = mContext.queues[zvk::QueueIdx::Present].queue.presentKHR(presentInfo);
 	}
 	catch (const vk::SystemError& e) {
 		recreateFrames();
@@ -474,7 +462,7 @@ void Renderer::cleanupFrames() {
 	for (auto& framebuffer : mFramebuffers) {
 		mContext.device.destroyFramebuffer(framebuffer);
 	}
-	mSwapchain.destroy(mContext);
+	mSwapchain.destroy();
 }
 
 void Renderer::cleanupVulkan() {
@@ -505,8 +493,9 @@ void Renderer::cleanupVulkan() {
 		mContext.device.destroySemaphore(sema);
 	}
 
-	mContext.device.freeCommandBuffers(mCommandPool, mCommandBuffers);
-	mContext.device.destroyCommandPool(mCommandPool);
+	for (auto& cmd : mGCTCmdBuffers) {
+		cmd.destroy();
+	}
 
 	mShaderManager.destroyShaderModules();
 

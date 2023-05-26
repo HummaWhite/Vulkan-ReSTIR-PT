@@ -11,7 +11,7 @@ void Buffer::unmapMemory() {
 	data = nullptr;
 }
 
-void Image::changeLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
+void Image::transitLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
 }
 
 namespace Memory {
@@ -166,7 +166,7 @@ namespace Memory {
 	}
 
 	Buffer createLocalBuffer(
-		const Context& ctx, vk::CommandPool cmdPool,
+		const Context& ctx, QueueIdx queueIdx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
 	) {
 		auto transferBuf = createTransferBuffer(ctx, size);
@@ -180,7 +180,10 @@ namespace Memory {
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 
-		copyBuffer(ctx.device, cmdPool, ctx.queGeneralUse.queue, localBuf.buffer, transferBuf.buffer, size);
+		copyBuffer(
+			ctx.device, ctx.cmdPools[queueIdx], ctx.queues[queueIdx].queue,
+			localBuf.buffer, transferBuf.buffer, size
+		);
 		transferBuf.destroy();
 		return localBuf;
 	}

@@ -55,7 +55,7 @@ public:
 		mCtx->device.destroyImage(image);
 	}
 
-	void changeLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+	void transitLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
 
 public:
 	vk::Image image;
@@ -100,7 +100,7 @@ namespace Memory {
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory);
 
 	Buffer createLocalBuffer(
-		const Context& ctx, vk::CommandPool cmdPool,
+		const Context& ctx, QueueIdx queueIdx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
 
 	vk::Image createImage2D(

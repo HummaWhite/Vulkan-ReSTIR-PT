@@ -4,19 +4,20 @@
 
 NAMESPACE_BEGIN(zvk)
 
-Swapchain::Swapchain(const Instance& instance, const Context& context, uint32_t width, uint32_t height) {
-	createSwapchain(instance, context, width, height);
-	createImageViews(context);
+Swapchain::Swapchain(const Instance& instance, const Context& ctx, uint32_t width, uint32_t height) :
+	mCtx(&ctx) {
+	createSwapchain(instance, width, height);
+	createImageViews();
 }
 
-void Swapchain::destroy(const Context& context) {
+void Swapchain::destroy() {
 	for (auto& imageView : mImageViews) {
-		context.device.destroyImageView(imageView);
+		mCtx->device.destroyImageView(imageView);
 	}
-	context.device.destroySwapchainKHR(mSwapchain);
+	mCtx->device.destroySwapchainKHR(mSwapchain);
 }
 
-void Swapchain::createSwapchain(const Instance& instance, const Context& context, uint32_t width, uint32_t height) {
+void Swapchain::createSwapchain(const Instance& instance, uint32_t width, uint32_t height) {
 	auto physicalDevice = instance.physicalDevice();
 
 	auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(instance.surface());
@@ -40,10 +41,14 @@ void Swapchain::createSwapchain(const Instance& instance, const Context& context
 		nImages = std::min(nImages, capabilities.maxImageCount);
 	}
 
-	bool sameQueueFamily = context.queGeneralUse.familyIdx == context.quePresent.familyIdx;
+	uint32_t generalIdx = mCtx->queues[QueueIdx::GeneralUse].familyIdx;
+	uint32_t presentIdx = mCtx->queues[QueueIdx::Present].familyIdx;
+
+	bool sameQueueFamily = generalIdx == presentIdx;
+
 	auto sharingMode = sameQueueFamily ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
 	auto queueFamilyIndices = sameQueueFamily ? std::vector<uint32_t>() :
-		std::vector<uint32_t>({ context.queGeneralUse.familyIdx, context.quePresent.familyIdx });
+		std::vector<uint32_t>({ generalIdx, presentIdx });
 
 	auto createInfo = vk::SwapchainCreateInfoKHR()
 		.setSurface(instance.surface())
@@ -60,8 +65,8 @@ void Swapchain::createSwapchain(const Instance& instance, const Context& context
 		.setPresentMode(presentMode)
 		.setClipped(true);
 
-	mSwapchain = context.device.createSwapchainKHR(createInfo);
-	mImages = context.device.getSwapchainImagesKHR(mSwapchain);
+	mSwapchain = mCtx->device.createSwapchainKHR(createInfo);
+	mImages = mCtx->device.getSwapchainImagesKHR(mSwapchain);
 	mFormat = format.format;
 }
 
@@ -88,7 +93,7 @@ std::tuple<vk::SurfaceFormatKHR, vk::PresentModeKHR> Swapchain::selectFormatAndM
 	return { format, presentMode };
 }
 
-void Swapchain::createImageViews(const Context& context) {
+void Swapchain::createImageViews() {
 	mImageViews.resize(mImages.size());
 
 	for (size_t i = 0; i < mImages.size(); i++) {
@@ -105,7 +110,7 @@ void Swapchain::createImageViews(const Context& context) {
 				.setBaseArrayLayer(0)
 				.setLayerCount(1)
 			);
-		mImageViews[i] = context.device.createImageView(createInfo);
+		mImageViews[i] = mCtx->device.createImageView(createInfo);
 	}
 }
 

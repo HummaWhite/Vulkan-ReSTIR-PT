@@ -65,28 +65,36 @@ Context::Context(const Instance& instance, const std::vector<const char*>& exten
 	device = instance.physicalDevice().createDevice(deviceCreateInfo);
 	memProperties = instance.physicalDevice().getMemoryProperties();
 
-	queGeneralUse = Queue(device, generalFamily, generalIdx);
-	quePresent = Queue(device, presentFamily, presentIdx);
-	queAsyncCompute = Queue(device, computeFamily, computeIdx);
-	queAsyncTransfer = Queue(device, transferFamily, transferIdx);
+	queues[QueueIdx::GeneralUse] = Queue(device, generalFamily, generalIdx);
+	queues[QueueIdx::Present] = Queue(device, presentFamily, presentIdx);
+	queues[QueueIdx::AsyncCompute] = Queue(device, computeFamily, computeIdx);
+	queues[QueueIdx::AsyncTransfer] = Queue(device, transferFamily, transferIdx);
+
+	createCmdPools();
 }
 
 void Context::destroy() {
+	std::set<vk::CommandPool> pools(cmdPools.array().begin(), cmdPools.array().end());
+	for (auto& pool : pools) {
+		device.destroyCommandPool(pool);
+	}
 	device.destroy();
 }
 
-Queue Context::getQueue(QueueType type) const {
-	switch (type) {
-	case QueueType::GeneralUse:
-		return queGeneralUse;
-	case QueueType::AsyncCompute:
-		return queAsyncCompute;
-	case QueueType::AsyncTransfer:
-		return queAsyncTransfer;
-	case QueueType::Present:
-		return quePresent;
+void Context::createCmdPools() {
+	std::map<uint32_t, vk::CommandPool> pools;
+	
+	for (size_t i = 0; i < queues.array().size(); i++) {
+		uint32_t idx = queues.array()[i].familyIdx;
+
+		if (pools.find(idx) == pools.end()) {
+			auto createInfo = vk::CommandPoolCreateInfo()
+				.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
+				.setQueueFamilyIndex(idx);
+			pools[idx] = device.createCommandPool(createInfo);
+		}
+		cmdPools.array()[i] = pools[idx];
 	}
-	return queGeneralUse;
 }
 
 NAMESPACE_END(zvk)

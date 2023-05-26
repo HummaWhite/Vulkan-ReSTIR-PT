@@ -4,14 +4,15 @@
 #include <iostream>
 #include <optional>
 #include <vector>
+#include <array>
 
 #include "Instance.h"
 #include "util/NamespaceDecl.h"
 
 NAMESPACE_BEGIN(zvk)
 
-enum class QueueType {
-    GeneralUse, AsyncCompute, AsyncTransfer, Present
+enum class QueueIdx {
+    GeneralUse = 0, Present, AsyncCompute, AsyncTransfer
 };
 
 struct Queue {
@@ -36,26 +37,51 @@ struct Queue {
     uint32_t index;
 };
 
+template<typename T, size_t N, typename IdxT>
+class ObjectSet {
+public:
+    T& operator [] (IdxT idx) {
+        return mObjects[static_cast<size_t>(idx)];
+    }
+
+    const T& operator [] (IdxT idx) const {
+        return mObjects[static_cast<size_t>(idx)];
+    }
+
+    std::array<T, N>& array() {
+        return mObjects;
+    }
+
+    const std::array<T, N>& array() const {
+        return mObjects;
+    }
+
+private:
+    std::array<T, N> mObjects;
+};
+
+using QueueSet = ObjectSet<Queue, 4, QueueIdx>;
+using CommandPoolSet = ObjectSet<vk::CommandPool, 4, QueueIdx>;
+
 class Context {
 public:
     Context() = default;
     Context(const Instance& instance, const std::vector<const char*>& extensions);
     void destroy();
 
-    Queue getQueue(QueueType type) const;
-
     static Context create(const Instance& instance, const std::vector<const char*>& extensions) {
         return Context(instance, extensions);
     }
+
+private:
+    void createCmdPools();
 
 public:
     vk::Device device;
     vk::PhysicalDeviceMemoryProperties memProperties;
 
-    Queue queGeneralUse;
-    Queue queAsyncCompute;
-    Queue queAsyncTransfer;
-    Queue quePresent;
+    QueueSet queues;
+    CommandPoolSet cmdPools;
 };
 
 NAMESPACE_END(zvk)

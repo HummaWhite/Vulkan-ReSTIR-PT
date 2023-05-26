@@ -37,7 +37,7 @@ public:
 
 	void setShoudResetSwapchain(bool reset) { mShouldResetSwapchain = reset; }
 
-	constexpr static int NumFramesConcurrent = 2;
+	constexpr static int NumFramesConcurrent = 4;
 
 private:
 	void initWindow();
@@ -49,17 +49,16 @@ private:
 
 	void createFramebuffers();
 
-	void createCommandPool();
 	void createTextureImage();
 	void createVertexBuffer();
 	void createIndexBuffer();
 	void createUniformBuffers();
 	void createDescriptorPool();
 	void createDescriptorSets();
-	void createCommandBuffer();
+	void createRenderCmdBuffers();
 
 	void createSyncObjects();
-	void recordCommandBuffer(vk::CommandBuffer cmdBuffer, uint32_t imgIndex);
+	void recordRenderCommands(vk::CommandBuffer cmdBuffer, uint32_t imgIndex);
 	void drawFrame();
 	void updateUniformBuffer();
 
@@ -89,8 +88,7 @@ private:
 
 	std::vector<vk::Framebuffer> mFramebuffers;
 
-	vk::CommandPool mCommandPool;
-	std::vector<vk::CommandBuffer> mCommandBuffers;
+	std::vector<zvk::CommandBuffer> mGCTCmdBuffers;
 
 	std::vector<vk::Semaphore> mImageAvailableSemaphores;
 	std::vector<vk::Semaphore> mRenderFinishedSemaphores;

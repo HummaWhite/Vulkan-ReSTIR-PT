@@ -14,8 +14,8 @@ NAMESPACE_BEGIN(zvk)
 class Swapchain {
 public:
 	Swapchain() = default;
-	Swapchain(const Instance& instance, const Context& context, uint32_t width, uint32_t height);
-	void destroy(const Context& context);
+	Swapchain(const Instance& instance, const Context& ctx, uint32_t width, uint32_t height);
+	void destroy();
 
 	vk::SwapchainKHR swapchain() const { return mSwapchain; }
 	vk::Format format() const { return mFormat; }
@@ -27,12 +27,12 @@ public:
 	size_t size() const { return mImages.size(); }
 
 private:
-	void createSwapchain(const Instance& instance, const Context& context, uint32_t width, uint32_t height);
+	void createSwapchain(const Instance& instance, uint32_t width, uint32_t height);
 	std::tuple<vk::SurfaceFormatKHR, vk::PresentModeKHR> selectFormatAndMode(
 		const std::vector<vk::SurfaceFormatKHR>& formats,
 		const std::vector<vk::PresentModeKHR>& presentModes);
 
-	void createImageViews(const Context& context);
+	void createImageViews();
 
 private:
 	vk::SwapchainKHR mSwapchain;
@@ -40,6 +40,8 @@ private:
 	vk::Extent2D mExtent;
 	std::vector<vk::Image> mImages;
 	std::vector<vk::ImageView> mImageViews;
+
+	const Context* mCtx;
 };
 
 NAMESPACE_END(zvk)
