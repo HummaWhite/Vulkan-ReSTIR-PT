@@ -10,6 +10,10 @@
 
 NAMESPACE_BEGIN(zvk)
 
+enum class QueueType {
+    GeneralUse, AsyncCompute, AsyncTransfer, Present
+};
+
 struct Queue {
     Queue() : familyIdx(0), index(0) {}
 
@@ -38,6 +42,8 @@ public:
     Context(const Instance& instance, const std::vector<const char*>& extensions);
     void destroy();
 
+    Queue getQueue(QueueType type) const;
+
     static Context create(const Instance& instance, const std::vector<const char*>& extensions) {
         return Context(instance, extensions);
     }
@@ -46,10 +52,10 @@ public:
     vk::Device device;
     vk::PhysicalDeviceMemoryProperties memProperties;
 
-    Queue graphicsQueue;
-    Queue computeQueue;
-    Queue presentQueue;
-    Queue transferQueue;
+    Queue queGeneralUse;
+    Queue queAsyncCompute;
+    Queue queAsyncTransfer;
+    Queue quePresent;
 };
 
 NAMESPACE_END(zvk)

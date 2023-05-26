@@ -6,6 +6,8 @@
 #include <optional>
 
 #include "Context.h"
+#include "Command.h"
+#include "HostImage.h"
 
 #include "util/NamespaceDecl.h"
 #include "util/EnumBitField.h"
@@ -37,6 +39,32 @@ public:
 	vk::MemoryPropertyFlags properties;
 	vk::BufferUsageFlags usage;
 	void* data = nullptr;
+
+private:
+	const Context* mCtx;
+};
+
+class Image {
+public:
+	Image() : mCtx(nullptr) {}
+	Image(const Context& ctx) : mCtx(&ctx) {}
+
+	void destroy() {
+		mCtx->device.destroyImageView(imageView);
+		mCtx->device.freeMemory(memory);
+		mCtx->device.destroyImage(image);
+	}
+
+	void changeLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+
+public:
+	vk::Image image;
+	vk::ImageView imageView;
+	vk::ImageType type;
+	vk::Format format;
+	vk::Extent3D extent;
+	vk::Sampler sampler;
+	vk::DeviceMemory memory;
 
 private:
 	const Context* mCtx;
@@ -74,6 +102,19 @@ namespace Memory {
 	Buffer createLocalBuffer(
 		const Context& ctx, vk::CommandPool cmdPool,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
+
+	vk::Image createImage2D(
+		const Context& ctx, vk::Extent2D extent, vk::Format format,
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
+		vk::DeviceMemory& memory);
+
+	Image createImage2D(
+		const Context& ctx, vk::Extent2D extent, vk::Format format,
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties);
+
+	Image createTexture2D(
+		const Context& ctx, const HostImage* hostImg,
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties);
 }
 
 NAMESPACE_END(zvk)

@@ -1,4 +1,4 @@
-#include "Image.h"
+#include "HostImage.h"
 #include "util/Error.h"
 
 NAMESPACE_BEGIN(zvk)
@@ -107,79 +107,6 @@ HostImage* HostImage::createEmpty(int width, int height, HostImageType type, int
 	image->dataType = type;
 	image->mData = new uint8_t[size];
 	return image;
-}
-
-namespace Memory {
-	vk::Image createImage2D(
-		const Context& ctx, vk::Extent2D extent, vk::Format format,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
-		vk::DeviceMemory& memory
-	) {
-		auto createInfo = vk::ImageCreateInfo()
-			.setImageType(vk::ImageType::e2D)
-			.setExtent({ extent.width, extent.height, 1 })
-			.setMipLevels(1)
-			.setArrayLayers(1)
-			.setFormat(format)
-			.setTiling(vk::ImageTiling::eOptimal)
-			.setInitialLayout(vk::ImageLayout::eUndefined)
-			.setUsage(vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled)
-			.setSharingMode(vk::SharingMode::eExclusive)
-			.setSamples(vk::SampleCountFlagBits::e1);
-
-		auto image = ctx.device.createImage(createInfo);
-		auto memReq = ctx.device.getImageMemoryRequirements(image);
-
-		auto memoryTypeIdx = zvk::Memory::findMemoryType(
-			ctx, memReq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal
-		);
-		auto allocInfo = vk::MemoryAllocateInfo()
-			.setAllocationSize(memReq.size)
-			.setMemoryTypeIndex(*memoryTypeIdx);
-
-		memory = ctx.device.allocateMemory(allocInfo);
-		ctx.device.bindImageMemory(image, memory, 0);
-
-		return image;
-	}
-
-	Image createImage2D(
-		const Context& ctx, vk::Extent2D extent, vk::Format format,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties
-	) {
-		Image image(ctx);
-
-		auto createInfo = vk::ImageCreateInfo()
-			.setImageType(vk::ImageType::e2D)
-			.setExtent({ extent.width, extent.height, 1 })
-			.setMipLevels(1)
-			.setArrayLayers(1)
-			.setFormat(format)
-			.setTiling(tiling)
-			.setInitialLayout(vk::ImageLayout::eUndefined)
-			.setUsage(usage)
-			.setSharingMode(vk::SharingMode::eExclusive)
-			.setSamples(vk::SampleCountFlagBits::e1);
-
-		image.image = ctx.device.createImage(createInfo);
-		auto memReq = ctx.device.getImageMemoryRequirements(image.image);
-		auto memoryTypeIdx = zvk::Memory::findMemoryType(ctx, memReq, properties);
-
-		if (!memoryTypeIdx) {
-			throw std::runtime_error("image memory type not found");
-		}
-
-		auto allocInfo = vk::MemoryAllocateInfo()
-			.setAllocationSize(memReq.size)
-			.setMemoryTypeIndex(*memoryTypeIdx);
-
-		image.memory = ctx.device.allocateMemory(allocInfo);
-		ctx.device.bindImageMemory(image.image, image.memory, 0);
-
-		image.extent = vk::Extent3D(extent.width, extent.height, 1);
-		image.type = vk::ImageType::e2D;
-		return image;
-	}
 }
 
 NAMESPACE_END(zvk)

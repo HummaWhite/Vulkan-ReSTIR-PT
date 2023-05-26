@@ -1,6 +1,8 @@
 #include "Instance.h"
 #include "VkDebugLayers.h"
 
+#include "util/EnumBitField.h"
+
 #include <set>
 
 NAMESPACE_BEGIN(zvk)
@@ -117,32 +119,42 @@ void Instance::createSurface(GLFWwindow* window) {
 	mVkSurface = mVkInstance.createWin32SurfaceKHR(createInfo);*/
 }
 
-std::optional<QueueIndices> Instance::getQueueFamilyIndices(vk::PhysicalDevice device) {
+QueueFamilies Instance::getQueueFamilies(vk::PhysicalDevice device) {
 	auto queueFamilyProps = device.getQueueFamilyProperties();
-	std::optional<uint32_t> graphics, compute, present, transfer;
-
 	Log::bracketLine<2>("Queue families");
 
-	for (size_t i = 0; i < queueFamilyProps.size(); i++) {
-		Log::bracketLine<3>("Queue count = " + std::to_string(queueFamilyProps[i].queueCount));
+	QueueFamilies families;
 
-		if (queueFamilyProps[i].queueFlags & vk::QueueFlagBits::eGraphics) {
-			graphics = i;
+	for (uint32_t i = 0; i < queueFamilyProps.size(); i++) {
+		std::string queueInfo = "Queue count = " + std::to_string(queueFamilyProps[i].queueCount);
+		auto flags = queueFamilyProps[i].queueFlags;
+		auto count = queueFamilyProps[i].queueCount;
+
+		if (hasFlagBit(flags, vk::QueueFlagBits::eGraphics) &&
+			hasFlagBit(flags, vk::QueueFlagBits::eCompute) &&
+			device.getSurfaceSupportKHR(i, mSurface)
+			) {
+			families.generalUse = QueueFamily{ i, count };
+			queueInfo += " | Graphics | Compute | Transfer | Present";
 		}
-		if (queueFamilyProps[i].queueFlags & vk::QueueFlagBits::eCompute) {
-			compute = i;
+
+		if (hasFlagBit(flags, vk::QueueFlagBits::eCompute) &&
+			!hasFlagBit(flags, vk::QueueFlagBits::eGraphics)
+			) {
+			families.asyncCompute = QueueFamily{ i, count };
+			queueInfo += " | Async Compute";
 		}
-		if (queueFamilyProps[i].queueFlags & vk::QueueFlagBits::eTransfer) {
-			transfer = i;
+
+		if (hasFlagBit(flags, vk::QueueFlagBits::eTransfer) &&
+			!hasFlagBit(flags, vk::QueueFlagBits::eGraphics) &&
+			!hasFlagBit(flags, vk::QueueFlagBits::eCompute)
+			) {
+			families.asyncTransfer = QueueFamily{ i, count };
+			queueInfo += " | Async Transfer";
 		}
-		if (device.getSurfaceSupportKHR(i, mSurface)) {
-			present = i;
-		}
+		Log::bracketLine<3>(queueInfo);
 	};
-	if (graphics && compute && present && transfer) {
-		return QueueIndices{ *graphics, *compute, *present, *transfer };
-	}
-	return std::nullopt;
+	return families;
 }
 
 bool Instance::hasDeviceExtensions(vk::PhysicalDevice device, const std::vector<const char*>& extensions) {
@@ -168,14 +180,15 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 		Log::bracketLine<1>("Device " + std::to_string(props.deviceID) + ", " +
 			props.deviceName.data());
 
-		auto queueFamilyIndices = getQueueFamilyIndices(device);
+		auto queueFamilies = getQueueFamilies(device);
 
-		if (hasDeviceExtensions(device, extensions) && queueFamilyIndices &&
+		if (hasDeviceExtensions(device, extensions) &&
 			!device.getSurfaceFormatsKHR(mSurface).empty() &&
-			!device.getSurfacePresentModesKHR(mSurface).empty()
+			!device.getSurfacePresentModesKHR(mSurface).empty() &&
+			queueFamilies.generalUse
 		) {
 			mPhysicalDevice = device;
-			mQueueFamilyIndices = *queueFamilyIndices;
+			mQueueFamilies = queueFamilies;
 		}
 	}
 	if (!mPhysicalDevice) {

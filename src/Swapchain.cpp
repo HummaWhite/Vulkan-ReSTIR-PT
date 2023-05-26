@@ -40,10 +40,10 @@ void Swapchain::createSwapchain(const Instance& instance, const Context& context
 		nImages = std::min(nImages, capabilities.maxImageCount);
 	}
 
-	bool sameQueueFamily = context.graphicsQueue.familyIdx == context.presentQueue.familyIdx;
+	bool sameQueueFamily = context.queGeneralUse.familyIdx == context.quePresent.familyIdx;
 	auto sharingMode = sameQueueFamily ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
 	auto queueFamilyIndices = sameQueueFamily ? std::vector<uint32_t>() :
-		std::vector<uint32_t>({ context.graphicsQueue.familyIdx, context.presentQueue.familyIdx });
+		std::vector<uint32_t>({ context.queGeneralUse.familyIdx, context.quePresent.familyIdx });
 
 	auto createInfo = vk::SwapchainCreateInfoKHR()
 		.setSurface(instance.surface())

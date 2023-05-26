@@ -1,10 +1,12 @@
 #pragma once
 
+#include <vulkan/vulkan.hpp>
+
 #include <stb_image.h>
 #include <stb_image_write.h>
 
-#include "Memory.h"
 #include "util/File.h"
+#include "util/NamespaceDecl.h"
 
 NAMESPACE_BEGIN(zvk)
 
@@ -18,9 +20,13 @@ public:
 	~HostImage();
 
 	void* data() { return mData; }
+	const void* data() const { return mData; }
 
 	template<typename T>
 	T* data() { return reinterpret_cast<T*>(mData); }
+
+	template<typename T>
+	const T* data() const { return reinterpret_cast<const T*>(mData); }
 
 	size_t byteSize() const {
 		return size_t(width) * height * channels * (dataType == HostImageType::Int8 ? 1 : 4);
@@ -40,39 +46,5 @@ public:
 private:
 	uint8_t* mData = nullptr;
 };
-
-class Image {
-public:
-	Image() : mCtx(nullptr) {}
-	Image(const Context& ctx) : mCtx(&ctx) {}
-
-	void destroy() {
-		mCtx->device.destroyImageView(imageView);
-		mCtx->device.freeMemory(memory);
-		mCtx->device.destroyImage(image);
-	}
-
-public:
-	vk::Image image;
-	vk::ImageView imageView;
-	vk::ImageType type;
-	vk::Extent3D extent;
-	vk::Sampler sampler;
-	vk::DeviceMemory memory;
-
-private:
-	const Context* mCtx;
-};
-
-namespace Memory {
-	vk::Image createImage2D(
-		const Context& ctx, vk::Extent2D extent, vk::Format format,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
-		vk::DeviceMemory& memory);
-
-	Image createImage2D(
-		const Context& ctx, vk::Extent2D extent, vk::Format format,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties);
-}
 
 NAMESPACE_END(zvk)

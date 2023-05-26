@@ -11,11 +11,15 @@
 
 NAMESPACE_BEGIN(zvk)
 
-struct QueueIndices {
-	uint32_t graphics;
-	uint32_t compute;
-	uint32_t present;
-	uint32_t transfer;
+struct QueueFamily {
+	uint32_t index;
+	uint32_t count;
+};
+
+struct QueueFamilies {
+	std::optional<QueueFamily> generalUse;
+	std::optional<QueueFamily> asyncCompute;
+	std::optional<QueueFamily> asyncTransfer;
 };
 
 class Instance {
@@ -31,13 +35,13 @@ public:
 	vk::Instance instance() const { return mInstance; }
 	vk::PhysicalDevice physicalDevice() const { return mPhysicalDevice; }
 	vk::SurfaceKHR surface() const { return mSurface; }
-	QueueIndices queueFamilyIndices() const { return mQueueFamilyIndices; }
+	QueueFamilies queueFamilies() const { return mQueueFamilies; }
 
 private:
 	void queryExtensionsAndLayers();
 	void setupDebugMessenger();
 	void createSurface(GLFWwindow* window);
-	std::optional<QueueIndices> getQueueFamilyIndices(vk::PhysicalDevice device);
+	QueueFamilies getQueueFamilies(vk::PhysicalDevice device);
 	bool hasDeviceExtensions(vk::PhysicalDevice device, const std::vector<const char*>& extensions);
 	void selectPhysicalDevice(const std::vector<const char*>& extensions);
 
@@ -47,7 +51,7 @@ private:
 	vk::SurfaceKHR mSurface;
 	vk::PhysicalDeviceMemoryProperties mMemProperties;
 
-	QueueIndices mQueueFamilyIndices;
+	QueueFamilies mQueueFamilies;
 
 	ExtFunctions mExtFunctions;
 	vk::DebugUtilsMessengerEXT mDebugMessenger;

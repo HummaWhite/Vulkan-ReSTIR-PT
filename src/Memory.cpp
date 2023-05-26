@@ -11,6 +11,9 @@ void Buffer::unmapMemory() {
 	data = nullptr;
 }
 
+void Image::changeLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
+}
+
 namespace Memory {
 	std::optional<uint32_t> findMemoryType(
 		const vk::PhysicalDeviceMemoryProperties& physicalDeviceMemProps,
@@ -177,9 +180,99 @@ namespace Memory {
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 
-		copyBuffer(ctx.device, cmdPool, ctx.graphicsQueue.queue, localBuf.buffer, transferBuf.buffer, size);
+		copyBuffer(ctx.device, cmdPool, ctx.queGeneralUse.queue, localBuf.buffer, transferBuf.buffer, size);
 		transferBuf.destroy();
 		return localBuf;
+	}
+
+	vk::Image createImage2D(
+		const Context& ctx, vk::Extent2D extent, vk::Format format,
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
+		vk::DeviceMemory& memory
+	) {
+		auto createInfo = vk::ImageCreateInfo()
+			.setImageType(vk::ImageType::e2D)
+			.setExtent({ extent.width, extent.height, 1 })
+			.setMipLevels(1)
+			.setArrayLayers(1)
+			.setFormat(format)
+			.setTiling(vk::ImageTiling::eOptimal)
+			.setInitialLayout(vk::ImageLayout::eUndefined)
+			.setUsage(vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled)
+			.setSharingMode(vk::SharingMode::eExclusive)
+			.setSamples(vk::SampleCountFlagBits::e1);
+
+		auto image = ctx.device.createImage(createInfo);
+		auto memReq = ctx.device.getImageMemoryRequirements(image);
+
+		auto memoryTypeIdx = zvk::Memory::findMemoryType(
+			ctx, memReq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+		auto allocInfo = vk::MemoryAllocateInfo()
+			.setAllocationSize(memReq.size)
+			.setMemoryTypeIndex(*memoryTypeIdx);
+
+		memory = ctx.device.allocateMemory(allocInfo);
+		ctx.device.bindImageMemory(image, memory, 0);
+
+		return image;
+	}
+
+	Image createImage2D(
+		const Context& ctx, vk::Extent2D extent, vk::Format format,
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties
+	) {
+		Image image(ctx);
+
+		auto createInfo = vk::ImageCreateInfo()
+			.setImageType(vk::ImageType::e2D)
+			.setExtent({ extent.width, extent.height, 1 })
+			.setMipLevels(1)
+			.setArrayLayers(1)
+			.setFormat(format)
+			.setTiling(tiling)
+			.setInitialLayout(vk::ImageLayout::eUndefined)
+			.setUsage(usage)
+			.setSharingMode(vk::SharingMode::eExclusive)
+			.setSamples(vk::SampleCountFlagBits::e1);
+
+		image.image = ctx.device.createImage(createInfo);
+		auto memReq = ctx.device.getImageMemoryRequirements(image.image);
+		auto memoryTypeIdx = zvk::Memory::findMemoryType(ctx, memReq, properties);
+
+		if (!memoryTypeIdx) {
+			throw std::runtime_error("image memory type not found");
+		}
+
+		auto allocInfo = vk::MemoryAllocateInfo()
+			.setAllocationSize(memReq.size)
+			.setMemoryTypeIndex(*memoryTypeIdx);
+
+		image.memory = ctx.device.allocateMemory(allocInfo);
+		ctx.device.bindImageMemory(image.image, image.memory, 0);
+
+		image.extent = vk::Extent3D(extent.width, extent.height, 1);
+		image.type = vk::ImageType::e2D;
+		image.format = format;
+		return image;
+	}
+
+	Image createTexture2D(
+		const Context& ctx, const HostImage* hostImg,
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties
+	) {
+		auto stagingBuffer = createBuffer(ctx, hostImg->byteSize(),
+			vk::BufferUsageFlagBits::eTransferSrc,
+			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+		);
+
+		stagingBuffer.mapMemory();
+		memcpy(stagingBuffer.data, hostImg->data(), hostImg->byteSize());
+		stagingBuffer.unmapMemory();
+
+		stagingBuffer.destroy();
+
+		return createImage2D(ctx, hostImg->extent(), hostImg->format(), tiling, usage, properties);
 	}
 }
 

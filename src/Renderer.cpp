@@ -228,39 +228,30 @@ void Renderer::createFramebuffers() {
 	mFramebuffers.resize(mSwapchain.size());
 
 	for (size_t i = 0; i < mFramebuffers.size(); i++) {
-		auto framebufferCreateInfo = vk::FramebufferCreateInfo()
+		auto createInfo = vk::FramebufferCreateInfo()
 			.setRenderPass(mRenderPass)
 			.setAttachments(mSwapchain.imageViews()[i])
 			.setWidth(mSwapchain.width())
 			.setHeight(mSwapchain.height())
 			.setLayers(1);
 
-		mFramebuffers[i] = mContext.device.createFramebuffer(framebufferCreateInfo);
+		mFramebuffers[i] = mContext.device.createFramebuffer(createInfo);
 	}
 }
 
 void Renderer::createCommandPool() {
-	auto commandPoolCreateInfo = vk::CommandPoolCreateInfo()
+	auto createInfo = vk::CommandPoolCreateInfo()
 		.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
-		.setQueueFamilyIndex(mContext.graphicsQueue.familyIdx);
+		.setQueueFamilyIndex(mContext.queGeneralUse.familyIdx);
 
-	mCommandPool = mContext.device.createCommandPool(commandPoolCreateInfo);
+	mCommandPool = mContext.device.createCommandPool(createInfo);
 }
 
 void Renderer::createTextureImage() {
 	auto hostImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, 4);
 
-	mStagingBuffer = zvk::Memory::createBuffer(mContext, hostImage->byteSize(),
-		vk::BufferUsageFlagBits::eTransferSrc,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-	);
-
-	mStagingBuffer.mapMemory();
-	memcpy(mStagingBuffer.data, hostImage->data(), hostImage->byteSize());
-	mStagingBuffer.unmapMemory();
-
-	mTextureImage = zvk::Memory::createImage2D(
-		mContext, hostImage->extent(), hostImage->format(),
+	mTextureImage = zvk::Memory::createTexture2D(
+		mContext, hostImage,
 		vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
 		vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
@@ -392,8 +383,9 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer cmdBuffer, uint32_t imgInde
 }
 
 void Renderer::drawFrame() {
-	if (mContext.device.waitForFences(mInFlightFences[mCurFrameIdx], true, UINT64_MAX) != vk::Result::eSuccess)
+	if (mContext.device.waitForFences(mInFlightFences[mCurFrameIdx], true, UINT64_MAX) != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to wait for any fences");
+	}
 
 	auto [acquireRes, imgIndex] = mContext.device.acquireNextImageKHR(
 		mSwapchain.swapchain(), UINT64_MAX,
@@ -422,7 +414,7 @@ void Renderer::drawFrame() {
 		.setWaitDstStageMask(waitStage)
 		.setSignalSemaphores(mRenderFinishedSemaphores[mCurFrameIdx]);
 
-	mContext.graphicsQueue.queue.submit(submitInfo, mInFlightFences[mCurFrameIdx]);
+	mContext.queGeneralUse.queue.submit(submitInfo, mInFlightFences[mCurFrameIdx]);
 
 	auto swapchain = mSwapchain.swapchain();
 	auto presentInfo = vk::PresentInfoKHR()
@@ -431,7 +423,7 @@ void Renderer::drawFrame() {
 		.setImageIndices(imgIndex);
 
 	try {
-		auto presentRes = mContext.presentQueue.queue.presentKHR(presentInfo);
+		auto presentRes = mContext.quePresent.queue.presentKHR(presentInfo);
 	}
 	catch (const vk::SystemError& e) {
 		recreateFrames();
@@ -513,6 +505,7 @@ void Renderer::cleanupVulkan() {
 		mContext.device.destroySemaphore(sema);
 	}
 
+	mContext.device.freeCommandBuffers(mCommandPool, mCommandBuffers);
 	mContext.device.destroyCommandPool(mCommandPool);
 
 	mShaderManager.destroyShaderModules();
