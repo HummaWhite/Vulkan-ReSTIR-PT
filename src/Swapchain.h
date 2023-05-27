@@ -25,6 +25,7 @@ public:
 	const std::vector<vk::Image>& images() const { return mImages; }
 	const std::vector<vk::ImageView>& imageViews() const { return mImageViews; }
 	size_t size() const { return mImages.size(); }
+	vk::Semaphore readySemaphore() const { return mReadySemaphore; }
 
 private:
 	void createSwapchain(const Instance& instance, uint32_t width, uint32_t height);
@@ -40,6 +41,7 @@ private:
 	vk::Extent2D mExtent;
 	std::vector<vk::Image> mImages;
 	std::vector<vk::ImageView> mImageViews;
+	vk::Semaphore mReadySemaphore;
 
 	const Context* mCtx;
 };

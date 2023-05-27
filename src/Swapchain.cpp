@@ -8,9 +8,11 @@ Swapchain::Swapchain(const Context& ctx, uint32_t width, uint32_t height) :
 	mCtx(&ctx) {
 	createSwapchain(*ctx.instance(), width, height);
 	createImageViews();
+	mReadySemaphore = mCtx->device.createSemaphore(vk::SemaphoreCreateInfo());
 }
 
 void Swapchain::destroy() {
+	mCtx->device.destroySemaphore(mReadySemaphore);
 	for (auto& imageView : mImageViews) {
 		mCtx->device.destroyImageView(imageView);
 	}

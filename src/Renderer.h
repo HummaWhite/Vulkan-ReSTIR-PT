@@ -58,7 +58,7 @@ private:
 	void createRenderCmdBuffers();
 
 	void createSyncObjects();
-	void recordRenderCommands(vk::CommandBuffer cmdBuffer, uint32_t imgIndex);
+	void recordRenderCommands();
 	void drawFrame();
 	void updateUniformBuffer();
 
@@ -87,19 +87,16 @@ private:
 	vk::PipelineLayout mPipelineLayout;
 
 	std::vector<vk::Framebuffer> mFramebuffers;
-
 	std::vector<zvk::CommandBuffer> mGCTCmdBuffers;
 
-	std::vector<vk::Semaphore> mImageAvailableSemaphores;
-	std::vector<vk::Semaphore> mRenderFinishedSemaphores;
-	std::vector<vk::Fence> mInFlightFences;
-	uint32_t mCurFrameIdx = 0;
+	vk::Semaphore mRenderFinishSemaphore;
+	vk::Fence mInFlightFence;
 
 	zvk::Buffer mVertexBuffer;
 	zvk::Buffer mIndexBuffer;
 	zvk::Buffer mCameraUniforms;
 	vk::DescriptorPool mDescriptorPool;
-	std::vector<vk::DescriptorSet> mDescriptorSets;
+	vk::DescriptorSet mDescriptorSet;
 
 	zvk::Image mTextureImage;
 

@@ -292,98 +292,88 @@ void Renderer::createDescriptorPool() {
 }
 
 void Renderer::createDescriptorSets() {
-	std::vector<vk::DescriptorSetLayout> layouts(NumFramesConcurrent, mDescriptorSetLayout);
-
 	auto allocInfo = vk::DescriptorSetAllocateInfo()
 		.setDescriptorPool(mDescriptorPool)
-		.setSetLayouts(layouts);
+		.setSetLayouts(mDescriptorSetLayout);
 
-	mDescriptorSets = mContext.device.allocateDescriptorSets(allocInfo);
+	mDescriptorSet = mContext.device.allocateDescriptorSets(allocInfo)[0];
 
 	std::vector<vk::WriteDescriptorSet> updates;
 
-	for (auto& set : mDescriptorSets) {
-		auto bufferInfo = vk::DescriptorBufferInfo()
-			.setBuffer(mCameraUniforms.buffer)
-			.setOffset(0)
-			.setRange(sizeof(CameraData));
+	auto bufferInfo = vk::DescriptorBufferInfo()
+		.setBuffer(mCameraUniforms.buffer)
+		.setOffset(0)
+		.setRange(sizeof(CameraData));
 
-		updates.push_back(vk::WriteDescriptorSet()
-			.setDstSet(set)
-			.setDstBinding(0)
-			.setDstArrayElement(0)
-			.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-			.setDescriptorCount(1)
-			.setBufferInfo(bufferInfo)
-		);
-	}
-	mContext.device.updateDescriptorSets(updates, {});
+	auto update = vk::WriteDescriptorSet()
+		.setDstSet(mDescriptorSet)
+		.setDstBinding(0)
+		.setDstArrayElement(0)
+		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+		.setDescriptorCount(1)
+		.setBufferInfo(bufferInfo);
+
+	mContext.device.updateDescriptorSets(update, {});
 }
 
 void Renderer::createRenderCmdBuffers() {
-	mGCTCmdBuffers = zvk::Command::createPrimary(mContext, zvk::QueueIdx::GeneralUse, NumFramesConcurrent);
+	mGCTCmdBuffers = zvk::Command::createPrimary(mContext, zvk::QueueIdx::GeneralUse, mSwapchain.size());
 }
 
 void Renderer::createSyncObjects() {
-	vk::SemaphoreCreateInfo semaphoreCreateInfo;
-
 	auto fenceCreateInfo = vk::FenceCreateInfo()
 		.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
-	mImageAvailableSemaphores.resize(NumFramesConcurrent);
-	mRenderFinishedSemaphores.resize(NumFramesConcurrent);
-	mInFlightFences.resize(NumFramesConcurrent);
+	mInFlightFence = mContext.device.createFence(fenceCreateInfo);
+	mRenderFinishSemaphore = mContext.device.createSemaphore(vk::SemaphoreCreateInfo());
+}
 
-	for (size_t i = 0; i < NumFramesConcurrent; i++) {
-		mImageAvailableSemaphores[i] = mContext.device.createSemaphore(semaphoreCreateInfo);
-		mRenderFinishedSemaphores[i] = mContext.device.createSemaphore(semaphoreCreateInfo);
-		mInFlightFences[i] = mContext.device.createFence(fenceCreateInfo);
+void Renderer::recordRenderCommands() {
+	for (size_t i = 0; i < mGCTCmdBuffers.size(); i++) {
+		auto& cmd = mGCTCmdBuffers[i].cmd;
+
+		auto beginInfo = vk::CommandBufferBeginInfo()
+			.setFlags(vk::CommandBufferUsageFlagBits{})
+			.setPInheritanceInfo(nullptr);
+
+		cmd.begin(beginInfo);
+
+		auto clearValue = vk::ClearValue()
+			.setColor(vk::ClearColorValue().setFloat32({ 0.0f, 0.0f, 0.0f, 1.0f }));
+
+		auto renderPassBeginInfo = vk::RenderPassBeginInfo()
+			.setRenderPass(mRenderPass)
+			.setFramebuffer(mFramebuffers[i])
+			.setRenderArea({ { 0, 0 }, mSwapchain.extent() })
+			.setClearValues(clearValue);
+
+		cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+
+		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mGraphicsPipeline);
+
+		cmd.bindVertexBuffers(0, mVertexBuffer.buffer, vk::DeviceSize(0));
+		cmd.bindIndexBuffer(mIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+
+		cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, mSwapchain.width(), mSwapchain.height(), 0.0f, 1.0f));
+		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, mSwapchain.extent()));
+
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, 0, mDescriptorSet, {});
+
+		//cmdBuffer.draw(VertexData.size(), 1, 0, 0);
+		cmd.drawIndexed(IndexData.size(), 1, 0, 0, 0);
+
+		cmd.endRenderPass();
+		cmd.end();
 	}
 }
 
-void Renderer::recordRenderCommands(vk::CommandBuffer cmdBuffer, uint32_t imgIndex) {
-	auto beginInfo = vk::CommandBufferBeginInfo()
-		.setFlags(vk::CommandBufferUsageFlagBits{})
-		.setPInheritanceInfo(nullptr);
-
-	cmdBuffer.begin(beginInfo);
-
-	auto clearValue = vk::ClearValue()
-		.setColor(vk::ClearColorValue().setFloat32({ 0.0f, 0.0f, 0.0f, 1.0f }));
-
-	auto renderPassBeginInfo = vk::RenderPassBeginInfo()
-		.setRenderPass(mRenderPass)
-		.setFramebuffer(mFramebuffers[imgIndex])
-		.setRenderArea({ { 0, 0 }, mSwapchain.extent() })
-		.setClearValues(clearValue);
-
-	cmdBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-
-	cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, mGraphicsPipeline);
-
-	cmdBuffer.bindVertexBuffers(0, mVertexBuffer.buffer, vk::DeviceSize(0));
-	cmdBuffer.bindIndexBuffer(mIndexBuffer.buffer, 0, vk::IndexType::eUint32);
-
-	cmdBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, mSwapchain.width(), mSwapchain.height(), 0.0f, 1.0f));
-	cmdBuffer.setScissor(0, vk::Rect2D({ 0, 0 }, mSwapchain.extent()));
-
-	cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, 0, mDescriptorSets[mCurFrameIdx], {});
-
-	//cmdBuffer.draw(VertexData.size(), 1, 0, 0);
-	cmdBuffer.drawIndexed(IndexData.size(), 1, 0, 0, 0);
-
-	cmdBuffer.endRenderPass();
-	cmdBuffer.end();
-}
-
 void Renderer::drawFrame() {
-	if (mContext.device.waitForFences(mInFlightFences[mCurFrameIdx], true, UINT64_MAX) != vk::Result::eSuccess) {
+	if (mContext.device.waitForFences(mInFlightFence, true, UINT64_MAX) != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to wait for any fences");
 	}
 
 	auto [acquireRes, imgIndex] = mContext.device.acquireNextImageKHR(
-		mSwapchain.swapchain(), UINT64_MAX,
-		mImageAvailableSemaphores[mCurFrameIdx]
+		mSwapchain.swapchain(), UINT64_MAX, mSwapchain.readySemaphore()
 	);
 
 	if (acquireRes == vk::Result::eErrorOutOfDateKHR) {
@@ -394,27 +384,27 @@ void Renderer::drawFrame() {
 		throw std::runtime_error("Failed to acquire image from swapchain");
 	}
 
-	mContext.device.resetFences(mInFlightFences[mCurFrameIdx]);
+	mContext.device.resetFences(mInFlightFence);
 
-	mGCTCmdBuffers[mCurFrameIdx].cmd.reset();
-	recordRenderCommands(mGCTCmdBuffers[mCurFrameIdx].cmd, imgIndex);
+	//mGCTCmdBuffers[imgIndex].cmd.reset();
+	//recordRenderCommands(mGCTCmdBuffers[imgIndex].cmd, imgIndex);
 
 	updateUniformBuffer();
 
 	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-	auto submitInfo = vk::SubmitInfo()
-		.setCommandBuffers(mGCTCmdBuffers[mCurFrameIdx].cmd)
-		.setWaitSemaphores(mImageAvailableSemaphores[mCurFrameIdx])
-		.setWaitDstStageMask(waitStage)
-		.setSignalSemaphores(mRenderFinishedSemaphores[mCurFrameIdx]);
+	auto waitSemaphore = mSwapchain.readySemaphore();
 
-	mContext.queues[zvk::QueueIdx::GeneralUse].queue.submit(
-		submitInfo, mInFlightFences[mCurFrameIdx]
-	);
+	auto submitInfo = vk::SubmitInfo()
+		.setCommandBuffers(mGCTCmdBuffers[imgIndex].cmd)
+		.setWaitSemaphores(waitSemaphore)
+		.setWaitDstStageMask(waitStage)
+		.setSignalSemaphores(mRenderFinishSemaphore);
+
+	mContext.queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
 
 	auto swapchain = mSwapchain.swapchain();
 	auto presentInfo = vk::PresentInfoKHR()
-		.setWaitSemaphores(mRenderFinishedSemaphores[mCurFrameIdx])
+		.setWaitSemaphores(mRenderFinishSemaphore)
 		.setSwapchains(swapchain)
 		.setImageIndices(imgIndex);
 
@@ -428,7 +418,7 @@ void Renderer::drawFrame() {
 		recreateFrames();
 	}
 
-	mCurFrameIdx = (mCurFrameIdx + 1) % NumFramesConcurrent;
+	//mCurFrameIdx = (mCurFrameIdx + 1) % NumFramesConcurrent;
 	/*auto presentRes = mPresentQueue.presentKHR(presentInfo);
 
 	if (presentRes == vk::Result::eErrorOutOfDateKHR ||
@@ -488,22 +478,14 @@ void Renderer::cleanupVulkan() {
 	mContext.device.destroyPipelineLayout(mPipelineLayout);
 	mContext.device.destroyRenderPass(mRenderPass);
 
-	for (auto& fence : mInFlightFences) {
-		mContext.device.destroyFence(fence);
-	}
-	for (auto& sema : mImageAvailableSemaphores) {
-		mContext.device.destroySemaphore(sema);
-	}
-	for (auto& sema : mRenderFinishedSemaphores) {
-		mContext.device.destroySemaphore(sema);
-	}
+	mContext.device.destroyFence(mInFlightFence);
+	mContext.device.destroySemaphore(mRenderFinishSemaphore);
 
 	for (auto& cmd : mGCTCmdBuffers) {
 		cmd.destroy();
 	}
 
 	mShaderManager.destroyShaderModules();
-
 	mContext.destroy();
 	mInstance.destroy();
 }
@@ -514,6 +496,8 @@ void Renderer::exec() {
 	glfwShowWindow(mMainWindow);
 
 	mTimer.reset();
+
+	recordRenderCommands();
 	
 	while (!glfwWindowShouldClose(mMainWindow)) {
 		glfwPollEvents();
