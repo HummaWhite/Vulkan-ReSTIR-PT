@@ -28,8 +28,14 @@ public:
 		mCtx->device.freeMemory(memory);
 	}
 
-	void mapMemory();
-	void unmapMemory();
+	void mapMemory() {
+		data = mCtx->device.mapMemory(memory, 0, size);
+	}
+
+	void unmapMemory() {
+		mCtx->device.unmapMemory(memory);
+		data = nullptr;
+	}
 
 public:
 	vk::Buffer buffer;
@@ -50,21 +56,38 @@ public:
 	Image(const Context& ctx) : mCtx(&ctx) {}
 
 	void destroy() {
+		mCtx->device.destroySampler(sampler);
 		mCtx->device.destroyImageView(imageView);
 		mCtx->device.freeMemory(memory);
 		mCtx->device.destroyImage(image);
 	}
 
-	void transitLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+	void changeLayout(vk::ImageLayout newLayout);
+	void createImageView(bool array = false);
+	void createSampler(vk::Filter filter, bool anisotropyIfPossible = false);
+	void createMipmap();
+
+	static uint32_t mipLevels(vk::Extent2D extent) {
+		return std::floor(std::log2(std::max(extent.width, extent.height))) + 1;
+	}
+
+	static uint32_t mipLevels(vk::Extent3D extent) {
+		return std::floor(std::log2(std::max(std::max(extent.width, extent.height), extent.depth))) + 1;
+	}
 
 public:
 	vk::Image image;
-	vk::ImageView imageView;
 	vk::ImageType type;
+	vk::ImageView imageView;
+	vk::ImageViewType imageViewType;
+	vk::ImageUsageFlags usage;
+	vk::ImageLayout layout;
 	vk::Format format;
 	vk::Extent3D extent;
 	vk::Sampler sampler;
 	vk::DeviceMemory memory;
+	uint32_t nMipLevels;
+	uint32_t nArrayLayers;
 
 private:
 	const Context* mCtx;
@@ -106,15 +129,20 @@ namespace Memory {
 	vk::Image createImage2D(
 		const Context& ctx, vk::Extent2D extent, vk::Format format,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
-		vk::DeviceMemory& memory);
+		vk::DeviceMemory& memory, uint32_t nMipLevels = 1);
 
 	Image createImage2D(
 		const Context& ctx, vk::Extent2D extent, vk::Format format,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties);
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
+		uint32_t nMipLevels = 1);
 
 	Image createTexture2D(
 		const Context& ctx, const HostImage* hostImg,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties);
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
+		uint32_t nMipLevels = 1);
+
+	void copyBufferToImage(
+		const Context& ctx, const Buffer& buffer, const Image& image);
 }
 
 NAMESPACE_END(zvk)

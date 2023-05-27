@@ -2,16 +2,157 @@
 
 NAMESPACE_BEGIN(zvk)
 
-void Buffer::mapMemory() {
-	data = mCtx->device.mapMemory(memory, 0, size);
+struct LayoutTransitFlags {
+	vk::AccessFlags srcMask;
+	vk::AccessFlags dstMask;
+	vk::PipelineStageFlags srcStage;
+	vk::PipelineStageFlags dstStage;
+};
+
+std::optional<LayoutTransitFlags> findLayoutTransitFlags(vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
+	auto fromTo = [=](vk::ImageLayout old, vk::ImageLayout neo) {
+		return oldLayout == old && newLayout == neo;
+	};
+
+	if (fromTo(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal)) {
+		return LayoutTransitFlags{
+			vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite,
+			vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer
+		};
+	}
+	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal) {
+		vk::AccessFlags dstMask;
+		vk::PipelineStageFlags dstStage;
+
+		if (newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+			dstMask = vk::AccessFlagBits::eShaderRead;
+			dstStage = vk::PipelineStageFlagBits::eFragmentShader |
+				vk::PipelineStageFlagBits::eComputeShader |
+				vk::PipelineStageFlagBits::eRayTracingShaderNV;
+		}
+		else if (newLayout == vk::ImageLayout::eColorAttachmentOptimal) {
+			dstMask = vk::AccessFlagBits::eColorAttachmentWrite;
+			dstStage = vk::PipelineStageFlagBits::eFragmentShader;
+		}
+		else {
+			return std::nullopt;
+		}
+
+		return LayoutTransitFlags{
+			vk::AccessFlagBits::eTransferWrite, dstMask,
+			vk::PipelineStageFlagBits::eTransfer, dstStage
+		};
+	}
+	return std::nullopt;
 }
 
-void Buffer::unmapMemory() {
-	mCtx->device.unmapMemory(memory);
-	data = nullptr;
+void Image::changeLayout(vk::ImageLayout newLayout) {
+	auto cmd = Command::createOneTimeSubmit(*mCtx, QueueIdx::GeneralUse);
+	auto transitFlags = findLayoutTransitFlags(layout, newLayout);
+
+	// TODO: check for image arrays
+
+	if (!transitFlags) {
+		throw std::runtime_error("image layout transition not supported");
+	}
+	auto barrier = vk::ImageMemoryBarrier()
+		.setOldLayout(layout)
+		.setNewLayout(newLayout)
+		.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setImage(image)
+		.setSubresourceRange(vk::ImageSubresourceRange()
+			.setAspectMask(vk::ImageAspectFlagBits::eColor)
+			.setBaseMipLevel(0)
+			.setLevelCount(nMipLevels)
+			.setBaseArrayLayer(0)
+			.setLayerCount(nArrayLayers))
+		.setSrcAccessMask(transitFlags->srcMask)
+		.setDstAccessMask(transitFlags->dstMask);
+
+	cmd.cmd.pipelineBarrier(
+		transitFlags->srcStage, transitFlags->dstStage, vk::DependencyFlagBits{0}, {}, {}, barrier
+	);
+	cmd.oneTimeSubmitAndDestroy();
+	layout = newLayout;
 }
 
-void Image::transitLayout(vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
+void Image::createImageView(bool array) {
+	if (type == vk::ImageType::e1D) {
+		imageViewType = vk::ImageViewType::e1D;
+		nArrayLayers = 1;
+	}
+	else if (type == vk::ImageType::e2D) {
+		imageViewType = array ? vk::ImageViewType::e1DArray : vk::ImageViewType::e2D;
+		nArrayLayers = array ? extent.height : 1;
+	}
+	else {
+		imageViewType = array ? vk::ImageViewType::e2DArray : vk::ImageViewType::e3D;
+		nArrayLayers = array ? extent.depth : 1;
+	}
+
+	// TODO: check for image arrays
+
+	auto createInfo = vk::ImageViewCreateInfo()
+		.setImage(image)
+		.setViewType(imageViewType)
+		.setFormat(format)
+		.setSubresourceRange(vk::ImageSubresourceRange()
+			.setAspectMask(vk::ImageAspectFlagBits::eColor)
+			.setBaseMipLevel(0)
+			.setLevelCount(nMipLevels)
+			.setBaseArrayLayer(0)
+			.setLayerCount(nArrayLayers));
+
+	imageView = mCtx->device.createImageView(createInfo);
+}
+
+void Image::createSampler(vk::Filter filter, bool anisotropyIfPossible) {
+	// TODO: check for image arrays
+
+	auto createInfo = vk::SamplerCreateInfo()
+		.setMinFilter(filter)
+		.setMagFilter(filter)
+		.setAddressModeU(vk::SamplerAddressMode::eRepeat)
+		.setAddressModeV(vk::SamplerAddressMode::eRepeat)
+		.setAddressModeW(vk::SamplerAddressMode::eRepeat)
+		.setUnnormalizedCoordinates(false)
+		.setAnisotropyEnable(mCtx->instance()->deviceFeatures().samplerAnisotropy & anisotropyIfPossible)
+		.setMaxAnisotropy(mCtx->instance()->deviceProperties().limits.maxSamplerAnisotropy)
+		.setCompareEnable(false)
+		.setMipmapMode(vk::SamplerMipmapMode::eLinear)
+		.setMipLodBias(0)
+		.setMinLod(0)
+		.setMaxLod(nMipLevels);
+	sampler = mCtx->device.createSampler(createInfo);
+}
+
+void Image::createMipmap() {
+	if (type != vk::ImageType::e2D) {
+		throw std::runtime_error("mipmap not implemented for 1D and 3D images");
+	}
+
+	if (nMipLevels < 2) {
+		return;
+	}
+	auto cmd = Command::createOneTimeSubmit(*mCtx, QueueIdx::GeneralUse);
+
+	auto barrier = vk::ImageMemoryBarrier()
+		.setImage(image)
+		.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setSubresourceRange(vk::ImageSubresourceRange()
+			.setAspectMask(vk::ImageAspectFlagBits::eColor)
+			.setBaseArrayLayer(0)
+			.setLayerCount(1)
+			.setLevelCount(1));
+
+	int width = extent.width;
+	int height = extent.height;
+
+	// TODO: generate mipmap level data
+
+	cmd.oneTimeSubmitAndDestroy();
 }
 
 namespace Memory {
@@ -30,11 +171,11 @@ namespace Memory {
 	}
 
 	std::optional<uint32_t> findMemoryType(
-		const Context& context,
+		const Context& ctx,
 		vk::MemoryRequirements requirements,
 		vk::MemoryPropertyFlags requestedProps
 	) {
-		return findMemoryType(context.memProperties, requirements, requestedProps);
+		return findMemoryType(ctx.instance()->memProperties(), requirements, requestedProps);
 	}
 
 	vk::Buffer createBuffer(
@@ -76,7 +217,7 @@ namespace Memory {
 
 		buffer.buffer = ctx.device.createBuffer(bufferCreateInfo);
 		auto requirements = ctx.device.getBufferMemoryRequirements(buffer.buffer);
-		auto memTypeIndex = findMemoryType(ctx.memProperties, requirements, properties);
+		auto memTypeIndex = findMemoryType(ctx.instance()->memProperties(), requirements, properties);
 
 		if (!memTypeIndex) {
 			throw std::runtime_error("Required memory type not found");
@@ -191,12 +332,17 @@ namespace Memory {
 	vk::Image createImage2D(
 		const Context& ctx, vk::Extent2D extent, vk::Format format,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
-		vk::DeviceMemory& memory
+		vk::DeviceMemory& memory, uint32_t nMipLevels
 	) {
+		nMipLevels = std::min(nMipLevels, Image::mipLevels(extent));
+
+		if (nMipLevels > 1) {
+			usage |= vk::ImageUsageFlagBits::eTransferSrc;
+		}
 		auto createInfo = vk::ImageCreateInfo()
 			.setImageType(vk::ImageType::e2D)
 			.setExtent({ extent.width, extent.height, 1 })
-			.setMipLevels(1)
+			.setMipLevels(nMipLevels)
 			.setArrayLayers(1)
 			.setFormat(format)
 			.setTiling(vk::ImageTiling::eOptimal)
@@ -223,14 +369,18 @@ namespace Memory {
 
 	Image createImage2D(
 		const Context& ctx, vk::Extent2D extent, vk::Format format,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, uint32_t nMipLevels
 	) {
 		Image image(ctx);
+		nMipLevels = std::min(nMipLevels, Image::mipLevels(extent));
 
+		if (nMipLevels > 1) {
+			usage |= vk::ImageUsageFlagBits::eTransferSrc;
+		}
 		auto createInfo = vk::ImageCreateInfo()
 			.setImageType(vk::ImageType::e2D)
 			.setExtent({ extent.width, extent.height, 1 })
-			.setMipLevels(1)
+			.setMipLevels(nMipLevels)
 			.setArrayLayers(1)
 			.setFormat(format)
 			.setTiling(tiling)
@@ -256,26 +406,58 @@ namespace Memory {
 
 		image.extent = vk::Extent3D(extent.width, extent.height, 1);
 		image.type = vk::ImageType::e2D;
+		image.usage = usage;
+		image.layout = vk::ImageLayout::eUndefined;
 		image.format = format;
+		image.nMipLevels = nMipLevels;
+		image.nArrayLayers = 1;
 		return image;
 	}
 
 	Image createTexture2D(
 		const Context& ctx, const HostImage* hostImg,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
+		uint32_t nMipLevels
 	) {
-		auto stagingBuffer = createBuffer(ctx, hostImg->byteSize(),
+		Image image = createImage2D(ctx, hostImg->extent(), hostImg->format(), tiling, usage, properties, nMipLevels);
+
+		auto transferBuf = createBuffer(ctx, hostImg->byteSize(),
 			vk::BufferUsageFlagBits::eTransferSrc,
 			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 		);
 
-		stagingBuffer.mapMemory();
-		memcpy(stagingBuffer.data, hostImg->data(), hostImg->byteSize());
-		stagingBuffer.unmapMemory();
+		transferBuf.mapMemory();
+		memcpy(transferBuf.data, hostImg->data(), hostImg->byteSize());
+		transferBuf.unmapMemory();
 
-		stagingBuffer.destroy();
+		image.changeLayout(vk::ImageLayout::eTransferDstOptimal);
+		copyBufferToImage(ctx, transferBuf, image);
+		transferBuf.destroy();
 
-		return createImage2D(ctx, hostImg->extent(), hostImg->format(), tiling, usage, properties);
+		image.changeLayout(layout);
+		image.createMipmap();
+		image.createImageView();
+
+		return image;
+	}
+
+	void copyBufferToImage(const Context& ctx, const Buffer& buffer, const Image& image) {
+		auto cmd = Command::createOneTimeSubmit(ctx, QueueIdx::GeneralUse);
+
+		auto copy = vk::BufferImageCopy()
+			.setBufferOffset(0)
+			.setBufferRowLength(0)
+			.setBufferImageHeight(0)
+			.setImageSubresource(vk::ImageSubresourceLayers()
+				.setAspectMask(vk::ImageAspectFlagBits::eColor)
+				.setMipLevel(0)
+				.setBaseArrayLayer(0)
+				.setLayerCount(1))
+			.setImageOffset({ 0, 0, 0 })
+			.setImageExtent(image.extent);
+
+		cmd.cmd.copyBufferToImage(buffer.buffer, image.image, image.layout, copy);
+		cmd.oneTimeSubmitAndDestroy();
 	}
 }
 

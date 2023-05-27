@@ -14,7 +14,7 @@ NAMESPACE_BEGIN(zvk)
 class Swapchain {
 public:
 	Swapchain() = default;
-	Swapchain(const Instance& instance, const Context& ctx, uint32_t width, uint32_t height);
+	Swapchain(const Context& ctx, uint32_t width, uint32_t height);
 	void destroy();
 
 	vk::SwapchainKHR swapchain() const { return mSwapchain; }

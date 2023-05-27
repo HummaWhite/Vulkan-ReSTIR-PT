@@ -37,7 +37,7 @@ public:
 
 	void setShoudResetSwapchain(bool reset) { mShouldResetSwapchain = reset; }
 
-	constexpr static int NumFramesConcurrent = 4;
+	constexpr static uint32_t NumFramesConcurrent = 4;
 
 private:
 	void initWindow();

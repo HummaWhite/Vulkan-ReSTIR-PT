@@ -6,7 +6,8 @@
 
 NAMESPACE_BEGIN(zvk)
 
-Context::Context(const Instance& instance, const std::vector<const char*>& extensions) {
+Context::Context(const Instance& instance, const std::vector<const char*>& extensions) :
+	mInstance(&instance) {
 	std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 
 	auto [general, compute, transfer] = instance.queueFamilies();
@@ -63,7 +64,6 @@ Context::Context(const Instance& instance, const std::vector<const char*>& exten
 		.setPEnabledExtensionNames(extensions);
 
 	device = instance.physicalDevice().createDevice(deviceCreateInfo);
-	memProperties = instance.physicalDevice().getMemoryProperties();
 
 	queues[QueueIdx::GeneralUse] = Queue(device, generalFamily, generalIdx);
 	queues[QueueIdx::Present] = Queue(device, presentFamily, presentIdx);

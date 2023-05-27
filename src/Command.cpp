@@ -2,7 +2,7 @@
 
 NAMESPACE_BEGIN(zvk)
 
-void CommandBuffer::oneTimeEndAndSubmit() {
+void CommandBuffer::oneTimeSubmitAndDestroy() {
     cmd.end();
     auto submitInfo = vk::SubmitInfo().setCommandBuffers(cmd);
     mCtx->queues[mQueueIdx].queue.submit(submitInfo);
@@ -19,7 +19,7 @@ std::vector<CommandBuffer> Command::createPrimary(const Context& ctx, QueueIdx q
     auto cmds = ctx.device.allocateCommandBuffers(allocInfo);
     std::vector<CommandBuffer> ret(cmds.size());
 
-    for (size_t i = 0; i < cmds.size(); i++) {
+    for (size_t i = 0; i < n; i++) {
         ret[i] = CommandBuffer(ctx, queueIdx);
         ret[i].cmd = cmds[i];
         ret[i].open = false;

@@ -55,7 +55,7 @@ void Renderer::initVulkan() {
 		mInstance = zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
 		mContext = zvk::Context(mInstance, DeviceExtensions);
 		mDevice = mContext.device;
-		mSwapchain = zvk::Swapchain(mInstance, mContext, mWidth, mHeight);
+		mSwapchain = zvk::Swapchain(mContext, mWidth, mHeight);
 		
 		createRenderPass();
 		createDescriptorSetLayout();
@@ -244,8 +244,10 @@ void Renderer::createTextureImage() {
 	mTextureImage = zvk::Memory::createTexture2D(
 		mContext, hostImage,
 		vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
-		vk::MemoryPropertyFlagBits::eDeviceLocal
+		vk::ImageLayout::eShaderReadOnlyOptimal, vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
+
+	mTextureImage.createSampler(vk::Filter::eLinear);
 
 	delete hostImage;
 }
@@ -274,6 +276,12 @@ void Renderer::createUniformBuffers() {
 }
 
 void Renderer::createDescriptorPool() {
+	vk::DescriptorPoolSize poolSizes[] = {
+		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1024),
+		vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 1024),
+		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 1024)
+	};
+
 	vk::DescriptorPoolSize size(vk::DescriptorType::eUniformBuffer, NumFramesConcurrent);
 
 	auto createInfo = vk::DescriptorPoolCreateInfo()
@@ -454,7 +462,7 @@ void Renderer::recreateFrames() {
 	mContext.device.waitIdle();
 	cleanupFrames();
 
-	mSwapchain = zvk::Swapchain(mInstance, mContext, width, height);
+	mSwapchain = zvk::Swapchain(mContext, width, height);
 	createFramebuffers();
 }
 
@@ -469,18 +477,15 @@ void Renderer::cleanupVulkan() {
 	cleanupFrames();
 
 	mContext.device.destroyDescriptorPool(mDescriptorPool);
-
-	mCameraUniforms.destroy();
-
 	mContext.device.destroyDescriptorSetLayout(mDescriptorSetLayout);
 
+	mCameraUniforms.destroy();
 	mVertexBuffer.destroy();
 	mIndexBuffer.destroy();
 	mTextureImage.destroy();
 
 	mContext.device.destroyPipeline(mGraphicsPipeline);
 	mContext.device.destroyPipelineLayout(mPipelineLayout);
-
 	mContext.device.destroyRenderPass(mRenderPass);
 
 	for (auto& fence : mInFlightFences) {
@@ -500,6 +505,7 @@ void Renderer::cleanupVulkan() {
 	mShaderManager.destroyShaderModules();
 
 	mContext.destroy();
+	mInstance.destroy();
 }
 
 void Renderer::exec() {

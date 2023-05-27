@@ -4,9 +4,9 @@
 
 NAMESPACE_BEGIN(zvk)
 
-Swapchain::Swapchain(const Instance& instance, const Context& ctx, uint32_t width, uint32_t height) :
+Swapchain::Swapchain(const Context& ctx, uint32_t width, uint32_t height) :
 	mCtx(&ctx) {
-	createSwapchain(instance, width, height);
+	createSwapchain(*ctx.instance(), width, height);
 	createImageViews();
 }
 

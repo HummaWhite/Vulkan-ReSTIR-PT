@@ -69,6 +69,8 @@ public:
     Context(const Instance& instance, const std::vector<const char*>& extensions);
     void destroy();
 
+    const Instance* instance() const { return mInstance; }
+
     static Context create(const Instance& instance, const std::vector<const char*>& extensions) {
         return Context(instance, extensions);
     }
@@ -78,10 +80,12 @@ private:
 
 public:
     vk::Device device;
-    vk::PhysicalDeviceMemoryProperties memProperties;
 
     QueueSet queues;
     CommandPoolSet cmdPools;
+
+private:
+    const Instance* mInstance;
 };
 
 NAMESPACE_END(zvk)

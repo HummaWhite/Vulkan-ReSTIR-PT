@@ -36,6 +36,9 @@ public:
 	vk::PhysicalDevice physicalDevice() const { return mPhysicalDevice; }
 	vk::SurfaceKHR surface() const { return mSurface; }
 	QueueFamilies queueFamilies() const { return mQueueFamilies; }
+	const vk::PhysicalDeviceFeatures& deviceFeatures() const { return mDeviceFeatures; }
+	const vk::PhysicalDeviceProperties& deviceProperties() const { return mDeviceProperties; }
+	const vk::PhysicalDeviceMemoryProperties& memProperties() const { return mMemProperties; }
 
 private:
 	void queryExtensionsAndLayers();
@@ -49,6 +52,8 @@ private:
 	vk::Instance mInstance;
 	vk::PhysicalDevice mPhysicalDevice;
 	vk::SurfaceKHR mSurface;
+	vk::PhysicalDeviceFeatures mDeviceFeatures;
+	vk::PhysicalDeviceProperties mDeviceProperties;
 	vk::PhysicalDeviceMemoryProperties mMemProperties;
 
 	QueueFamilies mQueueFamilies;
