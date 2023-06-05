@@ -13,4 +13,5 @@ add_library(stb ${stb_sources})
 
 target_include_directories(stb PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/stb")
 
-#add_subdirectory(assimp)
+add_subdirectory(assimp)
+add_subdirectory(pugixml)
