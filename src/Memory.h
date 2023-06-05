@@ -14,10 +14,10 @@
 
 NAMESPACE_BEGIN(zvk)
 
-class Buffer {
+class Buffer : public BaseVkObject {
 public:
-	Buffer() : mCtx(nullptr) {}
-	Buffer(const Context& ctx) : mCtx(&ctx) {}
+	Buffer() {}
+	Buffer(const Context& ctx) : BaseVkObject(ctx) {}
 
 	bool isHostVisible() const {
 		return hasFlagBit(properties, vk::MemoryPropertyFlagBits::eHostVisible);
@@ -45,15 +45,12 @@ public:
 	vk::MemoryPropertyFlags properties;
 	vk::BufferUsageFlags usage;
 	void* data = nullptr;
-
-private:
-	const Context* mCtx;
 };
 
-class Image {
+class Image : public BaseVkObject {
 public:
-	Image() : mCtx(nullptr) {}
-	Image(const Context& ctx) : mCtx(&ctx) {}
+	Image() {}
+	Image(const Context& ctx) : BaseVkObject(ctx) {}
 
 	void destroy() {
 		mCtx->device.destroySampler(sampler);
@@ -88,9 +85,6 @@ public:
 	vk::DeviceMemory memory;
 	uint32_t nMipLevels;
 	uint32_t nArrayLayers;
-
-private:
-	const Context* mCtx;
 };
 
 namespace Memory {

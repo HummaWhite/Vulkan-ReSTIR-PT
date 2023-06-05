@@ -9,10 +9,10 @@
 
 NAMESPACE_BEGIN(zvk)
 
-class CommandBuffer {
+class CommandBuffer : public BaseVkObject {
 public:
-    CommandBuffer() = default;
-    CommandBuffer(const Context& ctx, QueueIdx queueIdx) : mCtx(&ctx), mQueueIdx(queueIdx) {}
+    CommandBuffer() {}
+    CommandBuffer(const Context& ctx, QueueIdx queueIdx) : BaseVkObject(ctx), mQueueIdx(queueIdx) {}
 
     void destroy() {
         mCtx->device.freeCommandBuffers(mCtx->cmdPools[mQueueIdx], cmd);
@@ -29,7 +29,6 @@ public:
     bool open;
 
 private:
-    const Context* mCtx;
     QueueIdx mQueueIdx;
 };
 

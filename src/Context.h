@@ -65,7 +65,7 @@ using CommandPoolSet = ObjectSet<vk::CommandPool, 4, QueueIdx>;
 
 class Context {
 public:
-    Context() = default;
+    Context() : mInstance(nullptr) {}
     Context(const Instance& instance, const std::vector<const char*>& extensions);
     void destroy();
 
@@ -86,6 +86,15 @@ public:
 
 private:
     const Instance* mInstance;
+};
+
+class BaseVkObject {
+public:
+    BaseVkObject() : mCtx(nullptr) {}
+    BaseVkObject(const Context& ctx) : mCtx(&ctx) {}
+
+protected:
+    const Context* mCtx;
 };
 
 NAMESPACE_END(zvk)

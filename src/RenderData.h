@@ -18,18 +18,23 @@ struct Vertex {
 		// return { 0, sizeof(Vertex), vk::VertexInputRate::eVertex };
 	}
 
-	constexpr static std::array<vk::VertexInputAttributeDescription, 2> attributeDescription() {
+	constexpr static std::array<vk::VertexInputAttributeDescription, 3> attributeDescription() {
 		return {
 			vk::VertexInputAttributeDescription()
-				.setBinding(0)
 				.setLocation(0)
+				.setBinding(0)
 				.setOffset(offsetof(Vertex, pos))
 				.setFormat(vk::Format::eR32G32B32Sfloat),
 			vk::VertexInputAttributeDescription()
-				.setBinding(0)
 				.setLocation(1)
+				.setBinding(0)
 				.setOffset(offsetof(Vertex, color))
-				.setFormat(vk::Format::eR32G32B32Sfloat)
+				.setFormat(vk::Format::eR32G32B32Sfloat),
+			vk::VertexInputAttributeDescription()
+				.setLocation(2)
+				.setBinding(0)
+				.setOffset(offsetof(Vertex, texCoord))
+				.setFormat(vk::Format::eR32G32Sfloat),
 		};
 		/*
 		return
@@ -42,6 +47,7 @@ struct Vertex {
 
 	glm::vec3 pos;
 	glm::vec3 color;
+	glm::vec2 texCoord;
 };
 
 struct CameraData {
@@ -54,10 +60,10 @@ struct CameraData {
 };
 
 const std::vector<Vertex> VertexData = {
-	{ { -0.5f, -0.5f, 0.f }, { 1.f, 0.f, 0.f } },
-	{ { 0.5f, -0.5f, 0.f }, { 0.f, 1.f, 0.f } },
-	{ { 0.5f, 0.5f, 0.f }, { 0.f, 0.f, 1.f } },
-	{ { -0.5f, 0.5f, 0.f }, { 1.f, 1.f, 1.f } }
+	{ { -0.5f, -0.5f, 0.f }, { 1.f, 0.f, 0.f }, { 1.f, 0.f } },
+	{ { 0.5f, -0.5f, 0.f }, { 0.f, 1.f, 0.f }, { 0.f, 0.f } },
+	{ { 0.5f, 0.5f, 0.f }, { 0.f, 0.f, 1.f }, { 0.f, 1.f } },
+	{ { -0.5f, 0.5f, 0.f }, { 1.f, 1.f, 1.f }, { 1.f, 1.f } }
 };
 
 const std::vector<uint32_t> IndexData = {

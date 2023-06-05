@@ -18,6 +18,7 @@
 #include "Swapchain.h"
 #include "ShaderManager.h"
 #include "Memory.h"
+#include "Descriptor.h"
 
 #include "util/Error.h"
 #include "util/Timer.h"
@@ -44,7 +45,6 @@ private:
 	void initVulkan();
 
 	void createRenderPass();
-	void createDescriptorSetLayout();
 	void createPipeline();
 
 	void createFramebuffers();
@@ -53,8 +53,7 @@ private:
 	void createVertexBuffer();
 	void createIndexBuffer();
 	void createUniformBuffers();
-	void createDescriptorPool();
-	void createDescriptorSets();
+	void createDescriptors();
 	void createRenderCmdBuffers();
 
 	void createSyncObjects();
@@ -83,19 +82,21 @@ private:
 	vk::Pipeline mGraphicsPipeline;
 	zvk::ShaderManager mShaderManager;
 	vk::RenderPass mRenderPass;
-	vk::DescriptorSetLayout mDescriptorSetLayout;
 	vk::PipelineLayout mPipelineLayout;
 
 	std::vector<vk::Framebuffer> mFramebuffers;
 	std::vector<zvk::CommandBuffer> mGCTCmdBuffers;
 
+	vk::Semaphore mImageReadySemaphore;
 	vk::Semaphore mRenderFinishSemaphore;
 	vk::Fence mInFlightFence;
 
 	zvk::Buffer mVertexBuffer;
 	zvk::Buffer mIndexBuffer;
 	zvk::Buffer mCameraUniforms;
-	vk::DescriptorPool mDescriptorPool;
+
+	zvk::DescriptorSetLayout mDescriptorSetLayout;
+	zvk::DescriptorPool mDescriptorPool;
 	vk::DescriptorSet mDescriptorSet;
 
 	zvk::Image mTextureImage;

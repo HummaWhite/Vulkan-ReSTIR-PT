@@ -5,11 +5,12 @@
 
 layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec3 aColor;
+layout(location = 2) in vec2 aTexCoord;
 
 layout(location = 0) out vec3 vColor;
+layout(location = 1) out vec2 vTexCoord;
 
-
-layout(binding = 0) uniform _CameraBuffer {
+layout(set = 0, binding = 0) uniform _CameraBuffer {
 	float pad0;
 	vec3 pad2;
 
@@ -20,6 +21,6 @@ layout(binding = 0) uniform _CameraBuffer {
 
 void main() {
 	gl_Position = cam.proj * cam.view * cam.model * vec4(aPos, 1.0);
-	//gl_Position = vec4(aPos, 1.0);
 	vColor = aColor;
+	vTexCoord = aTexCoord;
 }

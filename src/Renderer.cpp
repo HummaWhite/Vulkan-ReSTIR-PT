@@ -57,16 +57,15 @@ void Renderer::initVulkan() {
 		mDevice = mContext.device;
 		mSwapchain = zvk::Swapchain(mContext, mWidth, mHeight);
 		
-		createRenderPass();
-		createDescriptorSetLayout();
-		createPipeline();
-		createFramebuffers();
 		createVertexBuffer();
 		createUniformBuffers();
-		createDescriptorPool();
-		createDescriptorSets();
 		createIndexBuffer();
 		createTextureImage();
+		createDescriptors();
+
+		createRenderPass();
+		createFramebuffers();
+		createPipeline();
 		createRenderCmdBuffers();
 		createSyncObjects();
 	}
@@ -110,19 +109,6 @@ void Renderer::createRenderPass() {
 		.setDependencies(subpassDependency);
 
 	mRenderPass = mContext.device.createRenderPass(renderPassCreateInfo);
-}
-
-void Renderer::createDescriptorSetLayout() {
-	auto cameraBinding = vk::DescriptorSetLayoutBinding()
-		.setBinding(0)
-		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-		.setDescriptorCount(1)
-		.setStageFlags(vk::ShaderStageFlagBits::eVertex);
-
-	auto createInfo = vk::DescriptorSetLayoutCreateInfo()
-		.setBindings(cameraBinding);
-
-	mDescriptorSetLayout = mContext.device.createDescriptorSetLayout(createInfo);
 }
 
 void Renderer::createPipeline() {
@@ -196,7 +182,7 @@ void Renderer::createPipeline() {
 		.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
 
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts(mDescriptorSetLayout);
+		.setSetLayouts(mDescriptorSetLayout.layout);
 
 	mPipelineLayout = mContext.device.createPipelineLayout(pipelineLayoutCreateInfo);
 
@@ -275,45 +261,28 @@ void Renderer::createUniformBuffers() {
 	mCameraUniforms.mapMemory();
 }
 
-void Renderer::createDescriptorPool() {
-	vk::DescriptorPoolSize poolSizes[] = {
-		vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, 1024),
-		vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, 1024),
-		vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, 1024)
+void Renderer::createDescriptors() {
+	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
+		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex),
+		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment),
 	};
 
-	vk::DescriptorPoolSize size(vk::DescriptorType::eUniformBuffer, NumFramesConcurrent);
+	mDescriptorSetLayout = zvk::DescriptorSetLayout(mContext, bindings);
+	mDescriptorPool = zvk::DescriptorPool(mContext, { mDescriptorSetLayout }, 1);
+	mDescriptorSet = mDescriptorPool.allocDescriptorSet(mDescriptorSetLayout.layout);
 
-	auto createInfo = vk::DescriptorPoolCreateInfo()
-		.setPoolSizes(size)
-		.setMaxSets(NumFramesConcurrent);
+	std::vector<vk::WriteDescriptorSet> updates = {
+		zvk::Descriptor::makeWrite(
+			mDescriptorSetLayout, mDescriptorSet, 0,
+			vk::DescriptorBufferInfo(mCameraUniforms.buffer, 0, mCameraUniforms.size)
+		),
+		zvk::Descriptor::makeWrite(
+			mDescriptorSetLayout, mDescriptorSet, 1,
+			vk::DescriptorImageInfo(mTextureImage.sampler, mTextureImage.imageView, mTextureImage.layout)
+		),
+	};
 
-	mDescriptorPool = mContext.device.createDescriptorPool(createInfo);
-}
-
-void Renderer::createDescriptorSets() {
-	auto allocInfo = vk::DescriptorSetAllocateInfo()
-		.setDescriptorPool(mDescriptorPool)
-		.setSetLayouts(mDescriptorSetLayout);
-
-	mDescriptorSet = mContext.device.allocateDescriptorSets(allocInfo)[0];
-
-	std::vector<vk::WriteDescriptorSet> updates;
-
-	auto bufferInfo = vk::DescriptorBufferInfo()
-		.setBuffer(mCameraUniforms.buffer)
-		.setOffset(0)
-		.setRange(sizeof(CameraData));
-
-	auto update = vk::WriteDescriptorSet()
-		.setDstSet(mDescriptorSet)
-		.setDstBinding(0)
-		.setDstArrayElement(0)
-		.setDescriptorType(vk::DescriptorType::eUniformBuffer)
-		.setDescriptorCount(1)
-		.setBufferInfo(bufferInfo);
-
-	mContext.device.updateDescriptorSets(update, {});
+	mContext.device.updateDescriptorSets(updates, {});
 }
 
 void Renderer::createRenderCmdBuffers() {
@@ -325,6 +294,7 @@ void Renderer::createSyncObjects() {
 		.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
 	mInFlightFence = mContext.device.createFence(fenceCreateInfo);
+	mImageReadySemaphore = mContext.device.createSemaphore(vk::SemaphoreCreateInfo());
 	mRenderFinishSemaphore = mContext.device.createSemaphore(vk::SemaphoreCreateInfo());
 }
 
@@ -373,7 +343,7 @@ void Renderer::drawFrame() {
 	}
 
 	auto [acquireRes, imgIndex] = mContext.device.acquireNextImageKHR(
-		mSwapchain.swapchain(), UINT64_MAX, mSwapchain.readySemaphore()
+		mSwapchain.swapchain(), UINT64_MAX, mImageReadySemaphore
 	);
 
 	if (acquireRes == vk::Result::eErrorOutOfDateKHR) {
@@ -392,7 +362,7 @@ void Renderer::drawFrame() {
 	updateUniformBuffer();
 
 	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-	auto waitSemaphore = mSwapchain.readySemaphore();
+	auto waitSemaphore = mImageReadySemaphore;
 
 	auto submitInfo = vk::SubmitInfo()
 		.setCommandBuffers(mGCTCmdBuffers[imgIndex].cmd)
@@ -466,8 +436,8 @@ void Renderer::cleanupFrames() {
 void Renderer::cleanupVulkan() {
 	cleanupFrames();
 
-	mContext.device.destroyDescriptorPool(mDescriptorPool);
-	mContext.device.destroyDescriptorSetLayout(mDescriptorSetLayout);
+	mDescriptorSetLayout.destroy();
+	mDescriptorPool.destroy();
 
 	mCameraUniforms.destroy();
 	mVertexBuffer.destroy();
@@ -479,6 +449,7 @@ void Renderer::cleanupVulkan() {
 	mContext.device.destroyRenderPass(mRenderPass);
 
 	mContext.device.destroyFence(mInFlightFence);
+	mContext.device.destroySemaphore(mImageReadySemaphore);
 	mContext.device.destroySemaphore(mRenderFinishSemaphore);
 
 	for (auto& cmd : mGCTCmdBuffers) {

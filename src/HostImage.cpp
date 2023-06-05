@@ -80,12 +80,14 @@ HostImage* HostImage::createFromFile(const File::path& path, HostImageType type,
 	}
 	image->dataType = type;
 
-	if (image->channels == 3) {
+	if (image->channels == 3 && channels == 3) {
 		Log::bracketLine<1>("No alpha channel, added");
 		image->mData = addAlphaChannel(data, image->width, image->height, type);
 		image->channels = 4;
 	}
 	else {
+		image->channels = channels;
+
 		int bytesPerChannel = (type == HostImageType::Float32) ? sizeof(float) : 1;
 		size_t size = static_cast<size_t>(image->width) * image->height * channels * bytesPerChannel;
 		image->mData = new uint8_t[size];
