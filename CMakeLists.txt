@@ -22,9 +22,10 @@ ENDIF(USE_D2D_WSI)
 ENDIF(WIN32)
 
 # Set preprocessor defines
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -D_USE_MATH_DEFINES")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -D_USE_MATH_DEFINES")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 
-add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+#add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 set(CMAKE_CXX_STANDARD 20)
 
 # Enable the creation of folders for Visual Studio projects
@@ -62,5 +63,19 @@ ENDIF(WIN32)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/")
 
+set(Assimp_dir "ext/assimp")
+set(Assimp_include_dir "${Assimp_dir}/include")
+
+include_directories(
+	"${CMAKE_CURRENT_SOURCE_DIR}/${Assimp_include_dir}"
+	"${PROJECT_SOURCE_DIR}/build/${Assimp_include_dir}"
+)
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/ext/pugixml/src")
+
 add_subdirectory(ext)
 add_subdirectory(src)
+
+message("${Vulkan_INCLUDE_DIRS}")
+message("${PROJECT_SOURCE_DIR}/build/${Assimp_include_dir}")
+
+include_directories(${Vulkan_INCLUDE_DIRS})

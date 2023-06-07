@@ -70,14 +70,11 @@ foreach(SHADER_SOURCE ${SHADER_SOURCES})
     # TODO: Build shaders on not windows
 endforeach()
 
-message("${Vulkan_INCLUDE_DIRS}")
+target_link_libraries(Vulkan_ReSTIR_PT Vulkan::Vulkan glfw stb assimp pugixml)
 
-target_link_libraries(Vulkan_ReSTIR_PT ${ASSIMP_LIBRARIES} Vulkan::Vulkan glfw stb)
 target_include_directories(Vulkan_ReSTIR_PT
 	PRIVATE
   		${CMAKE_CURRENT_SOURCE_DIR}
-	PUBLIC
-		${Vulkan_Include_DIRS}
 )
 
 InternalTarget("" Vulkan_ReSTIR_PT)
