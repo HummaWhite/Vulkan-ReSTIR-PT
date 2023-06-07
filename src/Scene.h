@@ -16,12 +16,11 @@ class Scene
 public:
 	bool load(const File::path& path);
 	//void clear();
-	void saveToFile(const File::path& path);
 
 private:
-	//void addObject(ModelInstance* object);
+	void addObject(ModelInstance* object);
+	void addLight(ModelInstance* light, const glm::vec3& power);
 	//void addMaterial(const Material& material);
-	//void addLight(ModelInstance* light, const glm::vec3& power);
 
 	std::pair<ModelInstance*, std::optional<glm::vec3>> loadModelInstance(const pugi::xml_node& modelNode);
 

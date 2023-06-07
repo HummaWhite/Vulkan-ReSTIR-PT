@@ -63,7 +63,7 @@ uint8_t* addAlphaChannel(const uint8_t* data, int width, int height, HostImageTy
 }
 
 HostImage* HostImage::createFromFile(const File::path& path, HostImageType type, int channels) {
-	Log::bracketLine<0>("Image " + path.generic_string());
+	//Log::bracketLine<0>("Image " + path.generic_string());
 
 	auto image = new HostImage();
 	auto pathStr = path.generic_string();
@@ -75,13 +75,13 @@ HostImage* HostImage::createFromFile(const File::path& path, HostImageType type,
 		stbi_load(pathStr.c_str(), &image->width, &image->height, &image->channels, channels);
 
 	if (data == nullptr) {
-		Log::bracketLine<1>("Failed to load");
+		//Log::bracketLine<1>("Failed to load");
 		return nullptr;
 	}
 	image->dataType = type;
 
 	if (image->channels == 3 && channels == 3) {
-		Log::bracketLine<1>("No alpha channel, added");
+		//Log::bracketLine<1>("No alpha channel, added");
 		image->mData = addAlphaChannel(data, image->width, image->height, type);
 		image->channels = 4;
 	}

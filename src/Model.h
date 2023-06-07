@@ -46,6 +46,8 @@ public:
 	void setName(const std::string& name) { mName = name; }
 	void setPath(const File::path& path) { mPath = path; }
 
+	uint32_t offset() const { return mOffset; }
+	uint32_t numMeshes() const { return mNumMeshes; }
 	glm::vec3 pos() const { return mPos; }
 	glm::vec3 scale() const { return mScale; }
 	glm::vec3 rotation() const { return mRotation; }
@@ -53,13 +55,13 @@ public:
 	std::string name() const { return mName; }
 	File::path path() const { return mPath; }
 
-	std::vector<MeshInstance>& meshInstances() { return mMeshInstances; }
-
 private:
 	ModelInstance* copy() const;
 
 private:
-	std::vector<MeshInstance> mMeshInstances;
+	uint32_t mOffset = 0;
+	uint32_t mNumMeshes = 0;
+
 	glm::vec3 mPos = glm::vec3(0.0f);
 	glm::vec3 mScale = glm::vec3(1.0f);
 	glm::vec3 mRotation = glm::vec3(0.0f);

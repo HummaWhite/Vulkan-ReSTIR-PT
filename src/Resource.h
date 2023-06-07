@@ -22,8 +22,6 @@ public:
 	std::optional<uint32_t> addImage(const File::path& path, zvk::HostImageType type);
 	std::vector<zvk::HostImage*>& imagePool() { return mImagePool; }
 
-	ModelInstance* createNewModelInstance(const File::path& path);
-	ModelInstance* getModelInstanceByPath(const File::path& path);
 	ModelInstance* openModelInstance(
 		const File::path& path,
 		glm::vec3 pos, glm::vec3 scale = glm::vec3(1.0f), glm::vec3 rotation = glm::vec3(0.0f));
@@ -32,11 +30,14 @@ public:
 	void destroy();
 
 private:
+	ModelInstance* getModelInstanceByPath(const File::path& path);
+	ModelInstance* createNewModelInstance(const File::path& path);
 	MeshInstance createNewMeshInstance(aiMesh* mesh, const aiScene* scene);
 
 private:
 	std::vector<MeshVertex> mVertices;
 	std::vector<uint32_t> mIndices;
+	std::vector<MeshInstance> mMeshInstances;
 	std::vector<ModelInstance*> mModelInstances;
 	std::vector<Material> mMaterials;
 

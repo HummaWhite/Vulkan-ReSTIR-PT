@@ -68,6 +68,8 @@ void Renderer::initVulkan() {
 		createPipeline();
 		createRenderCmdBuffers();
 		createSyncObjects();
+
+		initScene();
 	}
 	catch (const std::exception& e) {
 		Log::bracketLine<0>("Error:" + std::string(e.what()));
@@ -296,6 +298,10 @@ void Renderer::createSyncObjects() {
 	mInFlightFence = mContext.device.createFence(fenceCreateInfo);
 	mImageReadySemaphore = mContext.device.createSemaphore(vk::SemaphoreCreateInfo());
 	mRenderFinishSemaphore = mContext.device.createSemaphore(vk::SemaphoreCreateInfo());
+}
+
+void Renderer::initScene() {
+	mScene.load("res/scene.xml");
 }
 
 void Renderer::recordRenderCommands() {

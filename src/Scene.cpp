@@ -48,10 +48,12 @@ std::pair<ModelInstance*, std::optional<glm::vec3>> Scene::loadModelInstance(con
 		return { model, std::nullopt };
 	}
 
-	for (auto meshInstance : model->meshInstances()) {
-		auto textureIdx = resource.mMaterials[meshInstance.materialIdx].textureIdx;
-		resource.mMaterials[meshInstance.materialIdx] = *material;
-		resource.mMaterials[meshInstance.materialIdx].textureIdx = textureIdx;
+	for (uint32_t i = 0; i < model->numMeshes(); i++) {
+		uint32_t materialIdx = resource.mMeshInstances[i + model->offset()].materialIdx;
+
+		auto textureIdx = resource.mMaterials[materialIdx].textureIdx;
+		resource.mMaterials[materialIdx] = *material;
+		resource.mMaterials[materialIdx].textureIdx = textureIdx;
 	}
 
 	return { model, std::nullopt };
@@ -115,13 +117,18 @@ bool Scene::load(const File::path& path) {
 	}
 	{
 		auto modelInstances = scene.child("modelInstances");
-		for (auto instance = modelInstances.first_child(); instance; instance = instance.next_sibling())
-		{
+		for (auto instance = modelInstances.first_child(); instance; instance = instance.next_sibling()) {
 			auto [model, radiance] = loadModelInstance(instance);
-			if (radiance.has_value())
-				;// addLight(model, radiance.value());
-			else
-				;// addObject(model);
+
+			resource.mModelInstances.push_back(model);
+			/*
+			if (radiance) {
+				addLight(model, radiance.value());
+			}
+			else {
+				addObject(model);
+			}
+			*/
 		}
 	}
 	{

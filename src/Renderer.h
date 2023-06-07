@@ -19,6 +19,7 @@
 #include "ShaderManager.h"
 #include "Memory.h"
 #include "Descriptor.h"
+#include "Scene.h"
 
 #include "util/Error.h"
 #include "util/Timer.h"
@@ -55,8 +56,10 @@ private:
 	void createUniformBuffers();
 	void createDescriptors();
 	void createRenderCmdBuffers();
-
 	void createSyncObjects();
+
+	void initScene();
+
 	void recordRenderCommands();
 	void drawFrame();
 	void updateUniformBuffer();
@@ -100,6 +103,8 @@ private:
 	vk::DescriptorSet mDescriptorSet;
 
 	zvk::Image mTextureImage;
+
+	Scene mScene;
 
 	bool mShouldResetSwapchain = false;
 

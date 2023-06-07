@@ -30,6 +30,19 @@ std::optional<uint32_t> Resource::addImage(const File::path& path, zvk::HostImag
 	return mImagePool.size() - 1;
 }
 
+ModelInstance* Resource::openModelInstance(const File::path& path, glm::vec3 pos, glm::vec3 scale, glm::vec3 rotation) {
+	auto model = getModelInstanceByPath(path);
+	if (model == nullptr) {
+		model = createNewModelInstance(path);
+		mMapPathToModelInstance[path] = model;
+	}
+	auto newCopy = model->copy();
+	newCopy->setPos(pos);
+	newCopy->setScale(scale);
+	newCopy->setRotation(rotation);
+	return newCopy;
+}
+
 ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 	auto model = new ModelInstance;
 	auto pathStr = path.generic_string();
@@ -58,17 +71,20 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 
 	std::stack<aiNode*> stack;
 	stack.push(scene->mRootNode);
+	model->mOffset = mMeshInstances.size();
+
 	while (!stack.empty()) {
 		auto node = stack.top();
 		stack.pop();
 
 		for (int i = 0; i < node->mNumMeshes; i++) {
 			auto mesh = scene->mMeshes[node->mMeshes[i]];
-			model->mMeshInstances.push_back(createNewMeshInstance(mesh, scene));
+			mMeshInstances.push_back(createNewMeshInstance(mesh, scene));
 		}
 		for (int i = 0; i < node->mNumChildren; i++) {
 			stack.push(node->mChildren[i]);
 		}
+		model->mNumMeshes += node->mNumMeshes;
 	}
 
 	for (int i = 0; i < scene->mNumMaterials; i++) {
@@ -89,16 +105,16 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 			}
 			Log::bracketLine<2>("Albedo texture " + imagePath.generic_string());
 
-			auto imageIdx = addImage(path, zvk::HostImageType::Int8);
-
-			if (imageIdx) {
-				material.textureIdx = *imageIdx;
-			}
+			auto imageIdx = addImage(imagePath, zvk::HostImageType::Int8);
+			material.textureIdx = imageIdx ? *imageIdx : InvalidTextureIdx;
+		}
+		else {
+			material.textureIdx = InvalidTextureIdx;
 		}
 		mMaterials.push_back(material);
 	}
 	Log::bracketLine<1>(std::to_string(scene->mNumMaterials) + " material(s)");
-	Log::bracketLine<1>(std::to_string(model->mMeshInstances.size()) + " mesh(es)");
+	Log::bracketLine<1>(std::to_string(model->numMeshes()) + " mesh(es)");
 	return model;
 }
 
@@ -110,19 +126,14 @@ ModelInstance* Resource::getModelInstanceByPath(const File::path& path) {
 	return res->second;
 }
 
-ModelInstance* Resource::openModelInstance(const File::path& path, glm::vec3 pos, glm::vec3 scale, glm::vec3 rotation) {
-	auto raw = getModelInstanceByPath(path);
-	if (raw == nullptr) {
-		raw = createNewModelInstance(path);
-	}
-	auto newCopy = raw->copy();
-	newCopy->setPos(pos);
-	newCopy->setScale(scale);
-	newCopy->setRotation(rotation);
-	return newCopy;
-}
-
 void Resource::clearDeviceMeshAndImage() {
+	for (auto image : mImagePool) {
+		delete image;
+	}
+
+	for (auto m : mMapPathToModelInstance) {
+		delete m.second;
+	}
 	mVertices.clear();
 	mIndices.clear();
 	mImagePool.clear();
@@ -156,8 +167,8 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 		aiFace face = mesh->mFaces[i];
 		for (int j = 0; j < face.mNumIndices; j++) {
 			mIndices.push_back(face.mIndices[j] + meshInstance.offset);
-			meshInstance.numIndices += face.mNumIndices;
 		}
+		meshInstance.numIndices += face.mNumIndices;
 	}
 	uint32_t materialOffset = mMaterials.size();
 
