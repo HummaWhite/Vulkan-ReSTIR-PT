@@ -194,7 +194,7 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 	if (!mPhysicalDevice) {
 		throw std::runtime_error("No physical device available");
 	}
-	Log::bracketLine<0>("Selected device: " + std::string(mPhysicalDevice.getProperties().deviceName.data()));
+	Log::bracketLine<1>("Selected device: " + std::string(mPhysicalDevice.getProperties().deviceName.data()));
 
 	mMemProperties = mPhysicalDevice.getMemoryProperties();
 	mDeviceProperties = mPhysicalDevice.getProperties();

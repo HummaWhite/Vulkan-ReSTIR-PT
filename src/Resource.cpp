@@ -63,9 +63,9 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 		;
 	auto scene = importer.ReadFile(pathStr.c_str(), option);
 
-	Log::bracketLine<0>("ModelInstance loading: " + pathStr + " ...");
+	Log::bracketLine<1>("ModelInstance loading: " + pathStr + " ...");
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-		Log::bracketLine<0>("Assimp " + std::string(importer.GetErrorString()));
+		Log::bracketLine<1>("Assimp " + std::string(importer.GetErrorString()));
 		return nullptr;
 	}
 
@@ -113,8 +113,8 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 		}
 		mMaterials.push_back(material);
 	}
-	Log::bracketLine<1>(std::to_string(scene->mNumMaterials) + " material(s)");
-	Log::bracketLine<1>(std::to_string(model->numMeshes()) + " mesh(es)");
+	Log::bracketLine<2>(std::to_string(scene->mNumMaterials) + " material(s)");
+	Log::bracketLine<2>(std::to_string(model->numMeshes()) + " mesh(es)");
 	return model;
 }
 
@@ -148,10 +148,11 @@ void Resource::destroy() {
 }
 
 MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene) {
-	Log::bracketLine<1>("Mesh nVertices = " + std::to_string(mesh->mNumVertices) +
+	Log::bracketLine<2>("Mesh nVertices = " + std::to_string(mesh->mNumVertices) +
 		", nFaces = " + std::to_string(mesh->mNumFaces));
 
 	MeshInstance meshInstance;
+	uint32_t vertexOffset = mVertices.size();
 
 	for (int i = 0; i < mesh->mNumVertices; i++) {
 		MeshVertex vertex;
@@ -166,7 +167,7 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 	for (int i = 0; i < mesh->mNumFaces; i++) {
 		aiFace face = mesh->mFaces[i];
 		for (int j = 0; j < face.mNumIndices; j++) {
-			mIndices.push_back(face.mIndices[j] + meshInstance.offset);
+			mIndices.push_back(face.mIndices[j] + vertexOffset);
 		}
 		meshInstance.numIndices += face.mNumIndices;
 	}

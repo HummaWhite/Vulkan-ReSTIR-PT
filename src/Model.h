@@ -3,6 +3,7 @@
 #include <iostream>
 #include <variant>
 #include <optional>
+#include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -13,6 +14,19 @@
 #include "Material.h"
 
 struct MeshVertex {
+	constexpr static vk::VertexInputBindingDescription bindingDescription() {
+		return vk::VertexInputBindingDescription(0, sizeof(MeshVertex), vk::VertexInputRate::eVertex);
+	}
+
+	constexpr static std::array<vk::VertexInputAttributeDescription, 4> attributeDescription() {
+		return {
+			vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(MeshVertex, pos)),
+			vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32Sfloat, offsetof(MeshVertex, uvx)),
+			vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32B32Sfloat, offsetof(MeshVertex, norm)),
+			vk::VertexInputAttributeDescription(3, 0, vk::Format::eR32Sfloat, offsetof(MeshVertex, uvy))
+		};
+	}
+
 	std140(glm::vec3, pos);
 	std140(float, uvx);
 	std140(glm::vec3, norm);

@@ -103,7 +103,6 @@ bool Scene::load(const File::path& path) {
 		camera.setPos(pos);
 		camera.setAngle(angle);
 		camera.setFOV(cameraNode.child("fov").attribute("value").as_float());
-		camera.setAspect(static_cast<float>(camera.filmSize().x) / camera.filmSize().y);
 		camera.setLensRadius(cameraNode.child("lensRadius").attribute("value").as_float());
 		camera.setFocalDist(cameraNode.child("focalDistance").attribute("value").as_float());
 		// originalCamera = previewCamera = camera;
@@ -134,5 +133,11 @@ bool Scene::load(const File::path& path) {
 	{
 		//envMap = EnvironmentMap::create(scene.child("envMap").attribute("path").as_string());
 	}
+	Log::bracketLine<1>("Statistics");
+	Log::bracketLine<2>("Vertices = " + std::to_string(resource.vertices().size()));
+	Log::bracketLine<2>("Indices = " + std::to_string(resource.indices().size()));
+	Log::bracketLine<2>("Mesh instances = " + std::to_string(resource.meshInstances().size()));
+	Log::bracketLine<2>("Model instances = " + std::to_string(resource.modelInstances().size()));
+	Log::bracketLine<2>("Materials = " + std::to_string(resource.materials().size()));
 	return true;
 }

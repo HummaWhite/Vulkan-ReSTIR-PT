@@ -31,6 +31,12 @@ struct SwapchainCapabilityDetails {
 };
 
 class Renderer {
+	struct CameraData {
+		std140(glm::mat4, model);
+		std140(glm::mat4, view);
+		std140(glm::mat4, proj);
+	};
+
 public:
 	Renderer(const std::string& name, int width, int height) :
 		mName(name), mWidth(width), mHeight(height) {}
@@ -50,6 +56,8 @@ private:
 
 	void createFramebuffers();
 
+	void initScene();
+
 	void createTextureImage();
 	void createVertexBuffer();
 	void createIndexBuffer();
@@ -57,8 +65,6 @@ private:
 	void createDescriptors();
 	void createRenderCmdBuffers();
 	void createSyncObjects();
-
-	void initScene();
 
 	void recordRenderCommands();
 	void drawFrame();

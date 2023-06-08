@@ -19,11 +19,13 @@ void Camera::rotate(glm::vec3 angle) {
 void Camera::changeFOV(float offset) {
 	mFOV -= glm::radians(offset);
 	mFOV = glm::clamp(mFOV, .1f, 90.f);
+	update();
 }
 
 void Camera::setFOV(float fov) {
 	mFOV = fov;
 	mFOV = glm::clamp(mFOV, .1f, 90.f);
+	update();
 }
 
 void Camera::setDir(glm::vec3 dir) {
@@ -42,17 +44,18 @@ void Camera::setAngle(glm::vec3 angle) {
 	update();
 }
 
-glm::mat4 Camera::viewMatrix() const {
-	float x = glm::sin(glm::radians(mAngle.x)) * glm::cos(glm::radians(mAngle.y));
-	float y = glm::cos(glm::radians(mAngle.x)) * glm::cos(glm::radians(mAngle.y));
-	float z = glm::sin(glm::radians(mAngle.y));
-	glm::vec3 lookingAt = mPos + glm::vec3(x, y, z);
-	glm::mat4 view = glm::lookAt(mPos, lookingAt, mUp);
-	return view;
+void Camera::setFilmSize(glm::ivec2 size) {
+	mFilmSize = size;
+	update();
 }
 
-void Camera::update()
-{
+void Camera::setPlanes(float nearZ, float farZ) {
+	mNear = nearZ;
+	mFar = farZ;
+	update();
+}
+
+void Camera::update() {
 	float x = glm::sin(glm::radians(mAngle.x)) * glm::cos(glm::radians(mAngle.y));
 	float y = glm::cos(glm::radians(mAngle.x)) * glm::cos(glm::radians(mAngle.y));
 	float z = glm::sin(glm::radians(mAngle.y));
@@ -64,4 +67,9 @@ void Camera::update()
 	auto rotMatrix = glm::rotate(glm::mat4(1.0f), mAngle.z, mFront);
 	mRight = glm::normalize(glm::vec3(rotMatrix * glm::vec4(mRight, 1.0f)));
 	mUp = glm::normalize(glm::cross(mRight, mFront));
+
+	glm::vec3 lookingAt = mPos + glm::vec3(x, y, z);
+
+	mViewMatrix = glm::lookAt(mPos, lookingAt, mUp);
+	mProjMatrix = glm::perspective(glm::radians(mFOV), aspect(), mNear, mFar);
 }

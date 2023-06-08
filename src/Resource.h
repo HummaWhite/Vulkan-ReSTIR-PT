@@ -17,6 +17,12 @@ class Resource {
 public:
 	friend class Scene;
 
+	const std::vector<MeshVertex>& vertices() const { return mVertices; }
+	const std::vector<uint32_t>& indices() const { return mIndices; }
+	const std::vector<MeshInstance>& meshInstances() const { return mMeshInstances; }
+	const std::vector<ModelInstance*>& modelInstances() const { return mModelInstances; }
+	const std::vector<Material>& materials() const { return mMaterials; }
+
 	zvk::HostImage* getImageByIndex(uint32_t index);
 	zvk::HostImage* getImageByPath(const File::path& path);
 	std::optional<uint32_t> addImage(const File::path& path, zvk::HostImageType type);

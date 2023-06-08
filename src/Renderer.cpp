@@ -1,5 +1,4 @@
 #include "Renderer.h"
-#include "RenderData.h"
 
 #if defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__) ) || defined(_M_X64) || defined(__ia64) || defined (_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
 	#define VK_NULL_HANDLE_REPLACED nullptr
@@ -56,6 +55,8 @@ void Renderer::initVulkan() {
 		mContext = zvk::Context(mInstance, DeviceExtensions);
 		mDevice = mContext.device;
 		mSwapchain = zvk::Swapchain(mContext, mWidth, mHeight);
+
+		initScene();
 		
 		createVertexBuffer();
 		createUniformBuffers();
@@ -68,8 +69,6 @@ void Renderer::initVulkan() {
 		createPipeline();
 		createRenderCmdBuffers();
 		createSyncObjects();
-
-		initScene();
 	}
 	catch (const std::exception& e) {
 		Log::bracketLine<0>("Error:" + std::string(e.what()));
@@ -142,8 +141,8 @@ void Renderer::createPipeline() {
 	auto dynamicStateInfo = vk::PipelineDynamicStateCreateInfo()
 		.setDynamicStates(dynamicStates);
 
-	auto vertexBindingDesc = Vertex::bindingDescription();
-	auto vertexAttribDesc = Vertex::attributeDescription();
+	auto vertexBindingDesc = MeshVertex::bindingDescription();
+	auto vertexAttribDesc = MeshVertex::attributeDescription();
 	auto vertexInputStateInfo = vk::PipelineVertexInputStateCreateInfo()
 		.setVertexBindingDescriptions(vertexBindingDesc)
 		.setVertexAttributeDescriptions(vertexAttribDesc);
@@ -226,6 +225,10 @@ void Renderer::createFramebuffers() {
 	}
 }
 
+void Renderer::initScene() {
+	mScene.load("res/zbidir.xml");
+}
+
 void Renderer::createTextureImage() {
 	auto hostImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, 4);
 
@@ -234,29 +237,27 @@ void Renderer::createTextureImage() {
 		vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
 		vk::ImageLayout::eShaderReadOnlyOptimal, vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
-
 	mTextureImage.createSampler(vk::Filter::eLinear);
-
 	delete hostImage;
 }
 
 void Renderer::createVertexBuffer() {
-	size_t size = VertexData.size() * sizeof(Vertex);
+	size_t size = mScene.resource.vertices().size() * sizeof(MeshVertex);
 	mVertexBuffer = zvk::Memory::createLocalBuffer(
-		mContext, zvk::QueueIdx::GeneralUse, VertexData.data(), size, vk::BufferUsageFlagBits::eVertexBuffer
+		mContext, zvk::QueueIdx::GeneralUse, mScene.resource.vertices().data(), size, vk::BufferUsageFlagBits::eVertexBuffer
 	);
 }
 
 void Renderer::createIndexBuffer() {
-	size_t size = IndexData.size() * sizeof(uint32_t);
+	size_t size = mScene.resource.indices().size() * sizeof(uint32_t);
 	mIndexBuffer = zvk::Memory::createLocalBuffer(
-		mContext, zvk::QueueIdx::GeneralUse, IndexData.data(), size, vk::BufferUsageFlagBits::eIndexBuffer
+		mContext, zvk::QueueIdx::GeneralUse, mScene.resource.indices().data(), size, vk::BufferUsageFlagBits::eIndexBuffer
 	);
 }
 
 void Renderer::createUniformBuffers() {
-	size_t size = sizeof(CameraData);
-	mCameraUniforms = zvk::Memory::createBuffer(mContext, size,
+	mCameraUniforms = zvk::Memory::createBuffer(
+		mContext, sizeof(CameraData),
 		vk::BufferUsageFlagBits::eUniformBuffer,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 	);
@@ -300,10 +301,6 @@ void Renderer::createSyncObjects() {
 	mRenderFinishSemaphore = mContext.device.createSemaphore(vk::SemaphoreCreateInfo());
 }
 
-void Renderer::initScene() {
-	mScene.load("res/scene.xml");
-}
-
 void Renderer::recordRenderCommands() {
 	for (size_t i = 0; i < mGCTCmdBuffers.size(); i++) {
 		auto& cmd = mGCTCmdBuffers[i].cmd;
@@ -336,7 +333,7 @@ void Renderer::recordRenderCommands() {
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, 0, mDescriptorSet, {});
 
 		//cmdBuffer.draw(VertexData.size(), 1, 0, 0);
-		cmd.drawIndexed(IndexData.size(), 1, 0, 0, 0);
+		cmd.drawIndexed(mScene.resource.indices().size(), 1, 0, 0, 0);
 
 		cmd.endRenderPass();
 		cmd.end();
@@ -413,7 +410,7 @@ void Renderer::updateUniformBuffer() {
 	data.view = glm::lookAt(glm::vec3(2.f), glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f));
 	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchain.width()) / mSwapchain.height(), .1f, 10.f);
 	data.proj[1][1] *= -1.f;
-	memcpy(mCameraUniforms.data, &data, sizeof(CameraData));
+	memcpy(mCameraUniforms.data, &data, sizeof(Camera));
 }
 
 void Renderer::recreateFrames() {
