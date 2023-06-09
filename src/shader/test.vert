@@ -21,5 +21,6 @@ layout(set = 0, binding = 0) uniform _CameraBuffer {
 void main() {
 	gl_Position = uCamera.proj * uCamera.view * uCamera.model * vec4(aPos, 1.0);
 	vPos = aPos;
+	vNorm = aNorm;
 	vTexUV = vec2(aTexX, aTexY);
 }

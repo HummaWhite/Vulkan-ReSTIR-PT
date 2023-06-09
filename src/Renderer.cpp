@@ -64,6 +64,7 @@ void Renderer::initVulkan() {
 		createTextureImage();
 		createDescriptors();
 
+		createDepthImage();
 		createRenderPass();
 		createFramebuffers();
 		createPipeline();
@@ -88,24 +89,44 @@ void Renderer::createRenderPass() {
 		.setInitialLayout(vk::ImageLayout::eUndefined)
 		.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
 
+	auto depthAttachment = vk::AttachmentDescription()
+		.setFormat(vk::Format::eD32Sfloat)
+		.setSamples(vk::SampleCountFlagBits::e1)
+		.setLoadOp(vk::AttachmentLoadOp::eClear)
+		.setStoreOp(vk::AttachmentStoreOp::eDontCare)
+		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+		.setInitialLayout(vk::ImageLayout::eUndefined)
+		.setFinalLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+
+	auto attachments = { colorAttachment, depthAttachment };
+
 	auto colorAttachmentRef = vk::AttachmentReference()
 		.setAttachment(0)
 		.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
 
+	auto depthAttachmentRef = vk::AttachmentReference()
+		.setAttachment(1)
+		.setLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+
 	auto subpass = vk::SubpassDescription()
 		.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
-		.setColorAttachments(colorAttachmentRef);
+		.setColorAttachments(colorAttachmentRef)
+		.setPDepthStencilAttachment(&depthAttachmentRef);
 
 	auto subpassDependency = vk::SubpassDependency()
 		.setSrcSubpass(VK_SUBPASS_EXTERNAL)
-		.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput)
-		.setSrcAccessMask(vk::AccessFlagBits::eNone)
 		.setDstSubpass(0)
-		.setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput)
-		.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
+		.setSrcStageMask(
+			vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests)
+		.setDstStageMask(
+			vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests)
+		.setSrcAccessMask(vk::AccessFlagBits::eNone)
+		.setDstAccessMask(
+			vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite);
 
 	auto renderPassCreateInfo = vk::RenderPassCreateInfo()
-		.setAttachments(colorAttachment)
+		.setAttachments(attachments)
 		.setSubpasses(subpass)
 		.setDependencies(subpassDependency);
 
@@ -157,6 +178,7 @@ void Renderer::createPipeline() {
 		.setPolygonMode(vk::PolygonMode::eFill)
 		.setLineWidth(1.0f)
 		.setCullMode(vk::CullModeFlagBits::eBack)
+		.setCullMode(vk::CullModeFlagBits::eNone)
 		.setFrontFace(vk::FrontFace::eCounterClockwise)
 		.setDepthBiasEnable(false);
 
@@ -182,6 +204,13 @@ void Renderer::createPipeline() {
 		.setAttachments(blendAttachment)
 		.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
 
+	auto depthStencilStateInfo = vk::PipelineDepthStencilStateCreateInfo()
+		.setDepthTestEnable(true)
+		.setDepthWriteEnable(true)
+		.setDepthCompareOp(vk::CompareOp::eLess)
+		.setDepthBoundsTestEnable(false)
+		.setStencilTestEnable(false);
+
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
 		.setSetLayouts(mDescriptorSetLayout.layout);
 
@@ -197,6 +226,7 @@ void Renderer::createPipeline() {
 		.setPDepthStencilState(nullptr)
 		.setPColorBlendState(&colorBlendStateInfo)
 		.setPDynamicState(&dynamicStateInfo)
+		.setPDepthStencilState(&depthStencilStateInfo)
 		.setLayout(mPipelineLayout)
 		.setRenderPass(mRenderPass)
 		.setSubpass(0)
@@ -214,9 +244,11 @@ void Renderer::createFramebuffers() {
 	mFramebuffers.resize(mSwapchain.size());
 
 	for (size_t i = 0; i < mFramebuffers.size(); i++) {
+		auto attachments = { mSwapchain.imageViews()[i], mDepthImage.imageView };
+
 		auto createInfo = vk::FramebufferCreateInfo()
 			.setRenderPass(mRenderPass)
-			.setAttachments(mSwapchain.imageViews()[i])
+			.setAttachments(attachments)
 			.setWidth(mSwapchain.width())
 			.setHeight(mSwapchain.height())
 			.setLayers(1);
@@ -225,8 +257,16 @@ void Renderer::createFramebuffers() {
 	}
 }
 
+void Renderer::createDepthImage() {
+	mDepthImage = zvk::Memory::createImage2D(
+		mContext, mSwapchain.extent(), vk::Format::eD32Sfloat, vk::ImageTiling::eOptimal,
+		vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal
+	);
+	mDepthImage.createImageView();
+}
+
 void Renderer::initScene() {
-	mScene.load("res/zbidir.xml");
+	mScene.load("res/scene.xml");
 }
 
 void Renderer::createTextureImage() {
@@ -311,14 +351,16 @@ void Renderer::recordRenderCommands() {
 
 		cmd.begin(beginInfo);
 
-		auto clearValue = vk::ClearValue()
-			.setColor(vk::ClearColorValue().setFloat32({ 0.0f, 0.0f, 0.0f, 1.0f }));
+		vk::ClearValue clearValues[] = {
+			vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
+			vk::ClearDepthStencilValue(1.f, 0.f)
+		};
 
 		auto renderPassBeginInfo = vk::RenderPassBeginInfo()
 			.setRenderPass(mRenderPass)
 			.setFramebuffer(mFramebuffers[i])
 			.setRenderArea({ { 0, 0 }, mSwapchain.extent() })
-			.setClearValues(clearValue);
+			.setClearValues(clearValues);
 
 		cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
@@ -406,7 +448,8 @@ void Renderer::drawFrame() {
 
 void Renderer::updateUniformBuffer() {
 	CameraData data;
-	data.model = glm::rotate(glm::mat4(1.f), static_cast<float>(mTimer.get() * 1e-9), glm::vec3(0.f, 0.f, 1.f));
+	data.model = glm::scale(glm::mat4(1.f), glm::vec3(.3f));
+	data.model = glm::rotate(data.model, static_cast<float>(mTimer.get() * 1e-9), glm::vec3(0.f, 0.f, 1.f));
 	data.view = glm::lookAt(glm::vec3(2.f), glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f));
 	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchain.width()) / mSwapchain.height(), .1f, 10.f);
 	data.proj[1][1] *= -1.f;
@@ -421,18 +464,19 @@ void Renderer::recreateFrames() {
 		glfwGetFramebufferSize(mMainWindow, &width, &height);
 		glfwWaitEvents();
 	}
-
 	mContext.device.waitIdle();
-	cleanupFrames();
 
+	cleanupFrames();
 	mSwapchain = zvk::Swapchain(mContext, width, height);
 	createFramebuffers();
+	createDepthImage();
 }
 
 void Renderer::cleanupFrames() {
 	for (auto& framebuffer : mFramebuffers) {
 		mContext.device.destroyFramebuffer(framebuffer);
 	}
+	mDepthImage.destroy();
 	mSwapchain.destroy();
 }
 

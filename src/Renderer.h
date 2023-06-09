@@ -51,10 +51,10 @@ private:
 	void initWindow();
 	void initVulkan();
 
+	void createDepthImage();
 	void createRenderPass();
-	void createPipeline();
-
 	void createFramebuffers();
+	void createPipeline();
 
 	void initScene();
 
@@ -94,6 +94,7 @@ private:
 	vk::PipelineLayout mPipelineLayout;
 
 	std::vector<vk::Framebuffer> mFramebuffers;
+	zvk::Image mDepthImage;
 	std::vector<zvk::CommandBuffer> mGCTCmdBuffers;
 
 	vk::Semaphore mImageReadySemaphore;

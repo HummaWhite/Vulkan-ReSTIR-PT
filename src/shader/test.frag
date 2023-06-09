@@ -9,5 +9,6 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D texSampler;
 
 void main() {
-	FragColor = texture(texSampler, vTexUV);
+	FragColor = vec4(vNorm, 1.0);
+	//FragColor = texture(texSampler, vTexUV);
 }

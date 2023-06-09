@@ -13,17 +13,26 @@ std::optional<LayoutTransitFlags> findLayoutTransitFlags(vk::ImageLayout oldLayo
 	auto fromTo = [=](vk::ImageLayout old, vk::ImageLayout neo) {
 		return oldLayout == old && newLayout == neo;
 	};
+	vk::AccessFlags dstMask;
+	vk::PipelineStageFlags dstStage;
 
-	if (fromTo(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal)) {
+	if (oldLayout == vk::ImageLayout::eUndefined) {
+		if (newLayout == vk::ImageLayout::eTransferDstOptimal) {
+			dstMask = vk::AccessFlagBits::eTransferWrite;
+			dstStage = vk::PipelineStageFlagBits::eTransfer;
+		}
+		else if (newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal) {
+			dstMask = vk::AccessFlagBits::eDepthStencilAttachmentRead |
+				vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+			dstStage = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+		}
+
 		return LayoutTransitFlags{
-			vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite,
-			vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer
+			vk::AccessFlagBits::eNone, dstMask,
+			vk::PipelineStageFlagBits::eTopOfPipe, dstStage
 		};
 	}
 	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal) {
-		vk::AccessFlags dstMask;
-		vk::PipelineStageFlags dstStage;
-
 		if (newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
 			dstMask = vk::AccessFlagBits::eShaderRead;
 			dstStage = vk::PipelineStageFlagBits::eFragmentShader |
@@ -91,6 +100,9 @@ void Image::createImageView(bool array) {
 		nArrayLayers = array ? extent.depth : 1;
 	}
 
+	vk::ImageAspectFlags aspect = (usage == vk::ImageUsageFlagBits::eDepthStencilAttachment) ?
+		aspect = vk::ImageAspectFlagBits::eDepth : aspect = vk::ImageAspectFlagBits::eColor;
+
 	// TODO: check for image arrays
 
 	auto createInfo = vk::ImageViewCreateInfo()
@@ -98,7 +110,7 @@ void Image::createImageView(bool array) {
 		.setViewType(imageViewType)
 		.setFormat(format)
 		.setSubresourceRange(vk::ImageSubresourceRange()
-			.setAspectMask(vk::ImageAspectFlagBits::eColor)
+			.setAspectMask(aspect)
 			.setBaseMipLevel(0)
 			.setLevelCount(nMipLevels)
 			.setBaseArrayLayer(0)
