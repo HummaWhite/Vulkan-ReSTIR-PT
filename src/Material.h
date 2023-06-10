@@ -9,7 +9,7 @@
 #include <pugixml.hpp>
 
 #include "util/NamespaceDecl.h"
-#include "Alignment.h"
+#include "core/Alignment.h"
 
 constexpr int InvalidTextureIdx = -1;
 

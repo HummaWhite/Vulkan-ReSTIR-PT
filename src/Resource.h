@@ -10,7 +10,7 @@
 
 #include "util/NamespaceDecl.h"
 #include "util/File.h"
-#include "HostImage.h"
+#include "core/HostImage.h"
 #include "Model.h"
 
 class Resource {

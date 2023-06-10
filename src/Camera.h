@@ -5,7 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "Alignment.h"
+#include "core/Alignment.h"
 
 class Camera {
 public:

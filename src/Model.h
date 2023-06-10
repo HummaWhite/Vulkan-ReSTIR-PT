@@ -9,7 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <pugixml.hpp>
 
-#include "Alignment.h"
+#include "core/Alignment.h"
 #include "util/File.h"
 #include "Material.h"
 

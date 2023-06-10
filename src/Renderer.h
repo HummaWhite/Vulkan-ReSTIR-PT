@@ -13,12 +13,12 @@
 #include <limits>
 #include <set>
 
-#include "Instance.h"
-#include "Context.h"
-#include "Swapchain.h"
-#include "ShaderManager.h"
-#include "Memory.h"
-#include "Descriptor.h"
+#include "core/Instance.h"
+#include "core/Context.h"
+#include "core/Swapchain.h"
+#include "core/ShaderManager.h"
+#include "core/Memory.h"
+#include "core/Descriptor.h"
 #include "Scene.h"
 
 #include "util/Error.h"

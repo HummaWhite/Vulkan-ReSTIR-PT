@@ -6,9 +6,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "core/HostImage.h"
 #include "Camera.h"
 #include "Model.h"
-#include "HostImage.h"
 #include "Resource.h"
 
 class Scene
