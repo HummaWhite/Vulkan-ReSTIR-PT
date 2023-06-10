@@ -17,13 +17,13 @@ DescriptorSetLayout::DescriptorSetLayout(
 }
 
 DescriptorPool::DescriptorPool(
-    const Context* ctx, const std::vector<DescriptorSetLayout>& layouts, uint32_t numCopies) :
+    const Context* ctx, const std::vector<DescriptorSetLayout*>& layouts, uint32_t numCopies) :
     BaseVkObject(ctx)
 {
     std::map<vk::DescriptorType, uint32_t> typeCount;
 
     for (const auto& layout : layouts) {
-        for (const auto& binding : layout.bindings) {
+        for (const auto& binding : layout->bindings) {
             if (typeCount.find(binding.descriptorType) == typeCount.end()) {
                 typeCount[binding.descriptorType] = 0;
             }
@@ -53,22 +53,22 @@ namespace Descriptor {
     }
 
     vk::WriteDescriptorSet makeWrite(
-        const DescriptorSetLayout& layout,
+        const DescriptorSetLayout* layout,
         vk::DescriptorSet set, uint32_t binding, const vk::DescriptorBufferInfo& bufferInfo,
         uint32_t arrayElement
     ) {
         return vk::WriteDescriptorSet(
-            set, binding, arrayElement, 1, layout.types.at(binding), nullptr, &bufferInfo
+            set, binding, arrayElement, 1, layout->types.at(binding), nullptr, &bufferInfo
         );
     }
 
     vk::WriteDescriptorSet makeWrite(
-        const DescriptorSetLayout& layout,
+        const DescriptorSetLayout* layout,
         vk::DescriptorSet set, uint32_t binding, const vk::DescriptorImageInfo& imageInfo,
         uint32_t arrayElement
     ) {
         return vk::WriteDescriptorSet(
-            set, binding, arrayElement, 1, layout.types.at(binding), &imageInfo, nullptr
+            set, binding, arrayElement, 1, layout->types.at(binding), &imageInfo, nullptr
         );
     }
 }

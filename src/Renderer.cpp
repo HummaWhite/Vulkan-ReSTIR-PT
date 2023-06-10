@@ -53,8 +53,8 @@ void Renderer::initVulkan() {
 	try {
 		mInstance = new zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
 		mContext = new zvk::Context(mInstance, DeviceExtensions);
+		mSwapchain = new zvk::Swapchain(mContext, mWidth, mHeight);
 		mDevice = mContext->device;
-		mSwapchain = zvk::Swapchain(mContext, mWidth, mHeight);
 
 		initScene();
 		
@@ -80,7 +80,7 @@ void Renderer::initVulkan() {
 
 void Renderer::createRenderPass() {
 	auto colorAttachment = vk::AttachmentDescription()
-		.setFormat(mSwapchain.format())
+		.setFormat(mSwapchain->format())
 		.setSamples(vk::SampleCountFlagBits::e1)
 		.setLoadOp(vk::AttachmentLoadOp::eClear)
 		.setStoreOp(vk::AttachmentStoreOp::eStore)
@@ -134,14 +134,14 @@ void Renderer::createRenderPass() {
 }
 
 void Renderer::createPipeline() {
-	mShaderManager = zvk::ShaderManager(mContext->device);
+	mShaderManager = new zvk::ShaderManager(mContext->device);
 
 	auto vertStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
-		mShaderManager.createShaderModule("shaders/test.vert.spv"),
+		mShaderManager->createShaderModule("shaders/test.vert.spv"),
 		vk::ShaderStageFlagBits::eVertex);
 
 	auto fragStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
-		mShaderManager.createShaderModule("shaders/test.frag.spv"),
+		mShaderManager->createShaderModule("shaders/test.frag.spv"),
 		vk::ShaderStageFlagBits::eFragment);
 
 	auto shaderStages = { vertStageInfo, fragStageInfo };
@@ -150,10 +150,10 @@ void Renderer::createPipeline() {
 
 	vk::Viewport viewport(
 		0.0f, 0.0f,
-		float(mSwapchain.width()), float(mSwapchain.height()),
+		float(mSwapchain->width()), float(mSwapchain->height()),
 		0.0f, 1.0f);
 
-	vk::Rect2D scissor({ 0, 0 }, mSwapchain.extent());
+	vk::Rect2D scissor({ 0, 0 }, mSwapchain->extent());
 
 	auto viewportStateInfo = vk::PipelineViewportStateCreateInfo()
 		.setViewports(viewport)
@@ -212,7 +212,7 @@ void Renderer::createPipeline() {
 		.setStencilTestEnable(false);
 
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts(mDescriptorSetLayout.layout);
+		.setSetLayouts(mDescriptorSetLayout->layout);
 
 	mPipelineLayout = mContext->device.createPipelineLayout(pipelineLayoutCreateInfo);
 
@@ -241,16 +241,16 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::createFramebuffers() {
-	mFramebuffers.resize(mSwapchain.size());
+	mFramebuffers.resize(mSwapchain->size());
 
 	for (size_t i = 0; i < mFramebuffers.size(); i++) {
-		auto attachments = { mSwapchain.imageViews()[i], mDepthImage.imageView };
+		auto attachments = { mSwapchain->imageViews()[i], mDepthImage->imageView };
 
 		auto createInfo = vk::FramebufferCreateInfo()
 			.setRenderPass(mRenderPass)
 			.setAttachments(attachments)
-			.setWidth(mSwapchain.width())
-			.setHeight(mSwapchain.height())
+			.setWidth(mSwapchain->width())
+			.setHeight(mSwapchain->height())
 			.setLayers(1);
 
 		mFramebuffers[i] = mContext->device.createFramebuffer(createInfo);
@@ -259,10 +259,10 @@ void Renderer::createFramebuffers() {
 
 void Renderer::createDepthImage() {
 	mDepthImage = zvk::Memory::createImage2D(
-		mContext, mSwapchain.extent(), vk::Format::eD32Sfloat, vk::ImageTiling::eOptimal,
+		mContext, mSwapchain->extent(), vk::Format::eD32Sfloat, vk::ImageTiling::eOptimal,
 		vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
-	mDepthImage.createImageView();
+	mDepthImage->createImageView();
 }
 
 void Renderer::initScene() {
@@ -277,7 +277,8 @@ void Renderer::createTextureImage() {
 		vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
 		vk::ImageLayout::eShaderReadOnlyOptimal, vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
-	mTextureImage.createSampler(vk::Filter::eLinear);
+	mTextureImage->createSampler(vk::Filter::eLinear);
+
 	delete hostImage;
 }
 
@@ -301,7 +302,7 @@ void Renderer::createUniformBuffers() {
 		vk::BufferUsageFlagBits::eUniformBuffer,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 	);
-	mCameraUniforms.mapMemory();
+	mCameraUniforms->mapMemory();
 }
 
 void Renderer::createDescriptors() {
@@ -310,18 +311,18 @@ void Renderer::createDescriptors() {
 		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment),
 	};
 
-	mDescriptorSetLayout = zvk::DescriptorSetLayout(mContext, bindings);
-	mDescriptorPool = zvk::DescriptorPool(mContext, { mDescriptorSetLayout }, 1);
-	mDescriptorSet = mDescriptorPool.allocDescriptorSet(mDescriptorSetLayout.layout);
+	mDescriptorSetLayout = new zvk::DescriptorSetLayout(mContext, bindings);
+	mDescriptorPool = new zvk::DescriptorPool(mContext, { mDescriptorSetLayout }, 1);
+	mDescriptorSet = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
 
 	std::vector<vk::WriteDescriptorSet> updates = {
 		zvk::Descriptor::makeWrite(
 			mDescriptorSetLayout, mDescriptorSet, 0,
-			vk::DescriptorBufferInfo(mCameraUniforms.buffer, 0, mCameraUniforms.size)
+			vk::DescriptorBufferInfo(mCameraUniforms->buffer, 0, mCameraUniforms->size)
 		),
 		zvk::Descriptor::makeWrite(
 			mDescriptorSetLayout, mDescriptorSet, 1,
-			vk::DescriptorImageInfo(mTextureImage.sampler, mTextureImage.imageView, mTextureImage.layout)
+			vk::DescriptorImageInfo(mTextureImage->sampler, mTextureImage->imageView, mTextureImage->layout)
 		),
 	};
 
@@ -329,7 +330,7 @@ void Renderer::createDescriptors() {
 }
 
 void Renderer::createRenderCmdBuffers() {
-	mGCTCmdBuffers = zvk::Command::createPrimary(mContext, zvk::QueueIdx::GeneralUse, mSwapchain.size());
+	mGCTCmdBuffers = zvk::Command::createPrimary(mContext, zvk::QueueIdx::GeneralUse, mSwapchain->size());
 }
 
 void Renderer::createSyncObjects() {
@@ -343,7 +344,7 @@ void Renderer::createSyncObjects() {
 
 void Renderer::recordRenderCommands() {
 	for (size_t i = 0; i < mGCTCmdBuffers.size(); i++) {
-		auto& cmd = mGCTCmdBuffers[i].cmd;
+		auto& cmd = mGCTCmdBuffers[i]->cmd;
 
 		auto beginInfo = vk::CommandBufferBeginInfo()
 			.setFlags(vk::CommandBufferUsageFlagBits{})
@@ -359,18 +360,18 @@ void Renderer::recordRenderCommands() {
 		auto renderPassBeginInfo = vk::RenderPassBeginInfo()
 			.setRenderPass(mRenderPass)
 			.setFramebuffer(mFramebuffers[i])
-			.setRenderArea({ { 0, 0 }, mSwapchain.extent() })
+			.setRenderArea({ { 0, 0 }, mSwapchain->extent() })
 			.setClearValues(clearValues);
 
 		cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
 		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mGraphicsPipeline);
 
-		cmd.bindVertexBuffers(0, mVertexBuffer.buffer, vk::DeviceSize(0));
-		cmd.bindIndexBuffer(mIndexBuffer.buffer, 0, vk::IndexType::eUint32);
+		cmd.bindVertexBuffers(0, mVertexBuffer->buffer, vk::DeviceSize(0));
+		cmd.bindIndexBuffer(mIndexBuffer->buffer, 0, vk::IndexType::eUint32);
 
-		cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, mSwapchain.width(), mSwapchain.height(), 0.0f, 1.0f));
-		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, mSwapchain.extent()));
+		cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, mSwapchain->width(), mSwapchain->height(), 0.0f, 1.0f));
+		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, mSwapchain->extent()));
 
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, 0, mDescriptorSet, {});
 
@@ -388,7 +389,7 @@ void Renderer::drawFrame() {
 	}
 
 	auto [acquireRes, imgIndex] = mContext->device.acquireNextImageKHR(
-		mSwapchain.swapchain(), UINT64_MAX, mImageReadySemaphore
+		mSwapchain->swapchain(), UINT64_MAX, mImageReadySemaphore
 	);
 
 	if (acquireRes == vk::Result::eErrorOutOfDateKHR) {
@@ -410,14 +411,14 @@ void Renderer::drawFrame() {
 	auto waitSemaphore = mImageReadySemaphore;
 
 	auto submitInfo = vk::SubmitInfo()
-		.setCommandBuffers(mGCTCmdBuffers[imgIndex].cmd)
+		.setCommandBuffers(mGCTCmdBuffers[imgIndex]->cmd)
 		.setWaitSemaphores(waitSemaphore)
 		.setWaitDstStageMask(waitStage)
 		.setSignalSemaphores(mRenderFinishSemaphore);
 
 	mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
 
-	auto swapchain = mSwapchain.swapchain();
+	auto swapchain = mSwapchain->swapchain();
 	auto presentInfo = vk::PresentInfoKHR()
 		.setWaitSemaphores(mRenderFinishSemaphore)
 		.setSwapchains(swapchain)
@@ -451,9 +452,9 @@ void Renderer::updateUniformBuffer() {
 	data.model = glm::scale(glm::mat4(1.f), glm::vec3(.3f));
 	data.model = glm::rotate(data.model, static_cast<float>(mTimer.get() * 1e-9), glm::vec3(0.f, 0.f, 1.f));
 	data.view = glm::lookAt(glm::vec3(2.f), glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f));
-	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchain.width()) / mSwapchain.height(), .1f, 10.f);
+	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchain->width()) / mSwapchain->height(), .1f, 10.f);
 	data.proj[1][1] *= -1.f;
-	memcpy(mCameraUniforms.data, &data, sizeof(Camera));
+	memcpy(mCameraUniforms->data, &data, sizeof(Camera));
 }
 
 void Renderer::recreateFrames() {
@@ -467,7 +468,7 @@ void Renderer::recreateFrames() {
 	mContext->device.waitIdle();
 
 	cleanupFrames();
-	mSwapchain = zvk::Swapchain(mContext, width, height);
+	mSwapchain = new zvk::Swapchain(mContext, width, height);
 	createFramebuffers();
 	createDepthImage();
 }
@@ -476,20 +477,20 @@ void Renderer::cleanupFrames() {
 	for (auto& framebuffer : mFramebuffers) {
 		mContext->device.destroyFramebuffer(framebuffer);
 	}
-	mDepthImage.destroy();
-	mSwapchain.destroy();
+	delete mDepthImage;
+	delete mSwapchain;
 }
 
 void Renderer::cleanupVulkan() {
 	cleanupFrames();
 
-	mDescriptorSetLayout.destroy();
-	mDescriptorPool.destroy();
+	delete mDescriptorSetLayout;
+	delete mDescriptorPool;
 
-	mCameraUniforms.destroy();
-	mVertexBuffer.destroy();
-	mIndexBuffer.destroy();
-	mTextureImage.destroy();
+	delete mCameraUniforms;
+	delete mVertexBuffer;
+	delete mIndexBuffer;
+	delete mTextureImage;
 
 	mContext->device.destroyPipeline(mGraphicsPipeline);
 	mContext->device.destroyPipelineLayout(mPipelineLayout);
@@ -499,11 +500,11 @@ void Renderer::cleanupVulkan() {
 	mContext->device.destroySemaphore(mImageReadySemaphore);
 	mContext->device.destroySemaphore(mRenderFinishSemaphore);
 
-	for (auto& cmd : mGCTCmdBuffers) {
-		cmd.destroy();
+	for (auto cmd : mGCTCmdBuffers) {
+		delete cmd;
 	}
 
-	mShaderManager.destroyShaderModules();
+	delete mShaderManager;
 	delete mContext;
 	delete mInstance;
 }

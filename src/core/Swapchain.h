@@ -13,8 +13,8 @@ NAMESPACE_BEGIN(zvk)
 
 class Swapchain : public BaseVkObject {
 public:
-	Swapchain() {}
 	Swapchain(const Context* ctx, uint32_t width, uint32_t height);
+	~Swapchain() { destroy(); }
 	void destroy();
 
 	vk::SwapchainKHR swapchain() const { return mSwapchain; }

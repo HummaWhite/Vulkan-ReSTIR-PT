@@ -17,8 +17,8 @@ enum class ShaderLoadOp {
 
 class ShaderManager {
 public:
-	ShaderManager() = default;
 	ShaderManager(vk::Device device) : mDevice(device) {}
+	~ShaderManager() { destroyShaderModules(); }
 
 	void destroyShaderModules();
 

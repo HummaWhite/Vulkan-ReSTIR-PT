@@ -86,30 +86,30 @@ private:
 	zvk::Instance* mInstance = nullptr;
 	zvk::Context* mContext = nullptr;
 	vk::Device mDevice;
-	zvk::Swapchain mSwapchain;
+	zvk::Swapchain* mSwapchain = nullptr;
 
 	vk::Pipeline mGraphicsPipeline;
-	zvk::ShaderManager mShaderManager;
+	zvk::ShaderManager* mShaderManager = nullptr;
 	vk::RenderPass mRenderPass;
 	vk::PipelineLayout mPipelineLayout;
 
 	std::vector<vk::Framebuffer> mFramebuffers;
-	zvk::Image mDepthImage;
-	std::vector<zvk::CommandBuffer> mGCTCmdBuffers;
+	zvk::Image* mDepthImage = nullptr;
+	std::vector<zvk::CommandBuffer*> mGCTCmdBuffers;
 
 	vk::Semaphore mImageReadySemaphore;
 	vk::Semaphore mRenderFinishSemaphore;
 	vk::Fence mInFlightFence;
 
-	zvk::Buffer mVertexBuffer;
-	zvk::Buffer mIndexBuffer;
-	zvk::Buffer mCameraUniforms;
+	zvk::Buffer* mVertexBuffer = nullptr;
+	zvk::Buffer* mIndexBuffer = nullptr;
+	zvk::Buffer* mCameraUniforms = nullptr;
 
-	zvk::DescriptorSetLayout mDescriptorSetLayout;
-	zvk::DescriptorPool mDescriptorPool;
+	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;
+	zvk::DescriptorPool* mDescriptorPool = nullptr;
 	vk::DescriptorSet mDescriptorSet;
 
-	zvk::Image mTextureImage;
+	zvk::Image* mTextureImage = nullptr;
 
 	Scene mScene;
 
