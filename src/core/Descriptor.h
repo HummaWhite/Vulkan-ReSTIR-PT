@@ -13,7 +13,7 @@ NAMESPACE_BEGIN(zvk)
 class DescriptorSetLayout : public BaseVkObject {
 public:
     DescriptorSetLayout() {}
-    DescriptorSetLayout(const Context& ctx, const std::vector<vk::DescriptorSetLayoutBinding>& bindings);
+    DescriptorSetLayout(const Context* ctx, const std::vector<vk::DescriptorSetLayoutBinding>& bindings);
 
     void destroy() {
         mCtx->device.destroyDescriptorSetLayout(layout);
@@ -28,7 +28,7 @@ public:
 class DescriptorPool : public BaseVkObject {
 public:
     DescriptorPool() {}
-    DescriptorPool(const Context& ctx, const std::vector<DescriptorSetLayout>& layouts, uint32_t numCopies);
+    DescriptorPool(const Context* ctx, const std::vector<DescriptorSetLayout>& layouts, uint32_t numCopies);
 
     void destroy() {
         mCtx->device.destroyDescriptorPool(pool);

@@ -66,14 +66,11 @@ using CommandPoolSet = ObjectSet<vk::CommandPool, 4, QueueIdx>;
 class Context {
 public:
     Context() : mInstance(nullptr) {}
-    Context(const Instance& instance, const std::vector<const char*>& extensions);
+    Context(const Instance* instance, const std::vector<const char*>& extensions);
+    ~Context() { destroy(); }
     void destroy();
 
     const Instance* instance() const { return mInstance; }
-
-    static Context create(const Instance& instance, const std::vector<const char*>& extensions) {
-        return Context(instance, extensions);
-    }
 
 private:
     void createCmdPools();
@@ -91,6 +88,7 @@ private:
 class BaseVkObject {
 public:
     BaseVkObject() : mCtx(nullptr) {}
+    BaseVkObject(const Context* ctx) : mCtx(ctx) {}
     BaseVkObject(const Context& ctx) : mCtx(&ctx) {}
 
 protected:

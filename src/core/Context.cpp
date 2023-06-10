@@ -6,11 +6,11 @@
 
 NAMESPACE_BEGIN(zvk)
 
-Context::Context(const Instance& instance, const std::vector<const char*>& extensions) :
-	mInstance(&instance) {
+Context::Context(const Instance* instance, const std::vector<const char*>& extensions) :
+	mInstance(instance) {
 	std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 
-	auto [general, compute, transfer] = instance.queueFamilies();
+	auto [general, compute, transfer] = instance->queueFamilies();
 
 	if (!general) {
 		throw std::runtime_error("no queue family usable");
@@ -63,7 +63,7 @@ Context::Context(const Instance& instance, const std::vector<const char*>& exten
 		.setPEnabledLayerNames(ValidationLayers)
 		.setPEnabledExtensionNames(extensions);
 
-	device = instance.physicalDevice().createDevice(deviceCreateInfo);
+	device = instance->physicalDevice().createDevice(deviceCreateInfo);
 
 	queues[QueueIdx::GeneralUse] = Queue(device, generalFamily, generalIdx);
 	queues[QueueIdx::Present] = Queue(device, presentFamily, presentIdx);

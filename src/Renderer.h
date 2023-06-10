@@ -83,8 +83,8 @@ private:
 	int mHeight;
 
 	vk::ApplicationInfo mAppInfo;
-	zvk::Instance mInstance;
-	zvk::Context mContext;
+	zvk::Instance* mInstance = nullptr;
+	zvk::Context* mContext = nullptr;
 	vk::Device mDevice;
 	zvk::Swapchain mSwapchain;
 

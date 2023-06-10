@@ -14,7 +14,7 @@ NAMESPACE_BEGIN(zvk)
 class Swapchain : public BaseVkObject {
 public:
 	Swapchain() {}
-	Swapchain(const Context& ctx, uint32_t width, uint32_t height);
+	Swapchain(const Context* ctx, uint32_t width, uint32_t height);
 	void destroy();
 
 	vk::SwapchainKHR swapchain() const { return mSwapchain; }
@@ -27,7 +27,7 @@ public:
 	size_t size() const { return mImages.size(); }
 
 private:
-	void createSwapchain(const Instance& instance, uint32_t width, uint32_t height);
+	void createSwapchain(const Instance* instance, uint32_t width, uint32_t height);
 	std::tuple<vk::SurfaceFormatKHR, vk::PresentModeKHR> selectFormatAndMode(
 		const std::vector<vk::SurfaceFormatKHR>& formats,
 		const std::vector<vk::PresentModeKHR>& presentModes);

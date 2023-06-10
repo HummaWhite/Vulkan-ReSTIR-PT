@@ -56,7 +56,7 @@ std::optional<LayoutTransitFlags> findLayoutTransitFlags(vk::ImageLayout oldLayo
 }
 
 void Image::changeLayout(vk::ImageLayout newLayout) {
-	auto cmd = Command::createOneTimeSubmit(*mCtx, QueueIdx::GeneralUse);
+	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
 	auto transitFlags = findLayoutTransitFlags(layout, newLayout);
 
 	// TODO: check for image arrays
@@ -147,7 +147,7 @@ void Image::createMipmap() {
 	if (nMipLevels < 2) {
 		return;
 	}
-	auto cmd = Command::createOneTimeSubmit(*mCtx, QueueIdx::GeneralUse);
+	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
 
 	auto barrier = vk::ImageMemoryBarrier()
 		.setImage(image)
@@ -183,11 +183,11 @@ namespace Memory {
 	}
 
 	std::optional<uint32_t> findMemoryType(
-		const Context& ctx,
+		const Context* ctx,
 		vk::MemoryRequirements requirements,
 		vk::MemoryPropertyFlags requestedProps
 	) {
-		return findMemoryType(ctx.instance()->memProperties(), requirements, requestedProps);
+		return findMemoryType(ctx->instance()->memProperties(), requirements, requestedProps);
 	}
 
 	vk::Buffer createBuffer(
@@ -218,7 +218,7 @@ namespace Memory {
 	}
 
 	Buffer createBuffer(
-		const Context& ctx, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties
+		const Context* ctx, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties
 	) {
 		Buffer buffer(ctx);
 
@@ -227,9 +227,9 @@ namespace Memory {
 			.setUsage(usage)
 			.setSharingMode(vk::SharingMode::eExclusive);
 
-		buffer.buffer = ctx.device.createBuffer(bufferCreateInfo);
-		auto requirements = ctx.device.getBufferMemoryRequirements(buffer.buffer);
-		auto memTypeIndex = findMemoryType(ctx.instance()->memProperties(), requirements, properties);
+		buffer.buffer = ctx->device.createBuffer(bufferCreateInfo);
+		auto requirements = ctx->device.getBufferMemoryRequirements(buffer.buffer);
+		auto memTypeIndex = findMemoryType(ctx->instance()->memProperties(), requirements, properties);
 
 		if (!memTypeIndex) {
 			throw std::runtime_error("Required memory type not found");
@@ -239,8 +239,8 @@ namespace Memory {
 			.setAllocationSize(requirements.size)
 			.setMemoryTypeIndex(memTypeIndex.value());
 
-		buffer.memory = ctx.device.allocateMemory(allocInfo);
-		ctx.device.bindBufferMemory(buffer.buffer, buffer.memory, 0);
+		buffer.memory = ctx->device.allocateMemory(allocInfo);
+		ctx->device.bindBufferMemory(buffer.buffer, buffer.memory, 0);
 
 		buffer.size = size;
 		buffer.realSize = requirements.size;
@@ -287,7 +287,7 @@ namespace Memory {
 		);
 	}
 
-	Buffer createTransferBuffer(const Context& ctx, vk::DeviceSize size) {
+	Buffer createTransferBuffer(const Context* ctx, vk::DeviceSize size) {
 		return createBuffer(
 			ctx, size, vk::BufferUsageFlagBits::eTransferSrc,
 			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
@@ -319,7 +319,7 @@ namespace Memory {
 	}
 
 	Buffer createLocalBuffer(
-		const Context& ctx, QueueIdx queueIdx,
+		const Context* ctx, QueueIdx queueIdx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
 	) {
 		auto transferBuf = createTransferBuffer(ctx, size);
@@ -334,7 +334,7 @@ namespace Memory {
 		);
 
 		copyBuffer(
-			ctx.device, ctx.cmdPools[queueIdx], ctx.queues[queueIdx].queue,
+			ctx->device, ctx->cmdPools[queueIdx], ctx->queues[queueIdx].queue,
 			localBuf.buffer, transferBuf.buffer, size
 		);
 		transferBuf.destroy();
@@ -342,7 +342,7 @@ namespace Memory {
 	}
 
 	vk::Image createImage2D(
-		const Context& ctx, vk::Extent2D extent, vk::Format format,
+		const Context* ctx, vk::Extent2D extent, vk::Format format,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
 		vk::DeviceMemory& memory, uint32_t nMipLevels
 	) {
@@ -363,8 +363,8 @@ namespace Memory {
 			.setSharingMode(vk::SharingMode::eExclusive)
 			.setSamples(vk::SampleCountFlagBits::e1);
 
-		auto image = ctx.device.createImage(createInfo);
-		auto memReq = ctx.device.getImageMemoryRequirements(image);
+		auto image = ctx->device.createImage(createInfo);
+		auto memReq = ctx->device.getImageMemoryRequirements(image);
 
 		auto memoryTypeIdx = zvk::Memory::findMemoryType(
 			ctx, memReq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal
@@ -373,14 +373,14 @@ namespace Memory {
 			.setAllocationSize(memReq.size)
 			.setMemoryTypeIndex(*memoryTypeIdx);
 
-		memory = ctx.device.allocateMemory(allocInfo);
-		ctx.device.bindImageMemory(image, memory, 0);
+		memory = ctx->device.allocateMemory(allocInfo);
+		ctx->device.bindImageMemory(image, memory, 0);
 
 		return image;
 	}
 
 	Image createImage2D(
-		const Context& ctx, vk::Extent2D extent, vk::Format format,
+		const Context* ctx, vk::Extent2D extent, vk::Format format,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, uint32_t nMipLevels
 	) {
 		Image image(ctx);
@@ -401,8 +401,8 @@ namespace Memory {
 			.setSharingMode(vk::SharingMode::eExclusive)
 			.setSamples(vk::SampleCountFlagBits::e1);
 
-		image.image = ctx.device.createImage(createInfo);
-		auto memReq = ctx.device.getImageMemoryRequirements(image.image);
+		image.image = ctx->device.createImage(createInfo);
+		auto memReq = ctx->device.getImageMemoryRequirements(image.image);
 		auto memoryTypeIdx = zvk::Memory::findMemoryType(ctx, memReq, properties);
 
 		if (!memoryTypeIdx) {
@@ -413,8 +413,8 @@ namespace Memory {
 			.setAllocationSize(memReq.size)
 			.setMemoryTypeIndex(*memoryTypeIdx);
 
-		image.memory = ctx.device.allocateMemory(allocInfo);
-		ctx.device.bindImageMemory(image.image, image.memory, 0);
+		image.memory = ctx->device.allocateMemory(allocInfo);
+		ctx->device.bindImageMemory(image.image, image.memory, 0);
 
 		image.extent = vk::Extent3D(extent.width, extent.height, 1);
 		image.type = vk::ImageType::e2D;
@@ -427,7 +427,7 @@ namespace Memory {
 	}
 
 	Image createTexture2D(
-		const Context& ctx, const HostImage* hostImg,
+		const Context* ctx, const HostImage* hostImg,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels
 	) {
@@ -453,7 +453,7 @@ namespace Memory {
 		return image;
 	}
 
-	void copyBufferToImage(const Context& ctx, const Buffer& buffer, const Image& image) {
+	void copyBufferToImage(const Context* ctx, const Buffer& buffer, const Image& image) {
 		auto cmd = Command::createOneTimeSubmit(ctx, QueueIdx::GeneralUse);
 
 		auto copy = vk::BufferImageCopy()

@@ -26,6 +26,7 @@ class Instance {
 public:
 	Instance() = default;
 	Instance(const vk::ApplicationInfo& appInfo, GLFWwindow* window, const std::vector<const char*>& extensions);
+	~Instance() { destroy(); }
 	void destroy();
 
 	static Instance create(const vk::ApplicationInfo& appInfo, GLFWwindow* window, const std::vector<const char*>& extensions) {

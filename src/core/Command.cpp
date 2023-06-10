@@ -10,13 +10,13 @@ void CommandBuffer::oneTimeSubmitAndDestroy() {
     destroy();
 }
 
-std::vector<CommandBuffer> Command::createPrimary(const Context& ctx, QueueIdx queueIdx, size_t n) {
+std::vector<CommandBuffer> Command::createPrimary(const Context* ctx, QueueIdx queueIdx, size_t n) {
     auto allocInfo = vk::CommandBufferAllocateInfo()
         .setLevel(vk::CommandBufferLevel::ePrimary)
-        .setCommandPool(ctx.cmdPools[queueIdx])
+        .setCommandPool(ctx->cmdPools[queueIdx])
         .setCommandBufferCount(n);
 
-    auto cmds = ctx.device.allocateCommandBuffers(allocInfo);
+    auto cmds = ctx->device.allocateCommandBuffers(allocInfo);
     std::vector<CommandBuffer> ret(cmds.size());
 
     for (size_t i = 0; i < n; i++) {
@@ -27,15 +27,15 @@ std::vector<CommandBuffer> Command::createPrimary(const Context& ctx, QueueIdx q
     return ret;
 }
 
-CommandBuffer Command::createOneTimeSubmit(const Context& ctx, QueueIdx queueIdx) {
+CommandBuffer Command::createOneTimeSubmit(const Context* ctx, QueueIdx queueIdx) {
     CommandBuffer cmd(ctx, queueIdx);
 
     auto allocInfo = vk::CommandBufferAllocateInfo()
         .setLevel(vk::CommandBufferLevel::ePrimary)
-        .setCommandPool(ctx.cmdPools[queueIdx])
+        .setCommandPool(ctx->cmdPools[queueIdx])
         .setCommandBufferCount(1);
 
-    cmd.cmd = ctx.device.allocateCommandBuffers(allocInfo)[0];
+    cmd.cmd = ctx->device.allocateCommandBuffers(allocInfo)[0];
     cmd.open = true;
 
     auto beginInfo = vk::CommandBufferBeginInfo()

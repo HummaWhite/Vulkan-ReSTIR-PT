@@ -51,9 +51,9 @@ void Renderer::initVulkan() {
 		.setApiVersion(VK_API_VERSION_1_2);
 
 	try {
-		mInstance = zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
-		mContext = zvk::Context(mInstance, DeviceExtensions);
-		mDevice = mContext.device;
+		mInstance = new zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
+		mContext = new zvk::Context(mInstance, DeviceExtensions);
+		mDevice = mContext->device;
 		mSwapchain = zvk::Swapchain(mContext, mWidth, mHeight);
 
 		initScene();
@@ -130,11 +130,11 @@ void Renderer::createRenderPass() {
 		.setSubpasses(subpass)
 		.setDependencies(subpassDependency);
 
-	mRenderPass = mContext.device.createRenderPass(renderPassCreateInfo);
+	mRenderPass = mContext->device.createRenderPass(renderPassCreateInfo);
 }
 
 void Renderer::createPipeline() {
-	mShaderManager = zvk::ShaderManager(mContext.device);
+	mShaderManager = zvk::ShaderManager(mContext->device);
 
 	auto vertStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
 		mShaderManager.createShaderModule("shaders/test.vert.spv"),
@@ -214,7 +214,7 @@ void Renderer::createPipeline() {
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
 		.setSetLayouts(mDescriptorSetLayout.layout);
 
-	mPipelineLayout = mContext.device.createPipelineLayout(pipelineLayoutCreateInfo);
+	mPipelineLayout = mContext->device.createPipelineLayout(pipelineLayoutCreateInfo);
 
 	auto pipelineCreateInfo = vk::GraphicsPipelineCreateInfo()
 		.setStages(shaderStages)
@@ -233,7 +233,7 @@ void Renderer::createPipeline() {
 		.setBasePipelineHandle(nullptr)
 		.setBasePipelineIndex(-1);
 
-	auto result = mContext.device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
+	auto result = mContext->device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
 	if (result.result != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to create pipeline");
 	}
@@ -253,7 +253,7 @@ void Renderer::createFramebuffers() {
 			.setHeight(mSwapchain.height())
 			.setLayers(1);
 
-		mFramebuffers[i] = mContext.device.createFramebuffer(createInfo);
+		mFramebuffers[i] = mContext->device.createFramebuffer(createInfo);
 	}
 }
 
@@ -325,7 +325,7 @@ void Renderer::createDescriptors() {
 		),
 	};
 
-	mContext.device.updateDescriptorSets(updates, {});
+	mContext->device.updateDescriptorSets(updates, {});
 }
 
 void Renderer::createRenderCmdBuffers() {
@@ -336,9 +336,9 @@ void Renderer::createSyncObjects() {
 	auto fenceCreateInfo = vk::FenceCreateInfo()
 		.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
-	mInFlightFence = mContext.device.createFence(fenceCreateInfo);
-	mImageReadySemaphore = mContext.device.createSemaphore(vk::SemaphoreCreateInfo());
-	mRenderFinishSemaphore = mContext.device.createSemaphore(vk::SemaphoreCreateInfo());
+	mInFlightFence = mContext->device.createFence(fenceCreateInfo);
+	mImageReadySemaphore = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
+	mRenderFinishSemaphore = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
 }
 
 void Renderer::recordRenderCommands() {
@@ -383,11 +383,11 @@ void Renderer::recordRenderCommands() {
 }
 
 void Renderer::drawFrame() {
-	if (mContext.device.waitForFences(mInFlightFence, true, UINT64_MAX) != vk::Result::eSuccess) {
+	if (mContext->device.waitForFences(mInFlightFence, true, UINT64_MAX) != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to wait for any fences");
 	}
 
-	auto [acquireRes, imgIndex] = mContext.device.acquireNextImageKHR(
+	auto [acquireRes, imgIndex] = mContext->device.acquireNextImageKHR(
 		mSwapchain.swapchain(), UINT64_MAX, mImageReadySemaphore
 	);
 
@@ -399,7 +399,7 @@ void Renderer::drawFrame() {
 		throw std::runtime_error("Failed to acquire image from swapchain");
 	}
 
-	mContext.device.resetFences(mInFlightFence);
+	mContext->device.resetFences(mInFlightFence);
 
 	//mGCTCmdBuffers[imgIndex].cmd.reset();
 	//recordRenderCommands(mGCTCmdBuffers[imgIndex].cmd, imgIndex);
@@ -415,7 +415,7 @@ void Renderer::drawFrame() {
 		.setWaitDstStageMask(waitStage)
 		.setSignalSemaphores(mRenderFinishSemaphore);
 
-	mContext.queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
+	mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
 
 	auto swapchain = mSwapchain.swapchain();
 	auto presentInfo = vk::PresentInfoKHR()
@@ -424,7 +424,7 @@ void Renderer::drawFrame() {
 		.setImageIndices(imgIndex);
 
 	try {
-		auto presentRes = mContext.queues[zvk::QueueIdx::Present].queue.presentKHR(presentInfo);
+		auto presentRes = mContext->queues[zvk::QueueIdx::Present].queue.presentKHR(presentInfo);
 	}
 	catch (const vk::SystemError& e) {
 		recreateFrames();
@@ -464,7 +464,7 @@ void Renderer::recreateFrames() {
 		glfwGetFramebufferSize(mMainWindow, &width, &height);
 		glfwWaitEvents();
 	}
-	mContext.device.waitIdle();
+	mContext->device.waitIdle();
 
 	cleanupFrames();
 	mSwapchain = zvk::Swapchain(mContext, width, height);
@@ -474,7 +474,7 @@ void Renderer::recreateFrames() {
 
 void Renderer::cleanupFrames() {
 	for (auto& framebuffer : mFramebuffers) {
-		mContext.device.destroyFramebuffer(framebuffer);
+		mContext->device.destroyFramebuffer(framebuffer);
 	}
 	mDepthImage.destroy();
 	mSwapchain.destroy();
@@ -491,21 +491,21 @@ void Renderer::cleanupVulkan() {
 	mIndexBuffer.destroy();
 	mTextureImage.destroy();
 
-	mContext.device.destroyPipeline(mGraphicsPipeline);
-	mContext.device.destroyPipelineLayout(mPipelineLayout);
-	mContext.device.destroyRenderPass(mRenderPass);
+	mContext->device.destroyPipeline(mGraphicsPipeline);
+	mContext->device.destroyPipelineLayout(mPipelineLayout);
+	mContext->device.destroyRenderPass(mRenderPass);
 
-	mContext.device.destroyFence(mInFlightFence);
-	mContext.device.destroySemaphore(mImageReadySemaphore);
-	mContext.device.destroySemaphore(mRenderFinishSemaphore);
+	mContext->device.destroyFence(mInFlightFence);
+	mContext->device.destroySemaphore(mImageReadySemaphore);
+	mContext->device.destroySemaphore(mRenderFinishSemaphore);
 
 	for (auto& cmd : mGCTCmdBuffers) {
 		cmd.destroy();
 	}
 
 	mShaderManager.destroyShaderModules();
-	mContext.destroy();
-	mInstance.destroy();
+	delete mContext;
+	delete mInstance;
 }
 
 void Renderer::exec() {
@@ -521,7 +521,7 @@ void Renderer::exec() {
 		glfwPollEvents();
 		drawFrame();
 	}
-	mContext.device.waitIdle();
+	mContext->device.waitIdle();
 
 	cleanupVulkan();
 	glfwDestroyWindow(mMainWindow);

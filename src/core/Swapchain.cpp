@@ -4,9 +4,9 @@
 
 NAMESPACE_BEGIN(zvk)
 
-Swapchain::Swapchain(const Context& ctx, uint32_t width, uint32_t height) :
+Swapchain::Swapchain(const Context* ctx, uint32_t width, uint32_t height) :
 	BaseVkObject(ctx) {
-	createSwapchain(*ctx.instance(), width, height);
+	createSwapchain(ctx->instance(), width, height);
 	createImageViews();
 }
 
@@ -17,12 +17,12 @@ void Swapchain::destroy() {
 	mCtx->device.destroySwapchainKHR(mSwapchain);
 }
 
-void Swapchain::createSwapchain(const Instance& instance, uint32_t width, uint32_t height) {
-	auto physicalDevice = instance.physicalDevice();
+void Swapchain::createSwapchain(const Instance* instance, uint32_t width, uint32_t height) {
+	auto physicalDevice = instance->physicalDevice();
 
-	auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(instance.surface());
-	auto formats = physicalDevice.getSurfaceFormatsKHR(instance.surface());
-	auto presentModes = physicalDevice.getSurfacePresentModesKHR(instance.surface());
+	auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(instance->surface());
+	auto formats = physicalDevice.getSurfaceFormatsKHR(instance->surface());
+	auto presentModes = physicalDevice.getSurfacePresentModesKHR(instance->surface());
 
 	auto [format, presentMode] = selectFormatAndMode(formats, presentModes);
 
@@ -51,7 +51,7 @@ void Swapchain::createSwapchain(const Instance& instance, uint32_t width, uint32
 		std::vector<uint32_t>({ generalIdx, presentIdx });
 
 	auto createInfo = vk::SwapchainCreateInfoKHR()
-		.setSurface(instance.surface())
+		.setSurface(instance->surface())
 		.setMinImageCount(nImages)
 		.setImageFormat(format.format)
 		.setImageColorSpace(format.colorSpace)

@@ -12,7 +12,7 @@ NAMESPACE_BEGIN(zvk)
 class CommandBuffer : public BaseVkObject {
 public:
     CommandBuffer() {}
-    CommandBuffer(const Context& ctx, QueueIdx queueIdx) : BaseVkObject(ctx), mQueueIdx(queueIdx) {}
+    CommandBuffer(const Context* ctx, QueueIdx queueIdx) : BaseVkObject(ctx), mQueueIdx(queueIdx) {}
 
     void destroy() {
         mCtx->device.freeCommandBuffers(mCtx->cmdPools[mQueueIdx], cmd);
@@ -33,8 +33,8 @@ private:
 };
 
 namespace Command {
-    std::vector<CommandBuffer> createPrimary(const Context& ctx, QueueIdx queueIdx, size_t n);
-    CommandBuffer createOneTimeSubmit(const Context& ctx, QueueIdx queueIdx);
+    std::vector<CommandBuffer> createPrimary(const Context* ctx, QueueIdx queueIdx, size_t n);
+    CommandBuffer createOneTimeSubmit(const Context* ctx, QueueIdx queueIdx);
 }
 
 NAMESPACE_END(zvk)

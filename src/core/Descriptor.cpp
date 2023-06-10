@@ -3,7 +3,7 @@
 NAMESPACE_BEGIN(zvk)
 
 DescriptorSetLayout::DescriptorSetLayout(
-    const Context& ctx, const std::vector<vk::DescriptorSetLayoutBinding>& bindings) :
+    const Context* ctx, const std::vector<vk::DescriptorSetLayoutBinding>& bindings) :
     BaseVkObject(ctx), bindings(bindings)
 {
     auto createInfo = vk::DescriptorSetLayoutCreateInfo()
@@ -17,7 +17,7 @@ DescriptorSetLayout::DescriptorSetLayout(
 }
 
 DescriptorPool::DescriptorPool(
-    const Context& ctx, const std::vector<DescriptorSetLayout>& layouts, uint32_t numCopies) :
+    const Context* ctx, const std::vector<DescriptorSetLayout>& layouts, uint32_t numCopies) :
     BaseVkObject(ctx)
 {
     std::map<vk::DescriptorType, uint32_t> typeCount;

@@ -17,7 +17,7 @@ NAMESPACE_BEGIN(zvk)
 class Buffer : public BaseVkObject {
 public:
 	Buffer() {}
-	Buffer(const Context& ctx) : BaseVkObject(ctx) {}
+	Buffer(const Context* ctx) : BaseVkObject(ctx) {}
 
 	bool isHostVisible() const {
 		return hasFlagBit(properties, vk::MemoryPropertyFlagBits::eHostVisible);
@@ -50,7 +50,7 @@ public:
 class Image : public BaseVkObject {
 public:
 	Image() {}
-	Image(const Context& ctx) : BaseVkObject(ctx) {}
+	Image(const Context* ctx) : BaseVkObject(ctx) {}
 
 	void destroy() {
 		mCtx->device.destroySampler(sampler);
@@ -98,7 +98,7 @@ namespace Memory {
 		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::DeviceMemory& memory);
 
 	Buffer createBuffer(
-		const Context& ctx,
+		const Context* ctx,
 		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
 
 	void copyBuffer(
@@ -109,7 +109,7 @@ namespace Memory {
 		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
 		vk::DeviceSize size, vk::DeviceMemory& memory);
 
-	Buffer createTransferBuffer(const Context& ctx, vk::DeviceSize size);
+	Buffer createTransferBuffer(const Context* ctx, vk::DeviceSize size);
 
 	vk::Buffer createLocalBuffer(
 		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
@@ -117,26 +117,26 @@ namespace Memory {
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory);
 
 	Buffer createLocalBuffer(
-		const Context& ctx, QueueIdx queueIdx,
+		const Context* ctx, QueueIdx queueIdx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
 
 	vk::Image createImage2D(
-		const Context& ctx, vk::Extent2D extent, vk::Format format,
+		const Context* ctx, vk::Extent2D extent, vk::Format format,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
 		vk::DeviceMemory& memory, uint32_t nMipLevels = 1);
 
 	Image createImage2D(
-		const Context& ctx, vk::Extent2D extent, vk::Format format,
+		const Context* ctx, vk::Extent2D extent, vk::Format format,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels = 1);
 
 	Image createTexture2D(
-		const Context& ctx, const HostImage* hostImg,
+		const Context* ctx, const HostImage* hostImg,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels = 1);
 
 	void copyBufferToImage(
-		const Context& ctx, const Buffer& buffer, const Image& image);
+		const Context* ctx, const Buffer& buffer, const Image& image);
 }
 
 NAMESPACE_END(zvk)
