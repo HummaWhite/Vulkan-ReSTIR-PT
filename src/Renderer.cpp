@@ -54,7 +54,7 @@ void Renderer::initVulkan() {
 		mInstance = new zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
 		mContext = new zvk::Context(mInstance, DeviceExtensions);
 		mSwapchain = new zvk::Swapchain(mContext, mWidth, mHeight);
-		mDevice = mContext->device;
+		mShaderManager = new zvk::ShaderManager(mContext->device);
 
 		initScene();
 		
@@ -64,7 +64,6 @@ void Renderer::initVulkan() {
 		createTextureImage();
 		createDescriptors();
 
-		createDepthImage();
 		createRenderPass();
 		createFramebuffers();
 		createPipeline();
@@ -79,165 +78,9 @@ void Renderer::initVulkan() {
 }
 
 void Renderer::createRenderPass() {
-	auto colorAttachment = vk::AttachmentDescription()
-		.setFormat(mSwapchain->format())
-		.setSamples(vk::SampleCountFlagBits::e1)
-		.setLoadOp(vk::AttachmentLoadOp::eClear)
-		.setStoreOp(vk::AttachmentStoreOp::eStore)
-		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-		.setInitialLayout(vk::ImageLayout::eUndefined)
-		.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
-
-	auto depthAttachment = vk::AttachmentDescription()
-		.setFormat(vk::Format::eD32Sfloat)
-		.setSamples(vk::SampleCountFlagBits::e1)
-		.setLoadOp(vk::AttachmentLoadOp::eClear)
-		.setStoreOp(vk::AttachmentStoreOp::eDontCare)
-		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-		.setInitialLayout(vk::ImageLayout::eUndefined)
-		.setFinalLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
-
-	auto attachments = { colorAttachment, depthAttachment };
-
-	auto colorAttachmentRef = vk::AttachmentReference()
-		.setAttachment(0)
-		.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
-
-	auto depthAttachmentRef = vk::AttachmentReference()
-		.setAttachment(1)
-		.setLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
-
-	auto subpass = vk::SubpassDescription()
-		.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
-		.setColorAttachments(colorAttachmentRef)
-		.setPDepthStencilAttachment(&depthAttachmentRef);
-
-	auto subpassDependency = vk::SubpassDependency()
-		.setSrcSubpass(VK_SUBPASS_EXTERNAL)
-		.setDstSubpass(0)
-		.setSrcStageMask(
-			vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests)
-		.setDstStageMask(
-			vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests)
-		.setSrcAccessMask(vk::AccessFlagBits::eNone)
-		.setDstAccessMask(
-			vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite);
-
-	auto renderPassCreateInfo = vk::RenderPassCreateInfo()
-		.setAttachments(attachments)
-		.setSubpasses(subpass)
-		.setDependencies(subpassDependency);
-
-	mRenderPass = mContext->device.createRenderPass(renderPassCreateInfo);
 }
 
 void Renderer::createPipeline() {
-	mShaderManager = new zvk::ShaderManager(mContext->device);
-
-	auto vertStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
-		mShaderManager->createShaderModule("shaders/test.vert.spv"),
-		vk::ShaderStageFlagBits::eVertex);
-
-	auto fragStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
-		mShaderManager->createShaderModule("shaders/test.frag.spv"),
-		vk::ShaderStageFlagBits::eFragment);
-
-	auto shaderStages = { vertStageInfo, fragStageInfo };
-
-	auto dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
-
-	vk::Viewport viewport(
-		0.0f, 0.0f,
-		float(mSwapchain->width()), float(mSwapchain->height()),
-		0.0f, 1.0f);
-
-	vk::Rect2D scissor({ 0, 0 }, mSwapchain->extent());
-
-	auto viewportStateInfo = vk::PipelineViewportStateCreateInfo()
-		.setViewports(viewport)
-		.setScissors(scissor);
-
-	auto dynamicStateInfo = vk::PipelineDynamicStateCreateInfo()
-		.setDynamicStates(dynamicStates);
-
-	auto vertexBindingDesc = MeshVertex::bindingDescription();
-	auto vertexAttribDesc = MeshVertex::attributeDescription();
-	auto vertexInputStateInfo = vk::PipelineVertexInputStateCreateInfo()
-		.setVertexBindingDescriptions(vertexBindingDesc)
-		.setVertexAttributeDescriptions(vertexAttribDesc);
-
-	auto inputAssemblyStateInfo = vk::PipelineInputAssemblyStateCreateInfo()
-		.setTopology(vk::PrimitiveTopology::eTriangleList)
-		.setPrimitiveRestartEnable(false);
-
-	auto rasterizationStateInfo = vk::PipelineRasterizationStateCreateInfo()
-		.setDepthClampEnable(false)
-		.setRasterizerDiscardEnable(false)
-		.setPolygonMode(vk::PolygonMode::eFill)
-		.setLineWidth(1.0f)
-		.setCullMode(vk::CullModeFlagBits::eBack)
-		.setCullMode(vk::CullModeFlagBits::eNone)
-		.setFrontFace(vk::FrontFace::eCounterClockwise)
-		.setDepthBiasEnable(false);
-
-	auto multisamplingStateInfo = vk::PipelineMultisampleStateCreateInfo()
-		.setSampleShadingEnable(false)
-		.setRasterizationSamples(vk::SampleCountFlagBits::e1);
-
-	auto blendAttachment = vk::PipelineColorBlendAttachmentState()
-		.setBlendEnable(false)
-		.setSrcColorBlendFactor(vk::BlendFactor::eOne)
-		.setDstColorBlendFactor(vk::BlendFactor::eZero)
-		.setColorBlendOp(vk::BlendOp::eAdd)
-		.setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
-		.setDstAlphaBlendFactor(vk::BlendFactor::eZero)
-		.setAlphaBlendOp(vk::BlendOp::eAdd)
-		.setColorWriteMask(
-			vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-			vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
-
-	auto colorBlendStateInfo = vk::PipelineColorBlendStateCreateInfo()
-		.setLogicOpEnable(false)
-		.setLogicOp(vk::LogicOp::eCopy)
-		.setAttachments(blendAttachment)
-		.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
-
-	auto depthStencilStateInfo = vk::PipelineDepthStencilStateCreateInfo()
-		.setDepthTestEnable(true)
-		.setDepthWriteEnable(true)
-		.setDepthCompareOp(vk::CompareOp::eLess)
-		.setDepthBoundsTestEnable(false)
-		.setStencilTestEnable(false);
-
-	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts(mDescriptorSetLayout->layout);
-
-	mPipelineLayout = mContext->device.createPipelineLayout(pipelineLayoutCreateInfo);
-
-	auto pipelineCreateInfo = vk::GraphicsPipelineCreateInfo()
-		.setStages(shaderStages)
-		.setPVertexInputState(&vertexInputStateInfo)
-		.setPInputAssemblyState(&inputAssemblyStateInfo)
-		.setPViewportState(&viewportStateInfo)
-		.setPRasterizationState(&rasterizationStateInfo)
-		.setPMultisampleState(&multisamplingStateInfo)
-		.setPDepthStencilState(nullptr)
-		.setPColorBlendState(&colorBlendStateInfo)
-		.setPDynamicState(&dynamicStateInfo)
-		.setPDepthStencilState(&depthStencilStateInfo)
-		.setLayout(mPipelineLayout)
-		.setRenderPass(mRenderPass)
-		.setSubpass(0)
-		.setBasePipelineHandle(nullptr)
-		.setBasePipelineIndex(-1);
-
-	auto result = mContext->device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
-	if (result.result != vk::Result::eSuccess) {
-		throw std::runtime_error("Failed to create pipeline");
-	}
-	mGraphicsPipeline = result.value;
 }
 
 void Renderer::createFramebuffers() {
@@ -255,14 +98,6 @@ void Renderer::createFramebuffers() {
 
 		mFramebuffers[i] = mContext->device.createFramebuffer(createInfo);
 	}
-}
-
-void Renderer::createDepthImage() {
-	mDepthImage = zvk::Memory::createImage2D(
-		mContext, mSwapchain->extent(), vk::Format::eD32Sfloat, vk::ImageTiling::eOptimal,
-		vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal
-	);
-	mDepthImage->createImageView();
 }
 
 void Renderer::initScene() {
@@ -306,27 +141,6 @@ void Renderer::createUniformBuffers() {
 }
 
 void Renderer::createDescriptors() {
-	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
-		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex),
-		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment),
-	};
-
-	mDescriptorSetLayout = new zvk::DescriptorSetLayout(mContext, bindings);
-	mDescriptorPool = new zvk::DescriptorPool(mContext, { mDescriptorSetLayout }, 1);
-	mDescriptorSet = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
-
-	std::vector<vk::WriteDescriptorSet> updates = {
-		zvk::Descriptor::makeWrite(
-			mDescriptorSetLayout, mDescriptorSet, 0,
-			vk::DescriptorBufferInfo(mCameraUniforms->buffer, 0, mCameraUniforms->size)
-		),
-		zvk::Descriptor::makeWrite(
-			mDescriptorSetLayout, mDescriptorSet, 1,
-			vk::DescriptorImageInfo(mTextureImage->sampler, mTextureImage->imageView, mTextureImage->layout)
-		),
-	};
-
-	mContext->device.updateDescriptorSets(updates, {});
 }
 
 void Renderer::createRenderCmdBuffers() {
@@ -342,45 +156,15 @@ void Renderer::createSyncObjects() {
 	mRenderFinishSemaphore = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
 }
 
-void Renderer::recordRenderCommands() {
-	for (size_t i = 0; i < mGCTCmdBuffers.size(); i++) {
-		auto& cmd = mGCTCmdBuffers[i]->cmd;
+void Renderer::recordRenderCommands(vk::CommandBuffer cmd) {
+	auto beginInfo = vk::CommandBufferBeginInfo()
+		.setFlags(vk::CommandBufferUsageFlagBits{})
+		.setPInheritanceInfo(nullptr);
 
-		auto beginInfo = vk::CommandBufferBeginInfo()
-			.setFlags(vk::CommandBufferUsageFlagBits{})
-			.setPInheritanceInfo(nullptr);
+	cmd.begin(beginInfo);
 
-		cmd.begin(beginInfo);
 
-		vk::ClearValue clearValues[] = {
-			vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
-			vk::ClearDepthStencilValue(1.f, 0.f)
-		};
-
-		auto renderPassBeginInfo = vk::RenderPassBeginInfo()
-			.setRenderPass(mRenderPass)
-			.setFramebuffer(mFramebuffers[i])
-			.setRenderArea({ { 0, 0 }, mSwapchain->extent() })
-			.setClearValues(clearValues);
-
-		cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-
-		cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mGraphicsPipeline);
-
-		cmd.bindVertexBuffers(0, mVertexBuffer->buffer, vk::DeviceSize(0));
-		cmd.bindIndexBuffer(mIndexBuffer->buffer, 0, vk::IndexType::eUint32);
-
-		cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, mSwapchain->width(), mSwapchain->height(), 0.0f, 1.0f));
-		cmd.setScissor(0, vk::Rect2D({ 0, 0 }, mSwapchain->extent()));
-
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, 0, mDescriptorSet, {});
-
-		//cmdBuffer.draw(VertexData.size(), 1, 0, 0);
-		cmd.drawIndexed(mScene.resource.indices().size(), 1, 0, 0, 0);
-
-		cmd.endRenderPass();
-		cmd.end();
-	}
+	cmd.end();
 }
 
 void Renderer::drawFrame() {
@@ -402,8 +186,8 @@ void Renderer::drawFrame() {
 
 	mContext->device.resetFences(mInFlightFence);
 
-	//mGCTCmdBuffers[imgIndex].cmd.reset();
-	//recordRenderCommands(mGCTCmdBuffers[imgIndex].cmd, imgIndex);
+	mGCTCmdBuffers[imgIndex]->cmd.reset();
+	recordRenderCommands(mGCTCmdBuffers[imgIndex]->cmd);
 
 	updateUniformBuffer();
 
@@ -470,7 +254,6 @@ void Renderer::recreateFrames() {
 	cleanupFrames();
 	mSwapchain = new zvk::Swapchain(mContext, width, height);
 	createFramebuffers();
-	createDepthImage();
 }
 
 void Renderer::cleanupFrames() {
@@ -515,8 +298,6 @@ void Renderer::exec() {
 	glfwShowWindow(mMainWindow);
 
 	mTimer.reset();
-
-	recordRenderCommands();
 	
 	while (!glfwWindowShouldClose(mMainWindow)) {
 		glfwPollEvents();
