@@ -1,0 +1,26 @@
+#version 460
+#extension GL_GOOGLE_include_directive : enable
+
+#include "HostDevice.h"
+
+layout(local_size_x = PostProcBlockSizeX, local_size_y = PostProcBlockSizeY) in;
+
+layout(set = SwapchainStorageDescSet, binding = 0, SWAPCHAIN_FORMAT) uniform image2D uSwapchainImage;
+layout(set = SwapchainStorageDescSet, binding = 1, rgba32f) uniform readonly image2D uRTColorBuffer;
+
+layout(push_constant) uniform PushConstant {
+    ivec2 frameSize;
+    uint toneMapping;
+} uSettings;
+
+void main() {
+    ivec2 index = ivec2(gl_GlobalInvocationID.xy);
+
+    if (index.x >= uSettings.frameSize.x || index.y >= uSettings.frameSize.y) {
+        return;
+    }
+
+    vec3 color = imageLoad(uRTColorBuffer, index).rgb;
+    color = pow(color, vec3(1.0 / 2.2));
+    imageStore(uSwapchainImage, index, vec4(color, 1.0));
+}

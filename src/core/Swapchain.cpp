@@ -1,12 +1,15 @@
 #include "Swapchain.h"
+#include "Command.h"
+#include "util/EnumBitField.h"
+#include "shader/HostDevice.h"
 
 #include <set>
 
 NAMESPACE_BEGIN(zvk)
 
-Swapchain::Swapchain(const Context* ctx, uint32_t width, uint32_t height) :
-	BaseVkObject(ctx) {
-	createSwapchain(ctx->instance(), width, height);
+Swapchain::Swapchain(const Context* ctx, uint32_t width, uint32_t height, vk::Format format, bool computeTarget) :
+	BaseVkObject(ctx), mFormat(format) {
+	createSwapchain(ctx->instance(), width, height, computeTarget);
 	createImageViews();
 }
 
@@ -17,7 +20,35 @@ void Swapchain::destroy() {
 	mCtx->device.destroySwapchainKHR(mSwapchain);
 }
 
-void Swapchain::createSwapchain(const Instance* instance, uint32_t width, uint32_t height) {
+void Swapchain::changeImageLayout(
+	uint32_t imageIdx, vk::ImageLayout newLayout,
+	vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask,
+	vk::PipelineStageFlags srcStage, vk::PipelineStageFlags dstStage
+) {
+	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
+	
+	auto barrier = vk::ImageMemoryBarrier()
+		.setOldLayout(mImageLayouts[imageIdx])
+		.setNewLayout(newLayout)
+		.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setImage(mImages[imageIdx])
+		.setSubresourceRange(vk::ImageSubresourceRange()
+			.setAspectMask(vk::ImageAspectFlagBits::eColor)
+			.setBaseMipLevel(0)
+			.setLevelCount(1)
+			.setBaseArrayLayer(0)
+			.setLayerCount(1))
+		.setSrcAccessMask(srcAccessMask)
+		.setDstAccessMask(dstAccessMask);
+
+	cmd->cmd.pipelineBarrier(srcStage, dstStage, vk::DependencyFlagBits{ 0 }, {}, {}, barrier);
+	cmd->oneTimeSubmit();
+	delete cmd;
+	mImageLayouts[imageIdx] = newLayout;
+}
+
+void Swapchain::createSwapchain(const Instance* instance, uint32_t width, uint32_t height, bool computeTarget) {
 	auto physicalDevice = instance->physicalDevice();
 
 	auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(instance->surface());
@@ -26,10 +57,8 @@ void Swapchain::createSwapchain(const Instance* instance, uint32_t width, uint32
 
 	auto [format, presentMode] = selectFormatAndMode(formats, presentModes);
 
-	width = std::clamp(width, capabilities.minImageExtent.width,
-		capabilities.maxImageExtent.width);
-	height = std::clamp(height, capabilities.minImageExtent.height,
-		capabilities.maxImageExtent.height);
+	width = std::clamp(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+	height = std::clamp(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 	mExtent = vk::Extent2D(width, height);
 
 	if (capabilities.currentExtent.width != UINT32_MAX) {
@@ -37,8 +66,14 @@ void Swapchain::createSwapchain(const Instance* instance, uint32_t width, uint32
 	}
 
 	uint32_t nImages = capabilities.minImageCount + 1;
+
 	if (capabilities.maxImageCount) {
 		nImages = std::min(nImages, capabilities.maxImageCount);
+	}
+	vk::ImageUsageFlags usage = computeTarget ? vk::ImageUsageFlagBits::eStorage : vk::ImageUsageFlagBits::eColorAttachment;
+
+	if (!hasFlagBit(capabilities.supportedUsageFlags, usage)) {
+		Log::exception("zvk::Swapchain image usage not supported");
 	}
 
 	uint32_t generalIdx = mCtx->queues[QueueIdx::GeneralUse].familyIdx;
@@ -57,7 +92,7 @@ void Swapchain::createSwapchain(const Instance* instance, uint32_t width, uint32
 		.setImageColorSpace(format.colorSpace)
 		.setImageExtent(mExtent)
 		.setImageArrayLayers(1)
-		.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment)
+		.setImageUsage(usage)
 		.setImageSharingMode(sharingMode)
 		.setQueueFamilyIndices(queueFamilyIndices)
 		.setPreTransform(capabilities.currentTransform)
@@ -67,7 +102,7 @@ void Swapchain::createSwapchain(const Instance* instance, uint32_t width, uint32
 
 	mSwapchain = mCtx->device.createSwapchainKHR(createInfo);
 	mImages = mCtx->device.getSwapchainImagesKHR(mSwapchain);
-	mFormat = format.format;
+	mImageLayouts.resize(mImages.size(), vk::ImageLayout::eUndefined);
 }
 
 std::tuple<vk::SurfaceFormatKHR, vk::PresentModeKHR> Swapchain::selectFormatAndMode(
@@ -78,7 +113,7 @@ std::tuple<vk::SurfaceFormatKHR, vk::PresentModeKHR> Swapchain::selectFormatAndM
 	vk::PresentModeKHR presentMode;
 
 	for (const auto& i : formats) {
-		if (i.format == vk::Format::eB8G8R8A8Srgb && i.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
+		if (i.format == mFormat && i.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
 			format = i;
 		}
 	}

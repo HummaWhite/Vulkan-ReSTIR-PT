@@ -82,7 +82,8 @@ void Image::changeLayout(vk::ImageLayout newLayout) {
 	cmd->cmd.pipelineBarrier(
 		transitFlags->srcStage, transitFlags->dstStage, vk::DependencyFlagBits{0}, {}, {}, barrier
 	);
-	cmd->oneTimeSubmitAndDestroy();
+	cmd->oneTimeSubmit();
+	delete cmd;
 	layout = newLayout;
 }
 
@@ -164,7 +165,7 @@ void Image::createMipmap() {
 
 	// TODO: generate mipmap level data
 
-	cmd->oneTimeSubmitAndDestroy();
+	cmd->oneTimeSubmit();
 }
 
 namespace Memory {
@@ -468,7 +469,7 @@ namespace Memory {
 			.setImageExtent(image->extent);
 
 		cmd->cmd.copyBufferToImage(buffer->buffer, image->image, image->layout, copy);
-		cmd->oneTimeSubmitAndDestroy();
+		cmd->oneTimeSubmit();
 	}
 }
 

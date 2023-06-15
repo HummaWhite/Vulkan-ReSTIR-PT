@@ -26,12 +26,17 @@
 class GBufferPass : public zvk::BaseVkObject {
 	constexpr static vk::Format DepthNormalFormat = vk::Format::eR32G32B32A32Sfloat;
 	constexpr static vk::Format AlbedoMatIdxFormat = vk::Format::eR32G32B32A32Sfloat;
-	constexpr static vk::Format DepthStencilFormat = vk::Format::eR32Sfloat;
+	constexpr static vk::Format DepthStencilFormat = vk::Format::eD32Sfloat;
 
 public:
-	GBufferPass(const zvk::Context* ctx, vk::Extent2D extent, zvk::ShaderManager* shaderManager);
+	GBufferPass(
+		const zvk::Context* ctx, vk::Extent2D extent, zvk::ShaderManager* shaderManager,
+		std::vector<vk::DescriptorSetLayout>& descLayouts);
+
 	~GBufferPass() { destroy(); }
 	void destroy();
+
+	vk::DescriptorSetLayout descSetLayout() const { return mDescriptorSetLayout->layout; }
 
 	void render(
 		vk::CommandBuffer cmd, vk::Buffer vertexBuffer,
@@ -46,7 +51,9 @@ private:
 	void createResources(vk::Extent2D extent);
 	void createRenderPass();
 	void createFramebuffer(vk::Extent2D extent);
-	void createPipeline(vk::Extent2D extent, zvk::ShaderManager* shaderManager);
+	void createPipeline(
+		vk::Extent2D extent, zvk::ShaderManager* shaderManager,
+		std::vector<vk::DescriptorSetLayout>& descLayouts);
 	void createDescriptors();
 
 	void destroyFrames();

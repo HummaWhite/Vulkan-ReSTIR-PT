@@ -1,10 +1,5 @@
 #include "Renderer.h"
-
-#if defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__) ) || defined(_M_X64) || defined(__ia64) || defined (_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
-	#define VK_NULL_HANDLE_REPLACED nullptr
-#else
-	#define VK_NULL_HANDLE_REPLACED 0
-#endif
+#include "shader/HostDevice.h"
 
 const std::vector<const char*> DeviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
@@ -53,19 +48,24 @@ void Renderer::initVulkan() {
 	try {
 		mInstance = new zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
 		mContext = new zvk::Context(mInstance, DeviceExtensions);
-		mSwapchain = new zvk::Swapchain(mContext, mWidth, mHeight);
+		mSwapchain = new zvk::Swapchain(mContext, mWidth, mHeight, SWAPCHAIN_FORMAT, true);
 		mShaderManager = new zvk::ShaderManager(mContext->device);
 
 		initScene();
+
+		std::vector<vk::DescriptorSetLayout> descLayouts;
+
+		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent(), mShaderManager, descLayouts);
+		mPostProcPass = new PostProcPass(mContext, mSwapchain, mShaderManager, descLayouts);
 		
 		createVertexBuffer();
 		createUniformBuffers();
 		createIndexBuffer();
 		createTextureImage();
-		createDescriptors();
 
-		createRenderPass();
-		createFramebuffers();
+		createDescriptors();
+		updateDescriptors();
+
 		createPipeline();
 		createRenderCmdBuffers();
 		createSyncObjects();
@@ -77,27 +77,7 @@ void Renderer::initVulkan() {
 	}
 }
 
-void Renderer::createRenderPass() {
-}
-
 void Renderer::createPipeline() {
-}
-
-void Renderer::createFramebuffers() {
-	mFramebuffers.resize(mSwapchain->size());
-
-	for (size_t i = 0; i < mFramebuffers.size(); i++) {
-		auto attachments = { mSwapchain->imageViews()[i], mDepthImage->imageView };
-
-		auto createInfo = vk::FramebufferCreateInfo()
-			.setRenderPass(mRenderPass)
-			.setAttachments(attachments)
-			.setWidth(mSwapchain->width())
-			.setHeight(mSwapchain->height())
-			.setLayers(1);
-
-		mFramebuffers[i] = mContext->device.createFramebuffer(createInfo);
-	}
 }
 
 void Renderer::initScene() {
@@ -143,8 +123,13 @@ void Renderer::createUniformBuffers() {
 void Renderer::createDescriptors() {
 }
 
+void Renderer::updateDescriptors() {
+	mGBufferPass->updateDescriptors(mCameraUniforms, mTextureImage);
+	mPostProcPass->updateDescriptors(mGBufferPass->depthNormal, mSwapchain);
+}
+
 void Renderer::createRenderCmdBuffers() {
-	mGCTCmdBuffers = zvk::Command::createPrimary(mContext, zvk::QueueIdx::GeneralUse, mSwapchain->size());
+	mGCTCmdBuffers = zvk::Command::createPrimary(mContext, zvk::QueueIdx::GeneralUse, mSwapchain->numImages());
 }
 
 void Renderer::createSyncObjects() {
@@ -152,83 +137,20 @@ void Renderer::createSyncObjects() {
 		.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
 	mInFlightFence = mContext->device.createFence(fenceCreateInfo);
-	mImageReadySemaphore = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
+	mFrameReadySemaphore = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
 	mRenderFinishSemaphore = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
 }
 
-void Renderer::recordRenderCommands(vk::CommandBuffer cmd) {
+void Renderer::recordRenderCommands(vk::CommandBuffer cmd, uint32_t imageidx) {
 	auto beginInfo = vk::CommandBufferBeginInfo()
 		.setFlags(vk::CommandBufferUsageFlagBits{})
 		.setPInheritanceInfo(nullptr);
 
-	cmd.begin(beginInfo);
-
-
+	cmd.begin(beginInfo); {
+		mGBufferPass->render(cmd, mVertexBuffer->buffer, mIndexBuffer->buffer, 0, mScene.resource.indices().size(), mSwapchain->extent());
+		//mPostProcPass->render(cmd, mSwapchain->extent(), imageidx);
+	}
 	cmd.end();
-}
-
-void Renderer::drawFrame() {
-	if (mContext->device.waitForFences(mInFlightFence, true, UINT64_MAX) != vk::Result::eSuccess) {
-		throw std::runtime_error("Failed to wait for any fences");
-	}
-
-	auto [acquireRes, imgIndex] = mContext->device.acquireNextImageKHR(
-		mSwapchain->swapchain(), UINT64_MAX, mImageReadySemaphore
-	);
-
-	if (acquireRes == vk::Result::eErrorOutOfDateKHR) {
-		recreateFrames();
-		return;
-	}
-	else if (acquireRes != vk::Result::eSuccess && acquireRes != vk::Result::eSuboptimalKHR) {
-		throw std::runtime_error("Failed to acquire image from swapchain");
-	}
-
-	mContext->device.resetFences(mInFlightFence);
-
-	mGCTCmdBuffers[imgIndex]->cmd.reset();
-	recordRenderCommands(mGCTCmdBuffers[imgIndex]->cmd);
-
-	updateUniformBuffer();
-
-	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-	auto waitSemaphore = mImageReadySemaphore;
-
-	auto submitInfo = vk::SubmitInfo()
-		.setCommandBuffers(mGCTCmdBuffers[imgIndex]->cmd)
-		.setWaitSemaphores(waitSemaphore)
-		.setWaitDstStageMask(waitStage)
-		.setSignalSemaphores(mRenderFinishSemaphore);
-
-	mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
-
-	auto swapchain = mSwapchain->swapchain();
-	auto presentInfo = vk::PresentInfoKHR()
-		.setWaitSemaphores(mRenderFinishSemaphore)
-		.setSwapchains(swapchain)
-		.setImageIndices(imgIndex);
-
-	try {
-		auto presentRes = mContext->queues[zvk::QueueIdx::Present].queue.presentKHR(presentInfo);
-	}
-	catch (const vk::SystemError& e) {
-		recreateFrames();
-	}
-	if (mShouldResetSwapchain) {
-		recreateFrames();
-	}
-
-	//mCurFrameIdx = (mCurFrameIdx + 1) % NumFramesConcurrent;
-	/*auto presentRes = mPresentQueue.presentKHR(presentInfo);
-
-	if (presentRes == vk::Result::eErrorOutOfDateKHR ||
-		presentRes == vk::Result::eSuboptimalKHR || mShouldResetSwapchain) {
-		mShouldResetSwapchain = false;
-		recreateSwapchain();
-	}
-	else if (presentRes != vk::Result::eSuccess) {
-		throw std::runtime_error("Unable to present");
-	}*/
 }
 
 void Renderer::updateUniformBuffer() {
@@ -241,6 +163,69 @@ void Renderer::updateUniformBuffer() {
 	memcpy(mCameraUniforms->data, &data, sizeof(Camera));
 }
 
+uint32_t Renderer::acquireFrame(vk::Semaphore signalFrameReady) {
+	auto [acquireRes, imageIdx] = mContext->device.acquireNextImageKHR(
+		mSwapchain->swapchain(), UINT64_MAX, signalFrameReady
+	);
+
+	if (acquireRes != vk::Result::eSuccess && acquireRes != vk::Result::eSuboptimalKHR) {
+		throw std::runtime_error("Failed to acquire image from swapchain");
+	}
+	else if (acquireRes == vk::Result::eErrorOutOfDateKHR) {
+		recreateFrames();
+	}
+	return imageIdx;
+}
+
+void Renderer::presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish) {
+	auto swapchain = mSwapchain->swapchain();
+
+	auto presentInfo = vk::PresentInfoKHR()
+		.setWaitSemaphores(waitRenderFinish)
+		.setSwapchains(swapchain)
+		.setImageIndices(imageIdx);
+
+	try {
+		auto presentRes = mContext->queues[zvk::QueueIdx::Present].queue.presentKHR(presentInfo);
+	}
+	catch (const vk::SystemError& e) {
+		recreateFrames();
+	}
+	if (mShouldResetSwapchain) {
+		recreateFrames();
+	}
+}
+
+void Renderer::drawFrame() {
+	if (mContext->device.waitForFences(mInFlightFence, true, UINT64_MAX) != vk::Result::eSuccess) {
+		throw std::runtime_error("Failed to wait for any fences");
+	}
+	mContext->device.resetFences(mInFlightFence);
+
+	uint32_t imageIdx = acquireFrame(mFrameReadySemaphore);
+	mGCTCmdBuffers[imageIdx]->cmd.reset();
+	recordRenderCommands(mGCTCmdBuffers[imageIdx]->cmd, imageIdx);
+
+	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+
+	auto submitInfo = vk::SubmitInfo()
+		.setCommandBuffers(mGCTCmdBuffers[imageIdx]->cmd)
+		.setWaitSemaphores(mFrameReadySemaphore)
+		.setWaitDstStageMask(waitStage)
+		.setSignalSemaphores(mRenderFinishSemaphore);
+
+	mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
+	presentFrame(imageIdx, mRenderFinishSemaphore);
+
+	mGBufferPass->swap();
+	mPostProcPass->swap();
+}
+
+void Renderer::loop() {
+	updateUniformBuffer();
+	drawFrame();
+}
+
 void Renderer::recreateFrames() {
 	int width, height;
 	glfwGetFramebufferSize(mMainWindow, &width, &height);
@@ -250,17 +235,13 @@ void Renderer::recreateFrames() {
 		glfwWaitEvents();
 	}
 	mContext->device.waitIdle();
+	mGBufferPass->recreateFrames(vk::Extent2D(width, height));
 
 	cleanupFrames();
-	mSwapchain = new zvk::Swapchain(mContext, width, height);
-	createFramebuffers();
+	mSwapchain = new zvk::Swapchain(mContext, width, height, SWAPCHAIN_FORMAT, true);
 }
 
 void Renderer::cleanupFrames() {
-	for (auto& framebuffer : mFramebuffers) {
-		mContext->device.destroyFramebuffer(framebuffer);
-	}
-	delete mDepthImage;
 	delete mSwapchain;
 }
 
@@ -275,12 +256,11 @@ void Renderer::cleanupVulkan() {
 	delete mIndexBuffer;
 	delete mTextureImage;
 
-	mContext->device.destroyPipeline(mGraphicsPipeline);
-	mContext->device.destroyPipelineLayout(mPipelineLayout);
-	mContext->device.destroyRenderPass(mRenderPass);
+	delete mGBufferPass;
+	delete mPostProcPass;
 
 	mContext->device.destroyFence(mInFlightFence);
-	mContext->device.destroySemaphore(mImageReadySemaphore);
+	mContext->device.destroySemaphore(mFrameReadySemaphore);
 	mContext->device.destroySemaphore(mRenderFinishSemaphore);
 
 	for (auto cmd : mGCTCmdBuffers) {
@@ -301,7 +281,7 @@ void Renderer::exec() {
 	
 	while (!glfwWindowShouldClose(mMainWindow)) {
 		glfwPollEvents();
-		drawFrame();
+		loop();
 	}
 	mContext->device.waitIdle();
 

@@ -1,24 +1,24 @@
-#include "Renderer.h"
 #include "GBufferPass.h"
+#include "shader/HostDevice.h"
 
-GBufferPass::GBufferPass(const zvk::Context* ctx, vk::Extent2D extent, zvk::ShaderManager* shaderManager) :
-	zvk::BaseVkObject(ctx) {
+GBufferPass::GBufferPass(
+	const zvk::Context* ctx, vk::Extent2D extent, zvk::ShaderManager* shaderManager,
+	std::vector<vk::DescriptorSetLayout>& descLayouts
+) : zvk::BaseVkObject(ctx) {
 	createResources(extent);
 	createRenderPass();
 	createFramebuffer(extent);
-	createPipeline(extent, shaderManager);
 	createDescriptors();
+	createPipeline(extent, shaderManager, descLayouts);
 }
 
 void GBufferPass::destroy() {
-	delete mDescriptorSet[0];
-	delete mDescriptorSet[1];
 	delete mDescriptorSetLayout;
 	delete mDescriptorPool;
 
-	delete mPipeline;
-	delete mPipelineLayout;
-	delete mRenderPass;
+	mCtx->device.destroyPipeline(mPipeline);
+	mCtx->device.destroyPipelineLayout(mPipelineLayout);
+	mCtx->device.destroyRenderPass(mRenderPass);
 
 	destroyFrames();
 }
@@ -28,6 +28,7 @@ void GBufferPass::render(
 	vk::Buffer indexBuffer, uint32_t indexOffset, uint32_t indexCount, vk::Extent2D extent
 ) {
 	vk::ClearValue clearValues[] = {
+			vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
 			vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
 			vk::ClearDepthStencilValue(1.f, 0.f)
 	};
@@ -189,14 +190,17 @@ void GBufferPass::createFramebuffer(vk::Extent2D extent) {
 	}
 }
 
-void GBufferPass::createPipeline(vk::Extent2D extent, zvk::ShaderManager* shaderManager) {
+void GBufferPass::createPipeline(
+	vk::Extent2D extent, zvk::ShaderManager* shaderManager,
+	std::vector<vk::DescriptorSetLayout>& descLayouts
+) {
 	auto vertStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/test.vert.spv"),
+		shaderManager->createShaderModule("shaders/GBuffer.vert.spv"),
 		vk::ShaderStageFlagBits::eVertex
 	);
 
 	auto fragStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/test.frag.spv"),
+		shaderManager->createShaderModule("shaders/GBuffer.frag.spv"),
 		vk::ShaderStageFlagBits::eFragment
 	);
 
@@ -249,10 +253,12 @@ void GBufferPass::createPipeline(vk::Extent2D extent, zvk::ShaderManager* shader
 			vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
 			vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
 
+	auto blendAttachments = { blendAttachment, blendAttachment };
+
 	auto colorBlendStateInfo = vk::PipelineColorBlendStateCreateInfo()
 		.setLogicOpEnable(false)
 		.setLogicOp(vk::LogicOp::eCopy)
-		.setAttachments(blendAttachment)
+		.setAttachments(blendAttachments)
 		.setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
 
 	auto depthStencilStateInfo = vk::PipelineDepthStencilStateCreateInfo()
@@ -262,8 +268,10 @@ void GBufferPass::createPipeline(vk::Extent2D extent, zvk::ShaderManager* shader
 		.setDepthBoundsTestEnable(false)
 		.setStencilTestEnable(false);
 
+	descLayouts.push_back(mDescriptorSetLayout->layout);
+
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts(mDescriptorSetLayout->layout);
+		.setSetLayouts(descLayouts);
 
 	mPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
 
@@ -284,7 +292,8 @@ void GBufferPass::createPipeline(vk::Extent2D extent, zvk::ShaderManager* shader
 		.setBasePipelineHandle(nullptr)
 		.setBasePipelineIndex(-1);
 
-	auto result = mCtx->device.createGraphicsPipeline(nullptr, pipelineCreateInfo);
+	auto result = mCtx->device.createGraphicsPipeline({}, pipelineCreateInfo);
+
 	if (result.result != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to create pipeline");
 	}

@@ -11,8 +11,9 @@ layout(location = 3) in float aTexY;
 layout(location = 0) out vec3 vPos;
 layout(location = 1) out vec3 vNorm;
 layout(location = 2) out vec2 vTexUV;
+layout(location = 3) out float vDepth;
 
-layout(set = 0, binding = 0) uniform _CameraBuffer {
+layout(set = CameraDescSet, binding = 0) uniform _CameraBuffer {
 	mat4 model;
 	mat4 view;
 	mat4 proj;
@@ -23,4 +24,5 @@ void main() {
 	vPos = aPos;
 	vNorm = aNorm;
 	vTexUV = vec2(aTexX, aTexY);
+	vDepth = gl_Position.z / gl_Position.w;
 }

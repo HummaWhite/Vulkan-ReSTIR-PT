@@ -25,6 +25,10 @@ static void exit(const std::string& msg = "") {
     std::abort();
 }
 
+static void exception(const std::string& msg = "") {
+    throw std::runtime_error(msg);
+}
+
 static void impossiblePath() {
     exit("[Impossible path: this path is impossible to be reached, check the program]");
 }

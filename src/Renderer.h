@@ -20,6 +20,8 @@
 #include "core/Memory.h"
 #include "core/Descriptor.h"
 #include "Scene.h"
+#include "GBufferPass.h"
+#include "PostProcPass.h"
 
 #include "util/Error.h"
 #include "util/Timer.h"
@@ -45,8 +47,6 @@ private:
 	void initWindow();
 	void initVulkan();
 
-	void createRenderPass();
-	void createFramebuffers();
 	void createPipeline();
 
 	void initScene();
@@ -56,12 +56,18 @@ private:
 	void createIndexBuffer();
 	void createUniformBuffers();
 	void createDescriptors();
+	void updateDescriptors();
 	void createRenderCmdBuffers();
 	void createSyncObjects();
 
-	void recordRenderCommands(vk::CommandBuffer cmd);
-	void drawFrame();
+	void recordRenderCommands(vk::CommandBuffer cmd, uint32_t imageIdx);
 	void updateUniformBuffer();
+
+	uint32_t acquireFrame(vk::Semaphore signalFrameReady);
+	void presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish);
+	void drawFrame();
+
+	void loop();
 
 	void recreateFrames();
 	void cleanupFrames();
@@ -71,41 +77,37 @@ private:
 private:
 	std::string mName;
 
+	int mWidth, mHeight;
 	GLFWwindow* mMainWindow = nullptr;
-	int mWidth;
-	int mHeight;
+	bool mShouldResetSwapchain = false;
+	Timer mTimer;
 
 	vk::ApplicationInfo mAppInfo;
 	zvk::Instance* mInstance = nullptr;
 	zvk::Context* mContext = nullptr;
+	zvk::ShaderManager* mShaderManager = nullptr;
 	zvk::Swapchain* mSwapchain = nullptr;
 
-	vk::Pipeline mGraphicsPipeline;
-	zvk::ShaderManager* mShaderManager = nullptr;
-	vk::RenderPass mRenderPass;
+	vk::Pipeline mPipeline;
 	vk::PipelineLayout mPipelineLayout;
 
-	std::vector<vk::Framebuffer> mFramebuffers;
-	zvk::Image* mDepthImage = nullptr;
 	std::vector<zvk::CommandBuffer*> mGCTCmdBuffers;
 
-	vk::Semaphore mImageReadySemaphore;
+	vk::Semaphore mFrameReadySemaphore;
 	vk::Semaphore mRenderFinishSemaphore;
 	vk::Fence mInFlightFence;
+
+	Scene mScene;
 
 	zvk::Buffer* mVertexBuffer = nullptr;
 	zvk::Buffer* mIndexBuffer = nullptr;
 	zvk::Buffer* mCameraUniforms = nullptr;
+	zvk::Image* mTextureImage = nullptr;
 
 	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;
 	zvk::DescriptorPool* mDescriptorPool = nullptr;
 	vk::DescriptorSet mDescriptorSet;
 
-	zvk::Image* mTextureImage = nullptr;
-
-	Scene mScene;
-
-	bool mShouldResetSwapchain = false;
-
-	Timer mTimer;
+	GBufferPass* mGBufferPass = nullptr;
+	PostProcPass* mPostProcPass = nullptr;
 };

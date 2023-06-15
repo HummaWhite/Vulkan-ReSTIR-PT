@@ -38,6 +38,11 @@ public:
         return mCtx->device.allocateDescriptorSets(vk::DescriptorSetAllocateInfo(pool, layout))[0];
     }
 
+    std::vector<vk::DescriptorSet> allocDescriptorSets(vk::DescriptorSetLayout layout, uint32_t count) {
+        std::vector<vk::DescriptorSetLayout> layouts(count, layout);
+        return mCtx->device.allocateDescriptorSets(vk::DescriptorSetAllocateInfo(pool, layouts));
+    }
+
 public:
     vk::DescriptorPool pool;
 };

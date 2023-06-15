@@ -2,12 +2,11 @@
 
 NAMESPACE_BEGIN(zvk)
 
-void CommandBuffer::oneTimeSubmitAndDestroy() {
+void CommandBuffer::oneTimeSubmit() {
     cmd.end();
     auto submitInfo = vk::SubmitInfo().setCommandBuffers(cmd);
     mCtx->queues[mQueueIdx].queue.submit(submitInfo);
     mCtx->queues[mQueueIdx].queue.waitIdle();
-    destroy();
 }
 
 std::vector<CommandBuffer*> Command::createPrimary(const Context* ctx, QueueIdx queueIdx, size_t n) {

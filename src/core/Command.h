@@ -22,7 +22,7 @@ public:
         cmd.begin(beginInfo);
     }
 
-    void oneTimeSubmitAndDestroy();
+    void oneTimeSubmit();
 
 public:
     vk::CommandBuffer cmd;
