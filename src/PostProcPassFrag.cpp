@@ -20,7 +20,7 @@ const QuadVertex QuadVertices[6] = {
 	{ glm::vec2(0.f, 0.f), glm::vec2(0.f, 0.f) },
 	{ glm::vec2(1.f, 0.f), glm::vec2(1.f, 0.f) },
 	{ glm::vec2(1.f, 1.f), glm::vec2(1.f, 1.f) },
-	{ glm::vec2(1.f, 0.f), glm::vec2(1.f, 0.f) },
+	{ glm::vec2(0.f, 0.f), glm::vec2(0.f, 0.f) },
 	{ glm::vec2(1.f, 1.f), glm::vec2(1.f, 1.f) },
 	{ glm::vec2(0.f, 1.f), glm::vec2(0.f, 1.f) },
 };
@@ -81,7 +81,6 @@ void PostProcPassFrag::createPipeline(
 
 	auto vertexBindingDesc = QuadVertex::bindingDescription();
 	auto vertexAttribDesc = QuadVertex::attributeDescription();
-
 	auto vertexInputStateInfo = vk::PipelineVertexInputStateCreateInfo()
 		.setVertexBindingDescriptions(vertexBindingDesc)
 		.setVertexAttributeDescriptions(vertexAttribDesc);
@@ -105,7 +104,16 @@ void PostProcPassFrag::createPipeline(
 		.setRasterizationSamples(vk::SampleCountFlagBits::e1);
 
 	auto blendAttachment = vk::PipelineColorBlendAttachmentState()
-		.setBlendEnable(false);
+		.setBlendEnable(false)
+		.setSrcColorBlendFactor(vk::BlendFactor::eOne)
+		.setDstColorBlendFactor(vk::BlendFactor::eZero)
+		.setColorBlendOp(vk::BlendOp::eAdd)
+		.setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
+		.setDstAlphaBlendFactor(vk::BlendFactor::eZero)
+		.setAlphaBlendOp(vk::BlendOp::eAdd)
+		.setColorWriteMask(
+			vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+			vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
 
 	auto colorBlendStateInfo = vk::PipelineColorBlendStateCreateInfo()
 		.setLogicOpEnable(false)
@@ -116,6 +124,7 @@ void PostProcPassFrag::createPipeline(
 	auto depthStencilStateInfo = vk::PipelineDepthStencilStateCreateInfo()
 		.setDepthTestEnable(false)
 		.setDepthWriteEnable(false)
+		.setDepthCompareOp(vk::CompareOp::eNever)
 		.setDepthBoundsTestEnable(false)
 		.setStencilTestEnable(false);
 
@@ -151,9 +160,7 @@ void PostProcPassFrag::createPipeline(
 
 void PostProcPassFrag::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx) {
 	vk::ClearValue clearValues[] = {
-		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
-		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
-		vk::ClearDepthStencilValue(1.f, 0.f)
+		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f)
 	};
 
 	auto renderPassBeginInfo = vk::RenderPassBeginInfo()

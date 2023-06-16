@@ -192,7 +192,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 void Renderer::updateUniformBuffer() {
 	CameraData data;
 	data.model = glm::scale(glm::mat4(1.f), glm::vec3(.3f));
-	data.model = glm::rotate(data.model, static_cast<float>(mTimer.get() * 1e-9), glm::vec3(0.f, 0.f, 1.f));
+	data.model = glm::rotate(data.model, static_cast<float>(mRenderTimer.get() * 1e-3), glm::vec3(0.f, 0.f, 1.f));
 	data.view = glm::lookAt(glm::vec3(2.f), glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f));
 	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchain->width()) / mSwapchain->height(), .1f, 10.f);
 	data.proj[1][1] *= -1.f;
@@ -252,7 +252,6 @@ void Renderer::drawFrame() {
 
 	mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
 	presentFrame(imageIdx, mRenderFinishSemaphore);
-
 	mGBufferPass->swap();
 	mPostProcPass->swap();
 }
@@ -310,18 +309,19 @@ void Renderer::exec() {
 	initVulkan();
 	glfwShowWindow(mMainWindow);
 
+	mRenderTimer.reset();
 	size_t frameCount = 0;
 	
 	while (!glfwWindowShouldClose(mMainWindow)) {
 		glfwPollEvents();
 		loop();
 
-		double time = mTimer.get();
+		double time = mFPSTimer.get();
 
 		if (time > 1000.0) {
 			double fps = frameCount / time * 1000.0;
 			glfwSetWindowTitle(mMainWindow, (mName + "  FPS: " + std::to_string(fps)).c_str());
-			mTimer.reset();
+			mFPSTimer.reset();
 			frameCount = 0;
 		}
 		frameCount++;

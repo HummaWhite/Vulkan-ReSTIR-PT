@@ -81,7 +81,8 @@ private:
 	int mWidth, mHeight;
 	GLFWwindow* mMainWindow = nullptr;
 	bool mShouldResetSwapchain = false;
-	Timer mTimer;
+	Timer mFPSTimer;
+	Timer mRenderTimer;
 
 	vk::ApplicationInfo mAppInfo;
 	zvk::Instance* mInstance = nullptr;
