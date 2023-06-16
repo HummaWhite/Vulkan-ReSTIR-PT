@@ -20,13 +20,11 @@ void Swapchain::destroy() {
 	mCtx->device.destroySwapchainKHR(mSwapchain);
 }
 
-void Swapchain::changeImageLayout(
-	uint32_t imageIdx, vk::ImageLayout newLayout,
-	vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask,
-	vk::PipelineStageFlags srcStage, vk::PipelineStageFlags dstStage
+void Swapchain::changeImageLayoutCmd(
+	vk::CommandBuffer cmd, uint32_t imageIdx, vk::ImageLayout newLayout,
+	vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+	vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask
 ) {
-	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
-	
 	auto barrier = vk::ImageMemoryBarrier()
 		.setOldLayout(mImageLayouts[imageIdx])
 		.setNewLayout(newLayout)
@@ -42,10 +40,55 @@ void Swapchain::changeImageLayout(
 		.setSrcAccessMask(srcAccessMask)
 		.setDstAccessMask(dstAccessMask);
 
-	cmd->cmd.pipelineBarrier(srcStage, dstStage, vk::DependencyFlagBits{ 0 }, {}, {}, barrier);
+	cmd.pipelineBarrier(srcStage, dstStage, vk::DependencyFlagBits{ 0 }, {}, {}, barrier);
+	mImageLayouts[imageIdx] = newLayout;
+}
+
+void Swapchain::changeImageLayout(
+	uint32_t imageIdx, vk::ImageLayout newLayout,
+	vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+	vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask
+) {
+	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
+	changeImageLayoutCmd(cmd->cmd, imageIdx, newLayout, srcStage, srcAccessMask, dstStage, dstAccessMask);
 	cmd->oneTimeSubmit();
 	delete cmd;
-	mImageLayouts[imageIdx] = newLayout;
+}
+
+void Swapchain::initImageLayoutAllCmd(
+	vk::CommandBuffer cmd, vk::ImageLayout layout,
+	vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+	vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask
+) {
+	std::vector<vk::ImageMemoryBarrier> barriers(
+		mImages.size(),
+		vk::ImageMemoryBarrier()
+		.setOldLayout(vk::ImageLayout::eUndefined)
+		.setNewLayout(layout)
+		.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setSubresourceRange(
+			vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1))
+		.setSrcAccessMask(srcAccessMask)
+		.setDstAccessMask(dstAccessMask)
+	);
+
+	for (uint32_t i = 0; i < barriers.size(); i++) {
+		barriers[i].setImage(mImages[i]);
+	}
+	cmd.pipelineBarrier(srcStage, dstStage, vk::DependencyFlagBits{ 0 }, {}, {}, barriers);
+	std::fill(mImageLayouts.begin(), mImageLayouts.end(), layout);
+}
+
+void Swapchain::initImageLayoutAll(
+	vk::ImageLayout layout,
+	vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+	vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask
+) {
+	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
+	initImageLayoutAllCmd(cmd->cmd, layout, srcStage, srcAccessMask, dstStage, dstAccessMask);
+	cmd->oneTimeSubmit();
+	delete cmd;
 }
 
 void Swapchain::createSwapchain(const Instance* instance, uint32_t width, uint32_t height, bool computeTarget) {

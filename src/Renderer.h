@@ -21,7 +21,8 @@
 #include "core/Descriptor.h"
 #include "Scene.h"
 #include "GBufferPass.h"
-#include "PostProcPass.h"
+#include "PostProcPassComp.h"
+#include "PostProcPassFrag.h"
 
 #include "util/Error.h"
 #include "util/Timer.h"
@@ -54,13 +55,14 @@ private:
 	void createTextureImage();
 	void createVertexBuffer();
 	void createIndexBuffer();
-	void createUniformBuffers();
-	void createDescriptors();
-	void updateDescriptors();
-	void createRenderCmdBuffers();
-	void createSyncObjects();
+	void createUniformBuffer();
+	void createDescriptor();
+	void initImageLayout();
+	void updateDescriptor();
+	void createRenderCmdBuffer();
+	void createSyncObject();
 
-	void recordRenderCommands(vk::CommandBuffer cmd, uint32_t imageIdx);
+	void recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx);
 	void updateUniformBuffer();
 
 	uint32_t acquireFrame(vk::Semaphore signalFrameReady);
@@ -69,8 +71,7 @@ private:
 
 	void loop();
 
-	void recreateFrames();
-	void cleanupFrames();
+	void recreateFrame();
 
 	void cleanupVulkan();
 
@@ -109,5 +110,5 @@ private:
 	vk::DescriptorSet mDescriptorSet;
 
 	GBufferPass* mGBufferPass = nullptr;
-	PostProcPass* mPostProcPass = nullptr;
+	PostProcPassFrag* mPostProcPass = nullptr;
 };

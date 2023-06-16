@@ -59,7 +59,25 @@ public:
 		mCtx->device.destroyImage(image);
 	}
 
+	vk::ImageMemoryBarrier getBarrier(
+		vk::ImageLayout newLayout,
+		vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask,
+		QueueIdx srcQueueFamily = QueueIdx::Ignored, QueueIdx dstQueueFamily = QueueIdx::Ignored);
+
+	void changeLayoutCmd(
+		vk::CommandBuffer cmd, vk::ImageLayout newLayout,
+		vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+		vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask);
+
+	void changeLayout(
+		vk::ImageLayout newLayout,
+		vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+		vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask);
+
+	void changeLayoutCmd(vk::CommandBuffer cmd, vk::ImageLayout newLayout);
+
 	void changeLayout(vk::ImageLayout newLayout);
+
 	void createImageView(bool array = false);
 	void createSampler(vk::Filter filter, bool anisotropyIfPossible = false);
 	void createMipmap();
@@ -101,6 +119,8 @@ namespace Memory {
 		const Context* ctx,
 		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
 
+	void copyBufferCmd(vk::CommandBuffer cmd, vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size);
+
 	void copyBuffer(
 		vk::Device device, vk::CommandPool cmdPool, vk::Queue queue,
 		vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size);
@@ -116,6 +136,10 @@ namespace Memory {
 		vk::CommandPool cmdPool, vk::Queue queue,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory);
 
+	Buffer* createLocalBufferCmd(
+		vk::CommandBuffer cmd, const Context* ctx,
+		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
+
 	Buffer* createLocalBuffer(
 		const Context* ctx, QueueIdx queueIdx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
@@ -130,13 +154,19 @@ namespace Memory {
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels = 1);
 
+	Image* createTexture2DCmd(
+		vk::CommandBuffer cmd, const Context* ctx, const HostImage* hostImg,
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
+		uint32_t nMipLevels = 1);
+
 	Image* createTexture2D(
 		const Context* ctx, const HostImage* hostImg,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels = 1);
 
-	void copyBufferToImage(
-		const Context* ctx, const Buffer* buffer, const Image* image);
+	void copyBufferToImageCmd(vk::CommandBuffer cmd, const Buffer* buffer, Image* image);
+
+	void copyBufferToImage(const Context* ctx, const Buffer* buffer, Image* image);
 }
 
 NAMESPACE_END(zvk)

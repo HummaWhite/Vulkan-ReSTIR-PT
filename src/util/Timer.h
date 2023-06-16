@@ -15,7 +15,7 @@ public:
     Timer() : mStartTime(getTime()) {}
 
     double get() const {
-        return getTime() - mStartTime;
+        return (getTime() - mStartTime) * 1e-6;
     }
 
     void reset() {

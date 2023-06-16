@@ -48,27 +48,30 @@ void Renderer::initVulkan() {
 	try {
 		mInstance = new zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
 		mContext = new zvk::Context(mInstance, DeviceExtensions);
-		mSwapchain = new zvk::Swapchain(mContext, mWidth, mHeight, SWAPCHAIN_FORMAT, true);
+		mSwapchain = new zvk::Swapchain(mContext, mWidth, mHeight, SWAPCHAIN_FORMAT, false);
 		mShaderManager = new zvk::ShaderManager(mContext->device);
 
 		initScene();
 
 		std::vector<vk::DescriptorSetLayout> descLayouts;
 
-		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent(), mShaderManager, descLayouts);
-		mPostProcPass = new PostProcPass(mContext, mSwapchain, mShaderManager, descLayouts);
+		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent());
+		//mPostProcPass = new PostProcPassComp(mContext, mSwapchain);
+		mPostProcPass = new PostProcPassFrag(mContext, mSwapchain);
 		
 		createVertexBuffer();
-		createUniformBuffers();
+		createUniformBuffer();
 		createIndexBuffer();
 		createTextureImage();
 
-		createDescriptors();
-		updateDescriptors();
+		createDescriptor();
 
 		createPipeline();
-		createRenderCmdBuffers();
-		createSyncObjects();
+		createRenderCmdBuffer();
+		createSyncObject();
+
+		initImageLayout();
+		updateDescriptor();
 	}
 	catch (const std::exception& e) {
 		Log::bracketLine<0>("Error:" + std::string(e.what()));
@@ -78,6 +81,12 @@ void Renderer::initVulkan() {
 }
 
 void Renderer::createPipeline() {
+	std::vector<vk::DescriptorSetLayout> descLayouts = {
+		mGBufferPass->descSetLayout(), mPostProcPass->descSetLayout()
+	};
+	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager, descLayouts);
+	//mPostProcPass->createPipeline(mShaderManager, descLayouts);
+	mPostProcPass->createPipeline(mShaderManager, mSwapchain->extent(), descLayouts);
 }
 
 void Renderer::initScene() {
@@ -111,7 +120,7 @@ void Renderer::createIndexBuffer() {
 	);
 }
 
-void Renderer::createUniformBuffers() {
+void Renderer::createUniformBuffer() {
 	mCameraUniforms = zvk::Memory::createBuffer(
 		mContext, sizeof(CameraData),
 		vk::BufferUsageFlagBits::eUniformBuffer,
@@ -120,19 +129,46 @@ void Renderer::createUniformBuffers() {
 	mCameraUniforms->mapMemory();
 }
 
-void Renderer::createDescriptors() {
+void Renderer::createDescriptor() {
 }
 
-void Renderer::updateDescriptors() {
-	mGBufferPass->updateDescriptors(mCameraUniforms, mTextureImage);
-	mPostProcPass->updateDescriptors(mGBufferPass->depthNormal, mSwapchain);
+void Renderer::initImageLayout() {
+	auto cmd = zvk::Command::createOneTimeSubmit(mContext, zvk::QueueIdx::GeneralUse);
+	std::vector<vk::ImageMemoryBarrier> barriers;
+
+	for (int i = 0; i < 2; i++) {
+		barriers.push_back(
+			mGBufferPass->depthNormal[i]->getBarrier(
+				vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderWrite
+			)
+		);
+
+		barriers.push_back(
+			mGBufferPass->albedoMatIdx[i]->getBarrier(
+				vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderWrite
+			)
+		);
+	}
+	cmd->cmd.pipelineBarrier(
+		vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eFragmentShader, vk::DependencyFlags{ 0 },
+		{}, {}, barriers
+	);
+
+	cmd->oneTimeSubmit();
+	delete cmd;
 }
 
-void Renderer::createRenderCmdBuffers() {
+void Renderer::updateDescriptor() {
+	mGBufferPass->updateDescriptor(mCameraUniforms, mTextureImage);
+	//mPostProcPass->updateDescriptor(mGBufferPass->depthNormal, mSwapchain);
+	mPostProcPass->updateDescriptor(mGBufferPass->depthNormal, mGBufferPass->albedoMatIdx);
+}
+
+void Renderer::createRenderCmdBuffer() {
 	mGCTCmdBuffers = zvk::Command::createPrimary(mContext, zvk::QueueIdx::GeneralUse, mSwapchain->numImages());
 }
 
-void Renderer::createSyncObjects() {
+void Renderer::createSyncObject() {
 	auto fenceCreateInfo = vk::FenceCreateInfo()
 		.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
@@ -141,14 +177,14 @@ void Renderer::createSyncObjects() {
 	mRenderFinishSemaphore = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
 }
 
-void Renderer::recordRenderCommands(vk::CommandBuffer cmd, uint32_t imageidx) {
+void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 	auto beginInfo = vk::CommandBufferBeginInfo()
 		.setFlags(vk::CommandBufferUsageFlagBits{})
 		.setPInheritanceInfo(nullptr);
 
 	cmd.begin(beginInfo); {
 		mGBufferPass->render(cmd, mVertexBuffer->buffer, mIndexBuffer->buffer, 0, mScene.resource.indices().size(), mSwapchain->extent());
-		//mPostProcPass->render(cmd, mSwapchain->extent(), imageidx);
+		mPostProcPass->render(cmd, mSwapchain->extent(), imageIdx);
 	}
 	cmd.end();
 }
@@ -172,7 +208,7 @@ uint32_t Renderer::acquireFrame(vk::Semaphore signalFrameReady) {
 		throw std::runtime_error("Failed to acquire image from swapchain");
 	}
 	else if (acquireRes == vk::Result::eErrorOutOfDateKHR) {
-		recreateFrames();
+		recreateFrame();
 	}
 	return imageIdx;
 }
@@ -189,10 +225,10 @@ void Renderer::presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish) {
 		auto presentRes = mContext->queues[zvk::QueueIdx::Present].queue.presentKHR(presentInfo);
 	}
 	catch (const vk::SystemError& e) {
-		recreateFrames();
+		recreateFrame();
 	}
 	if (mShouldResetSwapchain) {
-		recreateFrames();
+		recreateFrame();
 	}
 }
 
@@ -204,7 +240,7 @@ void Renderer::drawFrame() {
 
 	uint32_t imageIdx = acquireFrame(mFrameReadySemaphore);
 	mGCTCmdBuffers[imageIdx]->cmd.reset();
-	recordRenderCommands(mGCTCmdBuffers[imageIdx]->cmd, imageIdx);
+	recordRenderCommand(mGCTCmdBuffers[imageIdx]->cmd, imageIdx);
 
 	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
@@ -226,7 +262,7 @@ void Renderer::loop() {
 	drawFrame();
 }
 
-void Renderer::recreateFrames() {
+void Renderer::recreateFrame() {
 	int width, height;
 	glfwGetFramebufferSize(mMainWindow, &width, &height);
 
@@ -235,18 +271,15 @@ void Renderer::recreateFrames() {
 		glfwWaitEvents();
 	}
 	mContext->device.waitIdle();
-	mGBufferPass->recreateFrames(vk::Extent2D(width, height));
 
-	cleanupFrames();
-	mSwapchain = new zvk::Swapchain(mContext, width, height, SWAPCHAIN_FORMAT, true);
-}
-
-void Renderer::cleanupFrames() {
 	delete mSwapchain;
+	mSwapchain = new zvk::Swapchain(mContext, width, height, SWAPCHAIN_FORMAT, false);
+	mGBufferPass->recreateFrame(mSwapchain->extent());
+	mPostProcPass->recreateFrame(mSwapchain);
 }
 
 void Renderer::cleanupVulkan() {
-	cleanupFrames();
+	delete mSwapchain;
 
 	delete mDescriptorSetLayout;
 	delete mDescriptorPool;
@@ -277,11 +310,21 @@ void Renderer::exec() {
 	initVulkan();
 	glfwShowWindow(mMainWindow);
 
-	mTimer.reset();
+	size_t frameCount = 0;
 	
 	while (!glfwWindowShouldClose(mMainWindow)) {
 		glfwPollEvents();
 		loop();
+
+		double time = mTimer.get();
+
+		if (time > 1000.0) {
+			double fps = frameCount / time * 1000.0;
+			glfwSetWindowTitle(mMainWindow, (mName + "  FPS: " + std::to_string(fps)).c_str());
+			mTimer.reset();
+			frameCount = 0;
+		}
+		frameCount++;
 	}
 	mContext->device.waitIdle();
 

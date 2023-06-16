@@ -16,15 +16,25 @@ std::optional<LayoutTransitFlags> findLayoutTransitFlags(vk::ImageLayout oldLayo
 	vk::AccessFlags dstMask;
 	vk::PipelineStageFlags dstStage;
 
+	// TODO: this may not work for all cases. Still have to manually set the states
+
 	if (oldLayout == vk::ImageLayout::eUndefined) {
 		if (newLayout == vk::ImageLayout::eTransferDstOptimal) {
 			dstMask = vk::AccessFlagBits::eTransferWrite;
 			dstStage = vk::PipelineStageFlagBits::eTransfer;
 		}
+		else if (newLayout == vk::ImageLayout::ePresentSrcKHR) {
+			dstMask = vk::AccessFlagBits::eNone;
+			dstStage = vk::PipelineStageFlagBits::eBottomOfPipe;
+		}
 		else if (newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal) {
 			dstMask = vk::AccessFlagBits::eDepthStencilAttachmentRead |
 				vk::AccessFlagBits::eDepthStencilAttachmentWrite;
 			dstStage = vk::PipelineStageFlagBits::eEarlyFragmentTests;
+		}
+		else if (newLayout == vk::ImageLayout::eColorAttachmentOptimal) {
+			dstMask = vk::AccessFlagBits::eColorAttachmentWrite;
+			dstStage = vk::PipelineStageFlagBits::eFragmentShader;
 		}
 
 		return LayoutTransitFlags{
@@ -39,10 +49,6 @@ std::optional<LayoutTransitFlags> findLayoutTransitFlags(vk::ImageLayout oldLayo
 				vk::PipelineStageFlagBits::eComputeShader |
 				vk::PipelineStageFlagBits::eRayTracingShaderNV;
 		}
-		else if (newLayout == vk::ImageLayout::eColorAttachmentOptimal) {
-			dstMask = vk::AccessFlagBits::eColorAttachmentWrite;
-			dstStage = vk::PipelineStageFlagBits::eFragmentShader;
-		}
 		else {
 			return std::nullopt;
 		}
@@ -55,20 +61,21 @@ std::optional<LayoutTransitFlags> findLayoutTransitFlags(vk::ImageLayout oldLayo
 	return std::nullopt;
 }
 
-void Image::changeLayout(vk::ImageLayout newLayout) {
-	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
-	auto transitFlags = findLayoutTransitFlags(layout, newLayout);
+vk::ImageMemoryBarrier Image::getBarrier(
+	vk::ImageLayout newLayout,
+	vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask, QueueIdx srcQueueFamily, QueueIdx dstQueueFamily
+) {
+	uint32_t srcFamily = (srcQueueFamily == QueueIdx::Ignored) ?
+		VK_QUEUE_FAMILY_IGNORED : mCtx->queues[srcQueueFamily].familyIdx;
 
-	// TODO: check for image arrays
+	uint32_t dstFamily = (dstQueueFamily == QueueIdx::Ignored) ?
+		VK_QUEUE_FAMILY_IGNORED : mCtx->queues[dstQueueFamily].familyIdx;
 
-	if (!transitFlags) {
-		throw std::runtime_error("image layout transition not supported");
-	}
 	auto barrier = vk::ImageMemoryBarrier()
 		.setOldLayout(layout)
 		.setNewLayout(newLayout)
-		.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-		.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setSrcQueueFamilyIndex(srcFamily)
+		.setDstQueueFamilyIndex(dstFamily)
 		.setImage(image)
 		.setSubresourceRange(vk::ImageSubresourceRange()
 			.setAspectMask(vk::ImageAspectFlagBits::eColor)
@@ -76,15 +83,55 @@ void Image::changeLayout(vk::ImageLayout newLayout) {
 			.setLevelCount(nMipLevels)
 			.setBaseArrayLayer(0)
 			.setLayerCount(nArrayLayers))
-		.setSrcAccessMask(transitFlags->srcMask)
-		.setDstAccessMask(transitFlags->dstMask);
+		.setSrcAccessMask(srcAccessMask)
+		.setDstAccessMask(dstAccessMask);
 
-	cmd->cmd.pipelineBarrier(
-		transitFlags->srcStage, transitFlags->dstStage, vk::DependencyFlagBits{0}, {}, {}, barrier
-	);
+	layout = newLayout;
+	return barrier;
+}
+
+void Image::changeLayoutCmd(
+	vk::CommandBuffer cmd, vk::ImageLayout newLayout,
+	vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+	vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask
+) {
+	// TODO: check for image arrays
+	auto barrier = getBarrier(newLayout, srcAccessMask, dstAccessMask);
+	cmd.pipelineBarrier(srcStage, dstStage, vk::DependencyFlagBits{ 0 }, {}, {}, barrier);
+	layout = newLayout;
+}
+
+void Image::changeLayout(
+	vk::ImageLayout newLayout,
+	vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+	vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask
+) {
+	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
+	changeLayoutCmd(cmd->cmd, newLayout, srcStage, srcAccessMask, dstStage, dstAccessMask);
 	cmd->oneTimeSubmit();
 	delete cmd;
-	layout = newLayout;
+}
+
+void Image::changeLayoutCmd(vk::CommandBuffer cmd, vk::ImageLayout newLayout) {
+	auto transitFlags = findLayoutTransitFlags(layout, newLayout);
+
+	if (!transitFlags) {
+		throw std::runtime_error("image layout transition not supported");
+	}
+	changeLayoutCmd(
+		cmd, newLayout, transitFlags->srcStage, transitFlags->srcMask, transitFlags->dstStage, transitFlags->dstMask
+	);
+}
+
+void Image::changeLayout(vk::ImageLayout newLayout) {
+	auto transitFlags = findLayoutTransitFlags(layout, newLayout);
+
+	if (!transitFlags) {
+		throw std::runtime_error("image layout transition not supported");
+	}
+	changeLayout(
+		newLayout, transitFlags->srcStage, transitFlags->srcMask, transitFlags->dstStage, transitFlags->dstMask
+	);
 }
 
 void Image::createImageView(bool array) {
@@ -251,6 +298,10 @@ namespace Memory {
 		return buffer;
 	}
 
+	void copyBufferCmd(vk::CommandBuffer cmd, vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size) {
+		cmd.copyBuffer(srcBuffer, dstBuffer, vk::BufferCopy(0, 0, size));
+	}
+
 	void copyBuffer(
 		vk::Device device, vk::CommandPool cmdPool, vk::Queue queue,
 		vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size
@@ -260,18 +311,17 @@ namespace Memory {
 			.setCommandBufferCount(1)
 			.setLevel(vk::CommandBufferLevel::ePrimary);
 
-		auto cmdBuffer = device.allocateCommandBuffers(cmdBufferAllocInfo)[0];
+		auto cmd = device.allocateCommandBuffers(cmdBufferAllocInfo)[0];
 		auto cmdBeginInfo = vk::CommandBufferBeginInfo()
 			.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
-
 		auto copyInfo = vk::BufferCopy().setSrcOffset(0).setDstOffset(0).setSize(size);
 
-		cmdBuffer.begin(cmdBeginInfo);
-		cmdBuffer.copyBuffer(srcBuffer, dstBuffer, copyInfo);
-		cmdBuffer.end();
+		cmd.begin(cmdBeginInfo);
+		cmd.copyBuffer(srcBuffer, dstBuffer, copyInfo);
+		cmd.end();
 
-		auto submitInfo = vk::SubmitInfo().setCommandBuffers(cmdBuffer);
+		auto submitInfo = vk::SubmitInfo().setCommandBuffers(cmd);
 
 		queue.submit(submitInfo);
 		queue.waitIdle();
@@ -309,13 +359,31 @@ namespace Memory {
 
 		auto localBuf = createBuffer(
 			device, memProps, size,
-			vk::BufferUsageFlagBits::eTransferDst | usage,
-			vk::MemoryPropertyFlagBits::eDeviceLocal,
+			vk::BufferUsageFlagBits::eTransferDst | usage, vk::MemoryPropertyFlagBits::eDeviceLocal,
 			memory
 		);
 
 		copyBuffer(device, cmdPool, queue, localBuf, transferBuf, size);
 		device.destroyBuffer(transferBuf);
+		return localBuf;
+	}
+
+	Buffer* createLocalBufferCmd(
+		vk::CommandBuffer cmd, const Context* ctx,
+		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
+	) {
+		auto transferBuf = createTransferBuffer(ctx, size);
+		transferBuf->mapMemory();
+		memcpy(transferBuf->data, data, size);
+		transferBuf->unmapMemory();
+
+		auto localBuf = createBuffer(
+			ctx, size,
+			vk::BufferUsageFlagBits::eTransferDst | usage, vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+		copyBufferCmd(cmd, localBuf->buffer, transferBuf->buffer, size);
+
+		delete transferBuf;
 		return localBuf;
 	}
 
@@ -330,8 +398,7 @@ namespace Memory {
 
 		auto localBuf = createBuffer(
 			ctx, size,
-			vk::BufferUsageFlagBits::eTransferDst | usage,
-			vk::MemoryPropertyFlagBits::eDeviceLocal
+			vk::BufferUsageFlagBits::eTransferDst | usage, vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 
 		copyBuffer(
@@ -427,6 +494,32 @@ namespace Memory {
 		return image;
 	}
 
+	Image* createTexture2DCmd(
+		vk::CommandBuffer cmd, const Context* ctx, const HostImage* hostImg,
+		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
+		uint32_t nMipLevels
+	) {
+		auto image = createImage2D(ctx, hostImg->extent(), hostImg->format(), tiling, usage, properties, nMipLevels);
+
+		auto transferBuf = createBuffer(ctx, hostImg->byteSize(),
+			vk::BufferUsageFlagBits::eTransferSrc,
+			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+		);
+
+		transferBuf->mapMemory();
+		memcpy(transferBuf->data, hostImg->data(), hostImg->byteSize());
+		transferBuf->unmapMemory();
+
+		image->changeLayoutCmd(cmd, vk::ImageLayout::eTransferDstOptimal);
+		copyBufferToImageCmd(cmd, transferBuf, image);
+		delete transferBuf;
+
+		image->changeLayoutCmd(cmd, layout);
+		image->createMipmap();
+		image->createImageView();
+		return image;
+	}
+
 	Image* createTexture2D(
 		const Context* ctx, const HostImage* hostImg,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
@@ -453,9 +546,7 @@ namespace Memory {
 		return image;
 	}
 
-	void copyBufferToImage(const Context* ctx, const Buffer* buffer, const Image* image) {
-		auto cmd = Command::createOneTimeSubmit(ctx, QueueIdx::GeneralUse);
-
+	void copyBufferToImageCmd(vk::CommandBuffer cmd, const Buffer* buffer, Image* image) {
 		auto copy = vk::BufferImageCopy()
 			.setBufferOffset(0)
 			.setBufferRowLength(0)
@@ -468,7 +559,12 @@ namespace Memory {
 			.setImageOffset({ 0, 0, 0 })
 			.setImageExtent(image->extent);
 
-		cmd->cmd.copyBufferToImage(buffer->buffer, image->image, image->layout, copy);
+		cmd.copyBufferToImage(buffer->buffer, image->image, image->layout, copy);
+	}
+
+	void copyBufferToImage(const Context* ctx, const Buffer* buffer, Image* image) {
+		auto cmd = Command::createOneTimeSubmit(ctx, QueueIdx::GeneralUse);
+		copyBufferToImageCmd(cmd->cmd, buffer, image);
 		cmd->oneTimeSubmit();
 	}
 }

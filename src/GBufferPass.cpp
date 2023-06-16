@@ -1,15 +1,13 @@
 #include "GBufferPass.h"
 #include "shader/HostDevice.h"
 
-GBufferPass::GBufferPass(
-	const zvk::Context* ctx, vk::Extent2D extent, zvk::ShaderManager* shaderManager,
-	std::vector<vk::DescriptorSetLayout>& descLayouts
-) : zvk::BaseVkObject(ctx) {
-	createResources(extent);
-	createRenderPass();
+GBufferPass::GBufferPass(const zvk::Context* ctx, vk::Extent2D extent, vk::ImageLayout outLayout) :
+	zvk::BaseVkObject(ctx)
+{
+	createResource(extent);
+	createRenderPass(outLayout);
 	createFramebuffer(extent);
-	createDescriptors();
-	createPipeline(extent, shaderManager, descLayouts);
+	createDescriptor();
 }
 
 void GBufferPass::destroy() {
@@ -20,7 +18,7 @@ void GBufferPass::destroy() {
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 	mCtx->device.destroyRenderPass(mRenderPass);
 
-	destroyFrames();
+	destroyFrame();
 }
 
 void GBufferPass::render(
@@ -28,9 +26,9 @@ void GBufferPass::render(
 	vk::Buffer indexBuffer, uint32_t indexOffset, uint32_t indexCount, vk::Extent2D extent
 ) {
 	vk::ClearValue clearValues[] = {
-			vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
-			vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
-			vk::ClearDepthStencilValue(1.f, 0.f)
+		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
+		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
+		vk::ClearDepthStencilValue(1.f, 0.f)
 	};
 
 	auto renderPassBeginInfo = vk::RenderPassBeginInfo()
@@ -49,7 +47,7 @@ void GBufferPass::render(
 	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
 
-	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, 0, mDescriptorSet[0], {});
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, CameraDescSet, mDescriptorSet[0], {});
 
 	//cmdBuffer.draw(VertexData.size(), 1, 0, 0);
 	cmd.drawIndexed(indexCount, 1, indexOffset, 0, 0);
@@ -57,17 +55,24 @@ void GBufferPass::render(
 	cmd.endRenderPass();
 }
 
-void GBufferPass::updateDescriptors(const zvk::Buffer* uniforms, const zvk::Image* images) {
-	vk::WriteDescriptorSet updates[] = {
-		zvk::Descriptor::makeWrite(
-			mDescriptorSetLayout, mDescriptorSet[0], 0,
-			vk::DescriptorBufferInfo(uniforms->buffer, 0, uniforms->size)
-		),
-		zvk::Descriptor::makeWrite(
-			mDescriptorSetLayout, mDescriptorSet[0], 1,
-			vk::DescriptorImageInfo(images->sampler, images->imageView, images->layout)
-		),
-	};
+void GBufferPass::updateDescriptor(const zvk::Buffer* uniforms, const zvk::Image* images) {
+	std::vector<vk::WriteDescriptorSet> updates;
+
+	for (int i = 0; i < 2; i++) {
+		updates.push_back(
+			zvk::Descriptor::makeWrite(
+				mDescriptorSetLayout, mDescriptorSet[i], 0,
+				vk::DescriptorBufferInfo(uniforms->buffer, 0, uniforms->size)
+			)
+		);
+		updates.push_back(
+			zvk::Descriptor::makeWrite(
+				mDescriptorSetLayout, mDescriptorSet[i], 1,
+				vk::DescriptorImageInfo(images->sampler, images->imageView, images->layout)
+			)
+		);
+	}
+
 	mCtx->device.updateDescriptorSets(updates, {});
 }
 
@@ -79,13 +84,13 @@ void GBufferPass::swap() {
 	std::swap(mDescriptorSet[0], mDescriptorSet[1]);
 }
 
-void GBufferPass::recreateFrames(vk::Extent2D extent) {
-	destroyFrames();
-	createResources(extent);
+void GBufferPass::recreateFrame(vk::Extent2D extent) {
+	destroyFrame();
+	createResource(extent);
 	createFramebuffer(extent);
 }
 
-void GBufferPass::createResources(vk::Extent2D extent) {
+void GBufferPass::createResource(vk::Extent2D extent) {
 	for (int i = 0; i < 2; i++) {
 		depthNormal[i] = zvk::Memory::createImage2D(
 			mCtx, extent, DepthNormalFormat, vk::ImageTiling::eOptimal,
@@ -93,6 +98,7 @@ void GBufferPass::createResources(vk::Extent2D extent) {
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 		depthNormal[i]->createImageView();
+		depthNormal[i]->createSampler(vk::Filter::eLinear);
 
 		albedoMatIdx[i] = zvk::Memory::createImage2D(
 			mCtx, extent, AlbedoMatIdxFormat, vk::ImageTiling::eOptimal,
@@ -100,6 +106,7 @@ void GBufferPass::createResources(vk::Extent2D extent) {
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 		albedoMatIdx[i]->createImageView();
+		albedoMatIdx[i]->createSampler(vk::Filter::eLinear);
 
 		mDepthStencil[i] = zvk::Memory::createImage2D(
 			mCtx, extent, DepthStencilFormat, vk::ImageTiling::eOptimal,
@@ -109,7 +116,7 @@ void GBufferPass::createResources(vk::Extent2D extent) {
 	}
 }
 
-void GBufferPass::createRenderPass() {
+void GBufferPass::createRenderPass(vk::ImageLayout outLayout) {
 	auto depthNormalDesc = vk::AttachmentDescription()
 		.setFormat(DepthNormalFormat)
 		.setSamples(vk::SampleCountFlagBits::e1)
@@ -118,7 +125,7 @@ void GBufferPass::createRenderPass() {
 		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
 		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
 		.setInitialLayout(vk::ImageLayout::eUndefined)
-		.setFinalLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+		.setFinalLayout(outLayout);
 
 	auto albedoMatIdxDesc = vk::AttachmentDescription()
 		.setFormat(AlbedoMatIdxFormat)
@@ -128,7 +135,7 @@ void GBufferPass::createRenderPass() {
 		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
 		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
 		.setInitialLayout(vk::ImageLayout::eUndefined)
-		.setFinalLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+		.setFinalLayout(outLayout);
 
 	auto depthStencilDesc = vk::AttachmentDescription()
 		.setFormat(vk::Format::eD32Sfloat)
@@ -192,7 +199,7 @@ void GBufferPass::createFramebuffer(vk::Extent2D extent) {
 
 void GBufferPass::createPipeline(
 	vk::Extent2D extent, zvk::ShaderManager* shaderManager,
-	std::vector<vk::DescriptorSetLayout>& descLayouts
+	const std::vector<vk::DescriptorSetLayout>& descLayouts
 ) {
 	auto vertStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
 		shaderManager->createShaderModule("shaders/GBuffer.vert.spv"),
@@ -268,8 +275,6 @@ void GBufferPass::createPipeline(
 		.setDepthBoundsTestEnable(false)
 		.setStencilTestEnable(false);
 
-	descLayouts.push_back(mDescriptorSetLayout->layout);
-
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
 		.setSetLayouts(descLayouts);
 
@@ -300,7 +305,7 @@ void GBufferPass::createPipeline(
 	mPipeline = result.value;
 }
 
-void GBufferPass::createDescriptors() {
+void GBufferPass::createDescriptor() {
 	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
 		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex),
 		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment),
@@ -312,7 +317,7 @@ void GBufferPass::createDescriptors() {
 	mDescriptorSet[1] = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
 }
 
-void GBufferPass::destroyFrames() {
+void GBufferPass::destroyFrame() {
 	for (int i = 0; i < 2; i++) {
 		mCtx->device.destroyFramebuffer(framebuffer[i]);
 		delete mDepthStencil[i];

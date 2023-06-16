@@ -23,29 +23,27 @@
 #include "util/Error.h"
 #include "util/Timer.h"
 
-class PostProcPass : public zvk::BaseVkObject {
+class PostProcPassComp : public zvk::BaseVkObject {
 public:
 	struct PushConstant {
 		glm::ivec2 frameSize;
 		uint32_t toneMapping;
 	};
 
-	PostProcPass(
-		const zvk::Context* ctx, const zvk::Swapchain* swapchain, zvk::ShaderManager* shaderManager,
-		std::vector<vk::DescriptorSetLayout>& descLayouts);
-
-	~PostProcPass() { destroy(); }
+	PostProcPassComp(const zvk::Context* ctx, const zvk::Swapchain* swapchain);
+	~PostProcPassComp() { destroy(); }
 	void destroy();
 
 	vk::DescriptorSetLayout descSetLayout() const { return mDescriptorSetLayout->layout; }
 
+	void createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts);
+
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx);
-	void updateDescriptors(zvk::Image* inImage[2], const zvk::Swapchain* swapchain);
+	void updateDescriptor(zvk::Image* inImage[2], const zvk::Swapchain* swapchain);
 	void swap();
 
 private:
-	void createPipeline(zvk::ShaderManager* shaderManager, std::vector<vk::DescriptorSetLayout>& descLayouts);
-	void createDescriptors(uint32_t nSwapchainImages);
+	void createDescriptor(uint32_t nSwapchainImages);
 
 public:
 	uint32_t toneMapping = 0;

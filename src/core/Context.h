@@ -12,7 +12,7 @@
 NAMESPACE_BEGIN(zvk)
 
 enum class QueueIdx {
-    GeneralUse = 0, Present, AsyncCompute, AsyncTransfer
+    GeneralUse = 0, Present, AsyncCompute, AsyncTransfer, Ignored
 };
 
 struct Queue {

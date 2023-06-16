@@ -29,34 +29,32 @@ class GBufferPass : public zvk::BaseVkObject {
 	constexpr static vk::Format DepthStencilFormat = vk::Format::eD32Sfloat;
 
 public:
-	GBufferPass(
-		const zvk::Context* ctx, vk::Extent2D extent, zvk::ShaderManager* shaderManager,
-		std::vector<vk::DescriptorSetLayout>& descLayouts);
-
+	GBufferPass(const zvk::Context* ctx, vk::Extent2D extent, vk::ImageLayout outLayout = vk::ImageLayout::eShaderReadOnlyOptimal);
 	~GBufferPass() { destroy(); }
 	void destroy();
 
 	vk::DescriptorSetLayout descSetLayout() const { return mDescriptorSetLayout->layout; }
 
+	void createPipeline(
+		vk::Extent2D extent, zvk::ShaderManager* shaderManager,
+		const std::vector<vk::DescriptorSetLayout>& descLayouts);
+
 	void render(
 		vk::CommandBuffer cmd, vk::Buffer vertexBuffer,
 		vk::Buffer indexBuffer, uint32_t indexOffset, uint32_t indexCount, vk::Extent2D extent);
 
-	void updateDescriptors(const zvk::Buffer* uniforms, const zvk::Image* images);
+	void updateDescriptor(const zvk::Buffer* uniforms, const zvk::Image* images);
 
 	void swap();
-	void recreateFrames(vk::Extent2D extent);
+	void recreateFrame(vk::Extent2D extent);
 
 private:
-	void createResources(vk::Extent2D extent);
-	void createRenderPass();
+	void createResource(vk::Extent2D extent);
+	void createRenderPass(vk::ImageLayout outLayout);
 	void createFramebuffer(vk::Extent2D extent);
-	void createPipeline(
-		vk::Extent2D extent, zvk::ShaderManager* shaderManager,
-		std::vector<vk::DescriptorSetLayout>& descLayouts);
-	void createDescriptors();
+	void createDescriptor();
 
-	void destroyFrames();
+	void destroyFrame();
 
 public:
 	zvk::Image* depthNormal[2] = { nullptr };

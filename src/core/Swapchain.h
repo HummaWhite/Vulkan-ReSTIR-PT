@@ -27,10 +27,25 @@ public:
 	const std::vector<vk::ImageView>& imageViews() const { return mImageViews; }
 	size_t numImages() const { return mImages.size(); }
 
+	void changeImageLayoutCmd(
+		vk::CommandBuffer cmd, uint32_t imageIdx, vk::ImageLayout newLayout,
+		vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+		vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask);
+
 	void changeImageLayout(
 		uint32_t imageIdx, vk::ImageLayout newLayout,
-		vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask,
-		vk::PipelineStageFlags srcStage, vk::PipelineStageFlags dstStage);
+		vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+		vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask);
+
+	void initImageLayoutAllCmd(
+		vk::CommandBuffer cmd, vk::ImageLayout layout,
+		vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+		vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask);
+
+	void initImageLayoutAll(
+		vk::ImageLayout layout,
+		vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
+		vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask);
 
 private:
 	void createSwapchain(const Instance* instance, uint32_t width, uint32_t height, bool computeTarget);
