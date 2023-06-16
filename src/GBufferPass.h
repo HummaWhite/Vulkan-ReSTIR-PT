@@ -43,7 +43,7 @@ public:
 		vk::CommandBuffer cmd, vk::Buffer vertexBuffer,
 		vk::Buffer indexBuffer, uint32_t indexOffset, uint32_t indexCount, vk::Extent2D extent);
 
-	void updateDescriptor(const zvk::Buffer* uniforms, const zvk::Image* images);
+	void initDescriptor(const zvk::Buffer* uniforms, const zvk::Image* images);
 
 	void swap();
 	void recreateFrame(vk::Extent2D extent);

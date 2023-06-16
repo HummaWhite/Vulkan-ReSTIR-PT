@@ -16,7 +16,7 @@ layout(push_constant) uniform PushConstant {
 } uSettings;
 
 void main() {
-    vec3 color = texture(uDepthNormal, vTexUV).rgb;
+    vec3 color = texture(uAlbedoMatIdx, vTexUV).rgb;
     color = pow(color, vec3(1.0 / 2.2));
     FragColor = vec4(color, 1.0);
 }

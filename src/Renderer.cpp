@@ -71,7 +71,7 @@ void Renderer::initVulkan() {
 		createSyncObject();
 
 		initImageLayout();
-		updateDescriptor();
+		initDescriptor();
 	}
 	catch (const std::exception& e) {
 		Log::bracketLine<0>("Error:" + std::string(e.what()));
@@ -158,10 +158,10 @@ void Renderer::initImageLayout() {
 	delete cmd;
 }
 
-void Renderer::updateDescriptor() {
-	mGBufferPass->updateDescriptor(mCameraUniforms, mTextureImage);
+void Renderer::initDescriptor() {
+	mGBufferPass->initDescriptor(mCameraUniforms, mTextureImage);
 	//mPostProcPass->updateDescriptor(mGBufferPass->depthNormal, mSwapchain);
-	mPostProcPass->updateDescriptor(mGBufferPass->depthNormal, mGBufferPass->albedoMatIdx);
+	mPostProcPass->initDescriptor(mGBufferPass->depthNormal, mGBufferPass->albedoMatIdx);
 }
 
 void Renderer::createRenderCmdBuffer() {

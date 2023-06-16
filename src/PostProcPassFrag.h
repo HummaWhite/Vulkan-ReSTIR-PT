@@ -41,7 +41,7 @@ public:
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx);
-	void updateDescriptor(zvk::Image* depthNormal[2], zvk::Image* albedoMatIdx[2]);
+	void initDescriptor(zvk::Image* depthNormal[2], zvk::Image* albedoMatIdx[2]);
 	void swap();
 	void recreateFrame(const zvk::Swapchain* swapchain);
 

@@ -183,7 +183,7 @@ void PostProcPassFrag::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32
 	cmd.endRenderPass();
 }
 
-void PostProcPassFrag::updateDescriptor(zvk::Image* depthNormal[2], zvk::Image* albedoMatIdx[2]) {
+void PostProcPassFrag::initDescriptor(zvk::Image* depthNormal[2], zvk::Image* albedoMatIdx[2]) {
 	std::vector<vk::WriteDescriptorSet> updates;
 
 	for (int i = 0; i < 2; i++) {
@@ -195,7 +195,7 @@ void PostProcPassFrag::updateDescriptor(zvk::Image* depthNormal[2], zvk::Image* 
 		);
 		updates.push_back(
 			zvk::Descriptor::makeWrite(
-				mDescriptorSetLayout, mDescriptorSet[i], 0,
+				mDescriptorSetLayout, mDescriptorSet[i], 1,
 				vk::DescriptorImageInfo(albedoMatIdx[i]->sampler, albedoMatIdx[i]->imageView, albedoMatIdx[i]->layout)
 			)
 		);

@@ -58,7 +58,7 @@ private:
 	void createUniformBuffer();
 	void createDescriptor();
 	void initImageLayout();
-	void updateDescriptor();
+	void initDescriptor();
 	void createRenderCmdBuffer();
 	void createSyncObject();
 

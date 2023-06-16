@@ -55,7 +55,7 @@ void GBufferPass::render(
 	cmd.endRenderPass();
 }
 
-void GBufferPass::updateDescriptor(const zvk::Buffer* uniforms, const zvk::Image* images) {
+void GBufferPass::initDescriptor(const zvk::Buffer* uniforms, const zvk::Image* images) {
 	std::vector<vk::WriteDescriptorSet> updates;
 
 	for (int i = 0; i < 2; i++) {
