@@ -1,19 +1,22 @@
 #version 460
 #extension GL_GOOGLE_include_directive : enable
 
-#include "HostDevice.h"
+#include "layouts.glsl"
 
 layout(location = 0) out vec4 DepthNormal;
 layout(location = 1) out vec4 AlbedoMatIdx;
 
-layout(location = 0) in vec3 vPos;
-layout(location = 1) in vec3 vNorm;
-layout(location = 2) in vec2 vTexUV;
-layout(location = 3) in float vDepth;
-
-layout(set = CameraDescSet, binding = 1) uniform sampler2D uTexture;
+layout(location = 0) in VSOut {
+	vec3 pos;
+	float depth;
+	vec3 norm;
+	uint matIdx;
+	vec2 uv;
+} fsIn;
 
 void main() {
-    DepthNormal = vec4(vDepth, vNorm);
-    AlbedoMatIdx = vec4(vPos, vTexUV.x);
+	vec3 albedo = (fsIn.matIdx == InvalidResourceIdx) ? fsIn.pos : uMaterials[fsIn.matIdx].baseColor;
+
+    DepthNormal = vec4(fsIn.depth, fsIn.norm);
+    AlbedoMatIdx = vec4(albedo, fsIn.uv.x);
 }

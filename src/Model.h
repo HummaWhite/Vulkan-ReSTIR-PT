@@ -36,7 +36,7 @@ struct MeshVertex {
 struct MeshInstance {
 	uint32_t offset = 0;
 	uint32_t numIndices = 0;
-	int materialIdx = 0;
+	int materialIdx = InvalidResourceIdx;
 };
 
 class ModelInstance {

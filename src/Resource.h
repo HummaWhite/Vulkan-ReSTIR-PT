@@ -22,6 +22,7 @@ public:
 	const std::vector<MeshInstance>& meshInstances() const { return mMeshInstances; }
 	const std::vector<ModelInstance*>& modelInstances() const { return mModelInstances; }
 	const std::vector<Material>& materials() const { return mMaterials; }
+	const std::vector<uint32_t>& materialIndices() const { return mMaterialIndices; }
 
 	zvk::HostImage* getImageByIndex(uint32_t index);
 	zvk::HostImage* getImageByPath(const File::path& path);
@@ -46,6 +47,7 @@ private:
 	std::vector<MeshInstance> mMeshInstances;
 	std::vector<ModelInstance*> mModelInstances;
 	std::vector<Material> mMaterials;
+	std::vector<uint32_t> mMaterialIndices;
 
 	std::vector<zvk::HostImage*> mImagePool;
 	std::map<File::path, uint32_t> mMapPathToImageIndex;

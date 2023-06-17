@@ -59,10 +59,8 @@ void Renderer::initVulkan() {
 		//mPostProcPass = new PostProcPassComp(mContext, mSwapchain);
 		mPostProcPass = new PostProcPassFrag(mContext, mSwapchain);
 		
-		createVertexBuffer();
-		createUniformBuffer();
-		createIndexBuffer();
-		createTextureImage();
+		createDeviceSceneResource();
+		createUniform();
 
 		createDescriptor();
 
@@ -90,14 +88,34 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::initScene() {
-	mScene.load("res/scene.xml");
+	mScene.load("res/box.xml");
 }
 
-void Renderer::createTextureImage() {
+void Renderer::createDeviceSceneResource() {
+	mVertexBuffer = zvk::Memory::createBufferFromHost(
+		mContext, zvk::QueueIdx::GeneralUse, mScene.resource.vertices().data(), zvk::sizeOf(mScene.resource.vertices()),
+		vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer
+	);
+
+	mIndexBuffer = zvk::Memory::createBufferFromHost(
+		mContext, zvk::QueueIdx::GeneralUse, mScene.resource.indices().data(), zvk::sizeOf(mScene.resource.indices()),
+		vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer
+	);
+
+	mMaterialBuffer = zvk::Memory::createBufferFromHost(
+		mContext, zvk::QueueIdx::GeneralUse, mScene.resource.materials().data(), zvk::sizeOf(mScene.resource.materials()),
+		vk::BufferUsageFlagBits::eStorageBuffer
+	);
+
+	mMaterialIdxBuffer = zvk::Memory::createBufferFromHost(
+		mContext, zvk::QueueIdx::GeneralUse, mScene.resource.materialIndices().data(), zvk::sizeOf(mScene.resource.materialIndices()),
+		vk::BufferUsageFlagBits::eStorageBuffer
+	);
+
 	auto hostImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, 4);
 
 	mTextureImage = zvk::Memory::createTexture2D(
-		mContext, hostImage,
+		mContext, zvk::QueueIdx::GeneralUse, hostImage,
 		vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
 		vk::ImageLayout::eShaderReadOnlyOptimal, vk::MemoryPropertyFlagBits::eDeviceLocal
 	);
@@ -106,24 +124,9 @@ void Renderer::createTextureImage() {
 	delete hostImage;
 }
 
-void Renderer::createVertexBuffer() {
-	size_t size = mScene.resource.vertices().size() * sizeof(MeshVertex);
-	mVertexBuffer = zvk::Memory::createLocalBuffer(
-		mContext, zvk::QueueIdx::GeneralUse, mScene.resource.vertices().data(), size, vk::BufferUsageFlagBits::eVertexBuffer
-	);
-}
-
-void Renderer::createIndexBuffer() {
-	size_t size = mScene.resource.indices().size() * sizeof(uint32_t);
-	mIndexBuffer = zvk::Memory::createLocalBuffer(
-		mContext, zvk::QueueIdx::GeneralUse, mScene.resource.indices().data(), size, vk::BufferUsageFlagBits::eIndexBuffer
-	);
-}
-
-void Renderer::createUniformBuffer() {
+void Renderer::createUniform() {
 	mCameraUniforms = zvk::Memory::createBuffer(
-		mContext, sizeof(CameraData),
-		vk::BufferUsageFlagBits::eUniformBuffer,
+		mContext, sizeof(CameraData), vk::BufferUsageFlagBits::eUniformBuffer,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 	);
 	mCameraUniforms->mapMemory();
@@ -159,7 +162,7 @@ void Renderer::initImageLayout() {
 }
 
 void Renderer::initDescriptor() {
-	mGBufferPass->initDescriptor(mCameraUniforms, mTextureImage);
+	mGBufferPass->initDescriptor(mCameraUniforms, mTextureImage, mMaterialBuffer, mMaterialIdxBuffer);
 	//mPostProcPass->updateDescriptor(mGBufferPass->depthNormal, mSwapchain);
 	mPostProcPass->initDescriptor(mGBufferPass->depthNormal, mGBufferPass->albedoMatIdx);
 }
@@ -286,6 +289,8 @@ void Renderer::cleanupVulkan() {
 	delete mCameraUniforms;
 	delete mVertexBuffer;
 	delete mIndexBuffer;
+	delete mMaterialBuffer;
+	delete mMaterialIdxBuffer;
 	delete mTextureImage;
 
 	delete mGBufferPass;

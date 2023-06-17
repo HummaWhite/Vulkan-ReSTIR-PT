@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <optional>
+#include <array>
 
 #include "Context.h"
 #include "Command.h"
@@ -13,6 +14,16 @@
 #include "util/EnumBitField.h"
 
 NAMESPACE_BEGIN(zvk)
+
+template<typename T>
+uint32_t sizeOf(const std::vector<T>& array) {
+	return array.size() * sizeof(T);
+}
+
+template<typename T, size_t N>
+uint32_t sizeOf(const std::array<T, N>& array) {
+	return array.size() * sizeof(T);
+}
 
 class Buffer : public BaseVkObject {
 public:
@@ -131,16 +142,16 @@ namespace Memory {
 
 	Buffer* createTransferBuffer(const Context* ctx, vk::DeviceSize size);
 
-	vk::Buffer createLocalBuffer(
+	vk::Buffer createBufferFromHost(
 		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
 		vk::CommandPool cmdPool, vk::Queue queue,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory);
 
-	Buffer* createLocalBufferCmd(
+	Buffer* createBufferFromHostCmd(
 		vk::CommandBuffer cmd, const Context* ctx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
 
-	Buffer* createLocalBuffer(
+	Buffer* createBufferFromHost(
 		const Context* ctx, QueueIdx queueIdx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
 
@@ -160,13 +171,13 @@ namespace Memory {
 		uint32_t nMipLevels = 1);
 
 	Image* createTexture2D(
-		const Context* ctx, const HostImage* hostImg,
+		const Context* ctx, QueueIdx queueIdx, const HostImage* hostImg,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels = 1);
 
 	void copyBufferToImageCmd(vk::CommandBuffer cmd, const Buffer* buffer, Image* image);
 
-	void copyBufferToImage(const Context* ctx, const Buffer* buffer, Image* image);
+	void copyBufferToImage(const Context* ctx, QueueIdx queueIdx, const Buffer* buffer, Image* image);
 }
 
 NAMESPACE_END(zvk)

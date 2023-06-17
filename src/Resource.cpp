@@ -93,7 +93,9 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 		aiMat->Get(AI_MATKEY_COLOR_DIFFUSE, albedo);
 
 		Material material;
-		material.baseColor = *reinterpret_cast<glm::vec3*>(&albedo);
+		material.baseColor.r = albedo.r;
+		material.baseColor.g = albedo.g;
+		material.baseColor.b = albedo.b;
 
 		if (aiMat->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
 			aiString str;
@@ -106,10 +108,10 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 			Log::bracketLine<2>("Albedo texture " + imagePath.generic_string());
 
 			auto imageIdx = addImage(imagePath, zvk::HostImageType::Int8);
-			material.textureIdx = imageIdx ? *imageIdx : InvalidTextureIdx;
+			material.textureIdx = imageIdx ? *imageIdx : InvalidResourceIdx;
 		}
 		else {
-			material.textureIdx = InvalidTextureIdx;
+			material.textureIdx = InvalidResourceIdx;
 		}
 		mMaterials.push_back(material);
 	}
@@ -162,6 +164,11 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 		vertex.uvy = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][i].y : 0;
 		mVertices.push_back(vertex);
 	}
+	uint32_t materialOffset = mMaterials.size();
+
+	if (scene->mNumMaterials > 0 && mesh->mMaterialIndex >= 0) {
+		meshInstance.materialIdx = mesh->mMaterialIndex + materialOffset;
+	}
 	meshInstance.offset = mIndices.size();
 
 	for (int i = 0; i < mesh->mNumFaces; i++) {
@@ -170,11 +177,7 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 			mIndices.push_back(face.mIndices[j] + vertexOffset);
 		}
 		meshInstance.numIndices += face.mNumIndices;
-	}
-	uint32_t materialOffset = mMaterials.size();
-
-	if (scene->mNumMaterials > 0 && mesh->mMaterialIndex >= 0) {
-		meshInstance.materialIdx = mesh->mMaterialIndex + materialOffset;
+		mMaterialIndices.push_back(meshInstance.materialIdx);
 	}
 	return meshInstance;
 }

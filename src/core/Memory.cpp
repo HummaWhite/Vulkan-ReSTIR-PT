@@ -345,7 +345,7 @@ namespace Memory {
 		);
 	}
 
-	vk::Buffer createLocalBuffer(
+	vk::Buffer createBufferFromHost(
 		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
 		vk::CommandPool cmdPool, vk::Queue queue,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory
@@ -368,7 +368,7 @@ namespace Memory {
 		return localBuf;
 	}
 
-	Buffer* createLocalBufferCmd(
+	Buffer* createBufferFromHostCmd(
 		vk::CommandBuffer cmd, const Context* ctx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
 	) {
@@ -383,11 +383,18 @@ namespace Memory {
 		);
 		copyBufferCmd(cmd, localBuf->buffer, transferBuf->buffer, size);
 
+		auto barrier = vk::MemoryBarrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryRead);
+		
+		cmd.pipelineBarrier(
+			vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTopOfPipe, vk::DependencyFlags{ 0 },
+			barrier, {}, {}
+		);
+
 		delete transferBuf;
 		return localBuf;
 	}
 
-	Buffer* createLocalBuffer(
+	Buffer* createBufferFromHost(
 		const Context* ctx, QueueIdx queueIdx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
 	) {
@@ -434,7 +441,7 @@ namespace Memory {
 		auto image = ctx->device.createImage(createInfo);
 		auto memReq = ctx->device.getImageMemoryRequirements(image);
 
-		auto memoryTypeIdx = zvk::Memory::findMemoryType(
+		auto memoryTypeIdx = findMemoryType(
 			ctx, memReq.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 		auto allocInfo = vk::MemoryAllocateInfo()
@@ -471,7 +478,7 @@ namespace Memory {
 
 		image->image = ctx->device.createImage(createInfo);
 		auto memReq = ctx->device.getImageMemoryRequirements(image->image);
-		auto memoryTypeIdx = zvk::Memory::findMemoryType(ctx, memReq, properties);
+		auto memoryTypeIdx = findMemoryType(ctx, memReq, properties);
 
 		if (!memoryTypeIdx) {
 			throw std::runtime_error("image memory type not found");
@@ -521,7 +528,7 @@ namespace Memory {
 	}
 
 	Image* createTexture2D(
-		const Context* ctx, const HostImage* hostImg,
+		const Context* ctx, QueueIdx queueIdx, const HostImage* hostImg,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels
 	) {
@@ -537,7 +544,7 @@ namespace Memory {
 		transferBuf->unmapMemory();
 
 		image->changeLayout(vk::ImageLayout::eTransferDstOptimal);
-		copyBufferToImage(ctx, transferBuf, image);
+		copyBufferToImage(ctx, queueIdx, transferBuf, image);
 		delete transferBuf;
 
 		image->changeLayout(layout);
@@ -562,8 +569,8 @@ namespace Memory {
 		cmd.copyBufferToImage(buffer->buffer, image->image, image->layout, copy);
 	}
 
-	void copyBufferToImage(const Context* ctx, const Buffer* buffer, Image* image) {
-		auto cmd = Command::createOneTimeSubmit(ctx, QueueIdx::GeneralUse);
+	void copyBufferToImage(const Context* ctx, QueueIdx queueIdx, const Buffer* buffer, Image* image) {
+		auto cmd = Command::createOneTimeSubmit(ctx, queueIdx);
 		copyBufferToImageCmd(cmd->cmd, buffer, image);
 		cmd->oneTimeSubmit();
 	}

@@ -47,7 +47,7 @@ void GBufferPass::render(
 	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
 
-	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, CameraDescSet, mDescriptorSet[0], {});
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, SceneResourceDescSet, mDescriptorSet, {});
 
 	//cmdBuffer.draw(VertexData.size(), 1, 0, 0);
 	cmd.drawIndexed(indexCount, 1, indexOffset, 0, 0);
@@ -55,23 +55,28 @@ void GBufferPass::render(
 	cmd.endRenderPass();
 }
 
-void GBufferPass::initDescriptor(const zvk::Buffer* uniforms, const zvk::Image* images) {
-	std::vector<vk::WriteDescriptorSet> updates;
-
-	for (int i = 0; i < 2; i++) {
-		updates.push_back(
-			zvk::Descriptor::makeWrite(
-				mDescriptorSetLayout, mDescriptorSet[i], 0,
-				vk::DescriptorBufferInfo(uniforms->buffer, 0, uniforms->size)
-			)
-		);
-		updates.push_back(
-			zvk::Descriptor::makeWrite(
-				mDescriptorSetLayout, mDescriptorSet[i], 1,
-				vk::DescriptorImageInfo(images->sampler, images->imageView, images->layout)
-			)
-		);
-	}
+void GBufferPass::initDescriptor(
+	const zvk::Buffer* uniforms, const zvk::Image* images,
+	const zvk::Buffer* materials, const zvk::Buffer* materialIndices
+) {
+	auto updates = {
+		zvk::Descriptor::makeWrite(
+			mDescriptorSetLayout, mDescriptorSet, 0,
+			vk::DescriptorBufferInfo(uniforms->buffer, 0, uniforms->size)
+		),
+		zvk::Descriptor::makeWrite(
+			mDescriptorSetLayout, mDescriptorSet, 1,
+			vk::DescriptorImageInfo(images->sampler, images->imageView, images->layout)
+		),
+		zvk::Descriptor::makeWrite(
+			mDescriptorSetLayout, mDescriptorSet, 2,
+			vk::DescriptorBufferInfo(materials->buffer, 0, materials->size)
+		),
+		zvk::Descriptor::makeWrite(
+			mDescriptorSetLayout, mDescriptorSet, 3,
+			vk::DescriptorBufferInfo(materialIndices->buffer, 0, materialIndices->size)
+		),
+	};
 
 	mCtx->device.updateDescriptorSets(updates, {});
 }
@@ -81,7 +86,6 @@ void GBufferPass::swap() {
 	std::swap(albedoMatIdx[0], albedoMatIdx[1]);
 	std::swap(mDepthStencil[0], mDepthStencil[1]);
 	std::swap(framebuffer[0], framebuffer[1]);
-	std::swap(mDescriptorSet[0], mDescriptorSet[1]);
 }
 
 void GBufferPass::recreateFrame(vk::Extent2D extent) {
@@ -309,12 +313,13 @@ void GBufferPass::createDescriptor() {
 	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
 		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex),
 		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment),
+		zvk::Descriptor::makeBinding(2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment),
+		zvk::Descriptor::makeBinding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex),
 	};
 	mDescriptorSetLayout = new zvk::DescriptorSetLayout(mCtx, bindings);
 
-	mDescriptorPool = new zvk::DescriptorPool(mCtx, { mDescriptorSetLayout }, 2);
-	mDescriptorSet[0] = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
-	mDescriptorSet[1] = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
+	mDescriptorPool = new zvk::DescriptorPool(mCtx, { mDescriptorSetLayout }, 1);
+	mDescriptorSet = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
 }
 
 void GBufferPass::destroyFrame() {

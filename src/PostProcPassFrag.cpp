@@ -204,7 +204,7 @@ void PostProcPassFrag::initDescriptor(zvk::Image* depthNormal[2], zvk::Image* al
 }
 
 void PostProcPassFrag::createResource() {
-	mQuadVertexBuffer = zvk::Memory::createLocalBuffer(
+	mQuadVertexBuffer = zvk::Memory::createBufferFromHost(
 		mCtx, zvk::QueueIdx::GeneralUse, QuadVertices, 6 * sizeof(QuadVertex), vk::BufferUsageFlagBits::eVertexBuffer
 	);
 }

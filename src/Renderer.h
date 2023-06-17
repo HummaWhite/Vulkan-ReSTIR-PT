@@ -52,10 +52,8 @@ private:
 
 	void initScene();
 
-	void createTextureImage();
-	void createVertexBuffer();
-	void createIndexBuffer();
-	void createUniformBuffer();
+	void createDeviceSceneResource();
+	void createUniform();
 	void createDescriptor();
 	void initImageLayout();
 	void initDescriptor();
@@ -103,6 +101,8 @@ private:
 
 	zvk::Buffer* mVertexBuffer = nullptr;
 	zvk::Buffer* mIndexBuffer = nullptr;
+	zvk::Buffer* mMaterialBuffer = nullptr;
+	zvk::Buffer* mMaterialIdxBuffer = nullptr;
 	zvk::Buffer* mCameraUniforms = nullptr;
 	zvk::Image* mTextureImage = nullptr;
 

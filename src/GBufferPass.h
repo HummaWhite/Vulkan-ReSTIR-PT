@@ -43,7 +43,9 @@ public:
 		vk::CommandBuffer cmd, vk::Buffer vertexBuffer,
 		vk::Buffer indexBuffer, uint32_t indexOffset, uint32_t indexCount, vk::Extent2D extent);
 
-	void initDescriptor(const zvk::Buffer* uniforms, const zvk::Image* images);
+	void initDescriptor(
+		const zvk::Buffer* uniforms, const zvk::Image* images,
+		const zvk::Buffer* materials, const zvk::Buffer* materialIndices);
 
 	void swap();
 	void recreateFrame(vk::Extent2D extent);
@@ -70,5 +72,5 @@ private:
 
 	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;
 	zvk::DescriptorPool* mDescriptorPool = nullptr;
-	vk::DescriptorSet mDescriptorSet[2];
+	vk::DescriptorSet mDescriptorSet;
 };
