@@ -28,12 +28,6 @@
 #include "util/Timer.h"
 
 class Renderer {
-	struct CameraData {
-		std140(glm::mat4, model);
-		std140(glm::mat4, view);
-		std140(glm::mat4, proj);
-	};
-
 public:
 	Renderer(const std::string& name, int width, int height) :
 		mName(name), mWidth(width), mHeight(height) {}
@@ -52,8 +46,8 @@ private:
 
 	void initScene();
 
-	void createDeviceSceneResource();
-	void createUniform();
+	void createDeviceResource();
+	void createCameraUniform();
 	void createDescriptor();
 	void initImageLayout();
 	void initDescriptor();
@@ -61,7 +55,7 @@ private:
 	void createSyncObject();
 
 	void recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx);
-	void updateUniformBuffer();
+	void updateCameraUniform();
 
 	uint32_t acquireFrame(vk::Semaphore signalFrameReady);
 	void presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish);
@@ -103,12 +97,14 @@ private:
 	zvk::Buffer* mIndexBuffer = nullptr;
 	zvk::Buffer* mMaterialBuffer = nullptr;
 	zvk::Buffer* mMaterialIdxBuffer = nullptr;
-	zvk::Buffer* mCameraUniforms = nullptr;
+	zvk::Buffer* mCameraBuffer = nullptr;
 	zvk::Image* mTextureImage = nullptr;
 
-	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;
 	zvk::DescriptorPool* mDescriptorPool = nullptr;
-	vk::DescriptorSet mDescriptorSet;
+	zvk::DescriptorSetLayout* mCameraDescLayout = nullptr;
+	zvk::DescriptorSetLayout* mResourceDescLayout = nullptr;
+	vk::DescriptorSet mCameraDescSet;
+	vk::DescriptorSet mResourceDescSet;
 
 	GBufferPass* mGBufferPass = nullptr;
 	PostProcPassFrag* mPostProcPass = nullptr;

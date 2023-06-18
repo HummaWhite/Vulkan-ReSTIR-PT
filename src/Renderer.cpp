@@ -52,15 +52,16 @@ void Renderer::initVulkan() {
 		mShaderManager = new zvk::ShaderManager(mContext->device);
 
 		initScene();
+		mScene.camera.setFOV(90.f);
 
 		std::vector<vk::DescriptorSetLayout> descLayouts;
 
-		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent());
+		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent(), mScene.resource);
 		//mPostProcPass = new PostProcPassComp(mContext, mSwapchain);
 		mPostProcPass = new PostProcPassFrag(mContext, mSwapchain);
 		
-		createDeviceSceneResource();
-		createUniform();
+		createDeviceResource();
+		createCameraUniform();
 
 		createDescriptor();
 
@@ -88,10 +89,10 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::initScene() {
-	mScene.load("res/box.xml");
+	mScene.load("res/zbidir.xml");
 }
 
-void Renderer::createDeviceSceneResource() {
+void Renderer::createDeviceResource() {
 	mVertexBuffer = zvk::Memory::createBufferFromHost(
 		mContext, zvk::QueueIdx::GeneralUse, mScene.resource.vertices().data(), zvk::sizeOf(mScene.resource.vertices()),
 		vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer
@@ -124,15 +125,42 @@ void Renderer::createDeviceSceneResource() {
 	delete hostImage;
 }
 
-void Renderer::createUniform() {
-	mCameraUniforms = zvk::Memory::createBuffer(
-		mContext, sizeof(CameraData), vk::BufferUsageFlagBits::eUniformBuffer,
+void Renderer::createCameraUniform() {
+	mCameraBuffer = zvk::Memory::createBuffer(
+		mContext, sizeof(Camera),
+		vk::BufferUsageFlagBits::eUniformBuffer,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 	);
-	mCameraUniforms->mapMemory();
+	mCameraBuffer->mapMemory();
 }
 
 void Renderer::createDescriptor() {
+	std::vector<vk::DescriptorSetLayoutBinding> cameraBindings = {
+		zvk::Descriptor::makeBinding(
+			0, vk::DescriptorType::eUniformBuffer,
+			vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute
+		)
+	};
+
+	std::vector<vk::DescriptorSetLayoutBinding> resourceBindings = {
+		zvk::Descriptor::makeBinding(
+			0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment
+		),
+		zvk::Descriptor::makeBinding(
+			1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment
+		),
+		zvk::Descriptor::makeBinding(
+			2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex
+		),
+	};	
+
+	mCameraDescLayout = new zvk::DescriptorSetLayout(mContext, cameraBindings);
+	mResourceDescLayout = new zvk::DescriptorSetLayout(mContext, resourceBindings);
+
+	mDescriptorPool = new zvk::DescriptorPool(mContext, { mCameraDescLayout, mResourceDescLayout }, 1);
+
+	mCameraDescSet = mDescriptorPool->allocDescriptorSet(mCameraDescLayout->layout);
+	mResourceDescSet = mDescriptorPool->allocDescriptorSet(mResourceDescLayout->layout);
 }
 
 void Renderer::initImageLayout() {
@@ -162,7 +190,28 @@ void Renderer::initImageLayout() {
 }
 
 void Renderer::initDescriptor() {
-	mGBufferPass->initDescriptor(mCameraUniforms, mTextureImage, mMaterialBuffer, mMaterialIdxBuffer);
+	auto updates = {
+		zvk::Descriptor::makeWrite(
+			mCameraDescLayout, mCameraDescSet, 0,
+			vk::DescriptorBufferInfo(mCameraBuffer->buffer, 0, mCameraBuffer->size)
+		),
+		zvk::Descriptor::makeWrite(
+			mResourceDescLayout, mResourceDescSet, 0,
+			vk::DescriptorImageInfo(mTextureImage->sampler, mTextureImage->imageView, mTextureImage->layout)
+		),
+		zvk::Descriptor::makeWrite(
+			mResourceDescLayout, mResourceDescSet, 1,
+			vk::DescriptorBufferInfo(mMaterialBuffer->buffer, 0, mMaterialBuffer->size)
+		),
+		zvk::Descriptor::makeWrite(
+			mResourceDescLayout, mResourceDescSet, 2,
+			vk::DescriptorBufferInfo(mMaterialIdxBuffer->buffer, 0, mMaterialIdxBuffer->size)
+		),
+	};
+
+	mContext->device.updateDescriptorSets(updates, {});
+
+	mGBufferPass->initDescriptor();
 	//mPostProcPass->updateDescriptor(mGBufferPass->depthNormal, mSwapchain);
 	mPostProcPass->initDescriptor(mGBufferPass->depthNormal, mGBufferPass->albedoMatIdx);
 }
@@ -186,20 +235,14 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.setPInheritanceInfo(nullptr);
 
 	cmd.begin(beginInfo); {
-		mGBufferPass->render(cmd, mVertexBuffer->buffer, mIndexBuffer->buffer, 0, mScene.resource.indices().size(), mSwapchain->extent());
+		mGBufferPass->render(cmd, mSwapchain->extent(), 0, mScene.resource.meshInstances().size());
 		mPostProcPass->render(cmd, mSwapchain->extent(), imageIdx);
 	}
 	cmd.end();
 }
 
-void Renderer::updateUniformBuffer() {
-	CameraData data;
-	data.model = glm::scale(glm::mat4(1.f), glm::vec3(.3f));
-	data.model = glm::rotate(data.model, static_cast<float>(mRenderTimer.get() * 1e-3), glm::vec3(0.f, 0.f, 1.f));
-	data.view = glm::lookAt(glm::vec3(2.f), glm::vec3(0.f), glm::vec3(0.f, 0.f, 1.f));
-	data.proj = glm::perspective(glm::radians(45.f), float(mSwapchain->width()) / mSwapchain->height(), .1f, 10.f);
-	data.proj[1][1] *= -1.f;
-	memcpy(mCameraUniforms->data, &data, sizeof(Camera));
+void Renderer::updateCameraUniform() {
+	memcpy(mCameraBuffer->data, &mScene.camera, sizeof(Camera));
 }
 
 uint32_t Renderer::acquireFrame(vk::Semaphore signalFrameReady) {
@@ -260,7 +303,6 @@ void Renderer::drawFrame() {
 }
 
 void Renderer::loop() {
-	updateUniformBuffer();
 	drawFrame();
 }
 
@@ -283,10 +325,11 @@ void Renderer::recreateFrame() {
 void Renderer::cleanupVulkan() {
 	delete mSwapchain;
 
-	delete mDescriptorSetLayout;
+	delete mCameraDescLayout;
+	delete mResourceDescLayout;
 	delete mDescriptorPool;
 
-	delete mCameraUniforms;
+	delete mCameraBuffer;
 	delete mVertexBuffer;
 	delete mIndexBuffer;
 	delete mMaterialBuffer;

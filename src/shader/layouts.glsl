@@ -23,23 +23,43 @@ struct Material {
 	int pad0;
 };
 
-layout(set = SceneResourceDescSet, binding = 0, std140) uniform _CameraData{
-	mat4 model;
+struct Camera{
 	mat4 view;
 	mat4 proj;
-} uCamera;
-
-layout(set = SceneResourceDescSet, binding = 1) uniform sampler2D uTexture;
-
-layout(set = SceneResourceDescSet, binding = 2, std140) readonly buffer _Materials {
-	Material uMaterials[];
+	vec3 pos;
+	vec3 angle;
+	vec3 front;
+	vec3 right;
+	vec3 up;
+	ivec2 filmSize;
+	float FOV;
+	float near;
+	float far;
+	float lensRadius;
+	float focalDist;
 };
 
-layout(set = SceneResourceDescSet, binding = 3, std140) readonly buffer _MaterialIndices {
-	uint uMaterialIndices[];
+struct GBufferDrawParam {
+	mat4 model;
+	int matIdx;
+};
+
+layout(set = CameraDescSet, binding = 0, std140) uniform Camera uCamera;
+
+layout(set = ResourceDescSet, binding = 0) uniform sampler2D uTexture;
+
+layout(set = ResourceDescSet, binding = 1, std140) readonly buffer _Materials {
+	Material uMaterials[];
+};
+layout(set = ResourceDescSet, binding = 2, std140) readonly buffer _MaterialIndices {
+	int uMaterialIndices[];
 };
 
 layout(set = SwapchainStorageDescSet, binding = 0) uniform sampler2D uDepthNormal;
 layout(set = SwapchainStorageDescSet, binding = 1) uniform sampler2D uAlbedoMatIdx;
+
+layout(set = GBufferDrawParamDescSet, binding = 0, std140) readonly buffer _GBufferDrawParam {
+	GBufferDrawParam uGBufferDrawParams[];
+};
 
 #endif

@@ -1,9 +1,11 @@
 #include "GBufferPass.h"
 #include "shader/HostDevice.h"
 
-GBufferPass::GBufferPass(const zvk::Context* ctx, vk::Extent2D extent, vk::ImageLayout outLayout) :
-	zvk::BaseVkObject(ctx)
+GBufferPass::GBufferPass(
+	const zvk::Context* ctx, vk::Extent2D extent, const Resource& resource, vk::ImageLayout outLayout
+) : zvk::BaseVkObject(ctx)
 {
+	createDrawBuffer(resource);
 	createResource(extent);
 	createRenderPass(outLayout);
 	createFramebuffer(extent);
@@ -11,8 +13,11 @@ GBufferPass::GBufferPass(const zvk::Context* ctx, vk::Extent2D extent, vk::Image
 }
 
 void GBufferPass::destroy() {
-	delete mDescriptorSetLayout;
+	delete mDrawParamDescLayout;
 	delete mDescriptorPool;
+
+	delete mDrawCommandBuffer;
+	delete mDrawParamBuffer;
 
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
@@ -21,10 +26,7 @@ void GBufferPass::destroy() {
 	destroyFrame();
 }
 
-void GBufferPass::render(
-	vk::CommandBuffer cmd, vk::Buffer vertexBuffer,
-	vk::Buffer indexBuffer, uint32_t indexOffset, uint32_t indexCount, vk::Extent2D extent
-) {
+void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t offset, uint32_t count) {
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
@@ -40,44 +42,23 @@ void GBufferPass::render(
 	cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
 	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
-
-	cmd.bindVertexBuffers(0, vertexBuffer, vk::DeviceSize(0));
-	cmd.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, GBufferDrawParamDescSet, mDrawParamDescSet, {});
 
 	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
 
-	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, SceneResourceDescSet, mDescriptorSet, {});
-
-	//cmdBuffer.draw(VertexData.size(), 1, 0, 0);
-	cmd.drawIndexed(indexCount, 1, indexOffset, 0, 0);
+	cmd.drawIndexedIndirect(mDrawCommandBuffer->buffer, offset, count, sizeof(vk::DrawIndexedIndirectCommand));
 
 	cmd.endRenderPass();
 }
 
-void GBufferPass::initDescriptor(
-	const zvk::Buffer* uniforms, const zvk::Image* images,
-	const zvk::Buffer* materials, const zvk::Buffer* materialIndices
-) {
+void GBufferPass::initDescriptor() {
 	auto updates = {
 		zvk::Descriptor::makeWrite(
-			mDescriptorSetLayout, mDescriptorSet, 0,
-			vk::DescriptorBufferInfo(uniforms->buffer, 0, uniforms->size)
-		),
-		zvk::Descriptor::makeWrite(
-			mDescriptorSetLayout, mDescriptorSet, 1,
-			vk::DescriptorImageInfo(images->sampler, images->imageView, images->layout)
-		),
-		zvk::Descriptor::makeWrite(
-			mDescriptorSetLayout, mDescriptorSet, 2,
-			vk::DescriptorBufferInfo(materials->buffer, 0, materials->size)
-		),
-		zvk::Descriptor::makeWrite(
-			mDescriptorSetLayout, mDescriptorSet, 3,
-			vk::DescriptorBufferInfo(materialIndices->buffer, 0, materialIndices->size)
-		),
+			mDrawParamDescLayout, mDrawParamDescSet, 0,
+			vk::DescriptorBufferInfo(mDrawParamBuffer->buffer, 0, mDrawParamBuffer->size)
+		)
 	};
-
 	mCtx->device.updateDescriptorSets(updates, {});
 }
 
@@ -92,6 +73,29 @@ void GBufferPass::recreateFrame(vk::Extent2D extent) {
 	destroyFrame();
 	createResource(extent);
 	createFramebuffer(extent);
+}
+
+void GBufferPass::createDrawBuffer(const Resource& resource) {
+	std::vector<vk::DrawIndexedIndirectCommand> commands;
+	std::vector<GBufferDrawParam> params;
+
+	for (const auto& model : resource.modelInstances()) {
+		for (uint32_t i = 0; i < model->numMeshes(); i++) {
+			const auto& mesh = resource.meshInstances()[model->offset() + i];
+
+			commands.push_back({ mesh.numIndices, 1, mesh.offset, 0, 0 });
+			params.push_back({ model->modelMatrix(), mesh.materialIdx });
+		}
+	}
+
+	mDrawCommandBuffer = zvk::Memory::createBufferFromHost(
+		mCtx, zvk::QueueIdx::GeneralUse, commands.data(), zvk::sizeOf(commands),
+		vk::BufferUsageFlagBits::eIndirectBuffer
+	);
+	mDrawParamBuffer = zvk::Memory::createBufferFromHost(
+		mCtx, zvk::QueueIdx::GeneralUse, params.data(), zvk::sizeOf(params),
+		vk::BufferUsageFlagBits::eStorageBuffer
+	);
 }
 
 void GBufferPass::createResource(vk::Extent2D extent) {
@@ -311,15 +315,12 @@ void GBufferPass::createPipeline(
 
 void GBufferPass::createDescriptor() {
 	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
-		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex),
-		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment),
-		zvk::Descriptor::makeBinding(2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment),
-		zvk::Descriptor::makeBinding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex),
+		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
 	};
-	mDescriptorSetLayout = new zvk::DescriptorSetLayout(mCtx, bindings);
 
-	mDescriptorPool = new zvk::DescriptorPool(mCtx, { mDescriptorSetLayout }, 1);
-	mDescriptorSet = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
+	mDrawParamDescLayout = new zvk::DescriptorSetLayout(mCtx, bindings);
+	mDescriptorPool = new zvk::DescriptorPool(mCtx, { mDrawParamDescLayout }, 1);
+	mDrawParamDescSet = mDescriptorPool->allocDescriptorSet(mDrawParamDescLayout->layout);
 }
 
 void GBufferPass::destroyFrame() {

@@ -12,15 +12,14 @@ layout(location = 0) out VSOut {
 	vec3 pos;
 	float depth;
 	vec3 norm;
-	uint matIdx;
 	vec2 uv;
 } vsOut;
 
 void main() {
-	gl_Position = uCamera.proj * uCamera.view * uCamera.model * vec4(aPos, 1.0);
+	GBufferDrawParam param = uGBufferDrawParams[gl_DrawID];
+	gl_Position = uCamera.proj * uCamera.view * param.model * vec4(aPos, 1.0);
 	vsOut.pos = aPos;
 	vsOut.norm = aNorm;
 	vsOut.uv = vec2(aTexX, aTexY);
 	vsOut.depth = gl_Position.z / gl_Position.w;
-	vsOut.matIdx = uMaterialIndices[gl_VertexIndex / 3];
 }

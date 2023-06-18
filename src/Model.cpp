@@ -14,7 +14,7 @@ glm::mat4 ModelInstance::modelMatrix() const {
 	glm::mat4 model(1.0f);
 	model = glm::translate(model, mPos);
 	model = glm::scale(model, mScale);
-	model = model * ConstRot;
+	//model = model * ConstRot;
 	model = glm::rotate(model, glm::radians(mRotation.x), glm::vec3(0.0f, 0.0f, 1.0f));
 	model = glm::rotate(model, glm::radians(mRotation.y), glm::vec3(1.0f, 0.0f, 0.0f));
 	model = glm::rotate(model, glm::radians(mRotation.z), glm::vec3(0.0f, 1.0f, 0.0f));
