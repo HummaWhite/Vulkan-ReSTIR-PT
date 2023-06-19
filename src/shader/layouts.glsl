@@ -41,25 +41,36 @@ struct Camera{
 
 struct GBufferDrawParam {
 	mat4 model;
+	mat4 modelInvT;
 	int matIdx;
+	int pad0;
+	int pad1;
+	int pad2;
 };
 
-layout(set = CameraDescSet, binding = 0, std140) uniform Camera uCamera;
+layout(push_constant) uniform _PushConstant{
+	GBufferDrawParam uGBufferDrawParam;
+};
+
+layout(set = CameraDescSet, binding = 0, std140) uniform _Camera{
+	Camera uCamera;
+};
 
 layout(set = ResourceDescSet, binding = 0) uniform sampler2D uTexture;
 
 layout(set = ResourceDescSet, binding = 1, std140) readonly buffer _Materials {
 	Material uMaterials[];
 };
+
 layout(set = ResourceDescSet, binding = 2, std140) readonly buffer _MaterialIndices {
 	int uMaterialIndices[];
 };
 
-layout(set = SwapchainStorageDescSet, binding = 0) uniform sampler2D uDepthNormal;
-layout(set = SwapchainStorageDescSet, binding = 1) uniform sampler2D uAlbedoMatIdx;
-
 layout(set = GBufferDrawParamDescSet, binding = 0, std140) readonly buffer _GBufferDrawParam {
 	GBufferDrawParam uGBufferDrawParams[];
 };
+
+layout(set = SwapchainStorageDescSet, binding = 0) uniform sampler2D uDepthNormal;
+layout(set = SwapchainStorageDescSet, binding = 1) uniform sampler2D uAlbedoMatIdx;
 
 #endif

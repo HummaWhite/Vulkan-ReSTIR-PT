@@ -5,6 +5,11 @@ Camera::Camera(glm::vec3 pos, glm::vec3 angle) :
 	update();
 }
 
+void Camera::move(glm::vec3 vec) {
+	mPos += vec;
+	update();
+}
+
 void Camera::roll(float angle) {
 	mAngle.z += angle;
 	update();
@@ -36,6 +41,11 @@ void Camera::setDir(glm::vec3 dir) {
 	if (dir.x < 0) {
 		mAngle.x = 180.0f - mAngle.x;
 	}
+	update();
+}
+
+void Camera::setPos(glm::vec3 pos) {
+	mPos = pos;
 	update();
 }
 

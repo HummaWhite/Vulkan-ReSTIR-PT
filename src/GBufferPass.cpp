@@ -3,7 +3,7 @@
 
 GBufferPass::GBufferPass(
 	const zvk::Context* ctx, vk::Extent2D extent, const Resource& resource, vk::ImageLayout outLayout
-) : zvk::BaseVkObject(ctx)
+) : zvk::BaseVkObject(ctx), mMultiDrawSupport(ctx->instance()->deviceFeatures().multiDrawIndirect)
 {
 	createDrawBuffer(resource);
 	createResource(extent);
@@ -26,7 +26,11 @@ void GBufferPass::destroy() {
 	destroyFrame();
 }
 
-void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t offset, uint32_t count) {
+void GBufferPass::render(
+	vk::CommandBuffer cmd, vk::Extent2D extent,
+	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet,
+	vk::Buffer vertexBuffer, vk::Buffer indexBuffer, uint32_t offset, uint32_t count
+) {
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
@@ -42,13 +46,27 @@ void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t of
 	cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
 	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
+
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, CameraDescSet, cameraDescSet, {});
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, GBufferDrawParamDescSet, mDrawParamDescSet, {});
 
 	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
 
-	cmd.drawIndexedIndirect(mDrawCommandBuffer->buffer, offset, count, sizeof(vk::DrawIndexedIndirectCommand));
+	cmd.bindVertexBuffers(0, vertexBuffer, vk::DeviceSize(0));
+	cmd.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
 
+	for (uint32_t i = 0; i < count; i++) {
+		cmd.pushConstants(
+			mPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics,
+			0, sizeof(GBufferDrawParam), &mDrawParams[offset + i]
+		);
+
+		cmd.drawIndexedIndirect(
+			mDrawCommandBuffer->buffer, (offset + i) * sizeof(vk::DrawIndexedIndirectCommand), 1, sizeof(vk::DrawIndexedIndirectCommand)
+		);
+	}
 	cmd.endRenderPass();
 }
 
@@ -77,14 +95,15 @@ void GBufferPass::recreateFrame(vk::Extent2D extent) {
 
 void GBufferPass::createDrawBuffer(const Resource& resource) {
 	std::vector<vk::DrawIndexedIndirectCommand> commands;
-	std::vector<GBufferDrawParam> params;
 
 	for (const auto& model : resource.modelInstances()) {
+		glm::mat4 modelMatrix = model->modelMatrix();
+		glm::mat4 modelInvT(glm::transpose(glm::inverse(modelMatrix)));
+
 		for (uint32_t i = 0; i < model->numMeshes(); i++) {
 			const auto& mesh = resource.meshInstances()[model->offset() + i];
-
 			commands.push_back({ mesh.numIndices, 1, mesh.offset, 0, 0 });
-			params.push_back({ model->modelMatrix(), mesh.materialIdx });
+			mDrawParams.push_back({ modelMatrix, modelInvT, mesh.materialIdx });
 		}
 	}
 
@@ -93,7 +112,7 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 		vk::BufferUsageFlagBits::eIndirectBuffer
 	);
 	mDrawParamBuffer = zvk::Memory::createBufferFromHost(
-		mCtx, zvk::QueueIdx::GeneralUse, params.data(), zvk::sizeOf(params),
+		mCtx, zvk::QueueIdx::GeneralUse, mDrawParams.data(), zvk::sizeOf(mDrawParams),
 		vk::BufferUsageFlagBits::eStorageBuffer
 	);
 }
@@ -283,8 +302,11 @@ void GBufferPass::createPipeline(
 		.setDepthBoundsTestEnable(false)
 		.setStencilTestEnable(false);
 
+	vk::PushConstantRange pushConstant(vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(GBufferDrawParam));
+
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts(descLayouts);
+		.setSetLayouts(descLayouts)
+		.setPushConstantRanges(pushConstant);
 
 	mPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
 

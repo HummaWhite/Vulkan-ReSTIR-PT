@@ -25,7 +25,11 @@
 
 struct GBufferDrawParam {
 	std140(glm::mat4, model);
+	std140(glm::mat4, modelInvT);
 	std140(int32_t, matIdx);
+	std140(int32_t, pad0);
+	std140(int32_t, pad1);
+	std140(int32_t, pad2);
 };
 
 class GBufferPass : public zvk::BaseVkObject {
@@ -47,7 +51,10 @@ public:
 		vk::Extent2D extent, zvk::ShaderManager* shaderManager,
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
-	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t offset, uint32_t count);
+	void render(
+		vk::CommandBuffer cmd, vk::Extent2D extent,
+		vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet,
+		vk::Buffer vertexBuffer, vk::Buffer indexBuffer, uint32_t offset, uint32_t count);
 
 	void initDescriptor();
 
@@ -73,6 +80,7 @@ private:
 	vk::RenderPass mRenderPass;
 	vk::PipelineLayout mPipelineLayout;
 
+	std::vector<GBufferDrawParam> mDrawParams;
 	zvk::Buffer* mDrawCommandBuffer;
 	zvk::Buffer* mDrawParamBuffer;
 
@@ -81,4 +89,6 @@ private:
 	zvk::DescriptorPool* mDescriptorPool = nullptr;
 	zvk::DescriptorSetLayout* mDrawParamDescLayout = nullptr;
 	vk::DescriptorSet mDrawParamDescSet;
+
+	const bool mMultiDrawSupport;
 };

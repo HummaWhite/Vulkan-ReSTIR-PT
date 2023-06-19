@@ -14,7 +14,7 @@
 class Scene
 {
 public:
-	bool load(const File::path& path);
+	void load(const File::path& path);
 	//void clear();
 
 private:

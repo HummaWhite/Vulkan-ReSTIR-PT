@@ -43,7 +43,7 @@ void Renderer::initVulkan() {
 		.setApplicationVersion(VK_MAKE_VERSION(1, 0, 0))
 		.setPEngineName("None")
 		.setEngineVersion(VK_MAKE_VERSION(1, 0, 0))
-		.setApiVersion(VK_API_VERSION_1_2);
+		.setApiVersion(VK_API_VERSION_1_3);
 
 	try {
 		mInstance = new zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
@@ -52,9 +52,7 @@ void Renderer::initVulkan() {
 		mShaderManager = new zvk::ShaderManager(mContext->device);
 
 		initScene();
-		mScene.camera.setFOV(90.f);
-
-		std::vector<vk::DescriptorSetLayout> descLayouts;
+		mScene.camera.setFilmSize({ mWidth, mHeight });
 
 		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent(), mScene.resource);
 		//mPostProcPass = new PostProcPassComp(mContext, mSwapchain);
@@ -81,6 +79,7 @@ void Renderer::initVulkan() {
 
 void Renderer::createPipeline() {
 	std::vector<vk::DescriptorSetLayout> descLayouts = {
+		mCameraDescLayout->layout, mResourceDescLayout->layout,
 		mGBufferPass->descSetLayout(), mPostProcPass->descSetLayout()
 	};
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager, descLayouts);
@@ -235,13 +234,19 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.setPInheritanceInfo(nullptr);
 
 	cmd.begin(beginInfo); {
-		mGBufferPass->render(cmd, mSwapchain->extent(), 0, mScene.resource.meshInstances().size());
+		mGBufferPass->render(
+			cmd, mSwapchain->extent(),
+			mCameraDescSet, mResourceDescSet,
+			mVertexBuffer->buffer, mIndexBuffer->buffer, 0, mScene.resource.meshInstances().size()
+		);
 		mPostProcPass->render(cmd, mSwapchain->extent(), imageIdx);
 	}
 	cmd.end();
 }
 
 void Renderer::updateCameraUniform() {
+	float time = mRenderTimer.get() * 1e-3f;
+	mScene.camera.setPos(glm::vec3(cos(time), sin(time), 0.f) * 4.f + glm::vec3(0.f, -8.f, 0.f));
 	memcpy(mCameraBuffer->data, &mScene.camera, sizeof(Camera));
 }
 
@@ -303,6 +308,7 @@ void Renderer::drawFrame() {
 }
 
 void Renderer::loop() {
+	updateCameraUniform();
 	drawFrame();
 }
 

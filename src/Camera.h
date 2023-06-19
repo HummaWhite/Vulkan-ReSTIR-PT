@@ -11,14 +11,14 @@ class Camera {
 public:
 	Camera(glm::vec3 pos = glm::vec3(0, 0, 0), glm::vec3 angle = glm::vec3(90.0f, 0.0f, 0.0f));
 
-	void move(glm::vec3 vec) { mPos += vec; };
+	void move(glm::vec3 vec);
 	void roll(float rolAngle);
 	void rotate(glm::vec3 rotAngle);
 	void changeFOV(float offset);
 	void setFOV(float fov);
 	void lookAt(glm::vec3 focus) { setDir(focus - mPos); }
 	void setDir(glm::vec3 dir);
-	void setPos(glm::vec3 pos) { mPos = pos; }
+	void setPos(glm::vec3 pos);
 	void setAngle(glm::vec3 angle);
 	void setFilmSize(glm::ivec2 size);
 	void setPlanes(float nearZ, float farZ);

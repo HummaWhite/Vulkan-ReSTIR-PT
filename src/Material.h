@@ -19,7 +19,7 @@ struct Material {
 	std140(glm::vec3, baseColor) = glm::vec3(1.0f);
 	std140(uint32_t, type) = Lambertian;
 
-	std140(int, textureIdx) = -InvalidResourceIdx;
+	std140(int32_t, textureIdx) = -InvalidResourceIdx;
 	std140(float, metallic) = 0.0f;
 	std140(float, roughness) = 1.0f;
 	std140(float, ior) = 1.5f;
@@ -32,7 +32,7 @@ struct Material {
 	std140(float, clearcoat) = 0.0f;
 	std140(float, clearcoatGloss) = 0.0f;
 	std140(float, subsurface) = 0.0f;
-	std140(int, pad0);
+	std140(int32_t, pad0);
 };
 
 std::optional<Material> loadMaterial(const pugi::xml_node& node);

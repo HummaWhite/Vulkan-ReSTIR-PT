@@ -14,8 +14,9 @@ layout(location = 0) in VSOut {
 } fsIn;
 
 void main() {
-	vec3 albedo = (uDrawParam.matIdx == InvalidResourceIdx) ? fsIn.pos : uMaterials[uDrawParam.matIdx].baseColor;
-	albedo = fsIn.pos;
+	GBufferDrawParam param = uGBufferDrawParam;
+	vec3 albedo = (param.matIdx == InvalidResourceIdx) ? fsIn.pos : uMaterials[param.matIdx].baseColor;
+	albedo = albedo * vec3(abs(dot(fsIn.norm, uCamera.front))) + 0.1;
     DepthNormal = vec4(fsIn.depth, fsIn.norm);
     AlbedoMatIdx = vec4(albedo, fsIn.uv.x);
 }

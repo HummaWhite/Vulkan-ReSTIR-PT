@@ -16,10 +16,13 @@ layout(location = 0) out VSOut {
 } vsOut;
 
 void main() {
-	GBufferDrawParam param = uGBufferDrawParams[gl_DrawID];
-	gl_Position = uCamera.proj * uCamera.view * param.model * vec4(aPos, 1.0);
-	vsOut.pos = aPos;
-	vsOut.norm = aNorm;
+	GBufferDrawParam param = uGBufferDrawParam;
+	vec4 pos = param.model * vec4(aPos, 1.0);
+	vsOut.pos = pos.xyz;
+	gl_Position = uCamera.proj * uCamera.view * pos;
+	gl_Position.y = -gl_Position.y;
+
+	vsOut.norm = normalize(mat3(param.modelInvT) * aNorm);
 	vsOut.uv = vec2(aTexX, aTexY);
 	vsOut.depth = gl_Position.z / gl_Position.w;
 }

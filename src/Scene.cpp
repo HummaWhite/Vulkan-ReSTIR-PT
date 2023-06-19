@@ -59,7 +59,7 @@ std::pair<ModelInstance*, std::optional<glm::vec3>> Scene::loadModelInstance(con
 	return { model, std::nullopt };
 }
 
-bool Scene::load(const File::path& path) {
+void Scene::load(const File::path& path) {
 	Log::bracketLine<0>("Scene " + path.generic_string());
 	//clear();
 
@@ -68,7 +68,7 @@ bool Scene::load(const File::path& path) {
 	auto scene = doc.child("scene");
 
 	if (!scene) {
-		return false;
+		throw std::runtime_error("Scene: failed to load");
 	}
 
 	{
@@ -139,5 +139,4 @@ bool Scene::load(const File::path& path) {
 	Log::bracketLine<2>("Mesh instances = " + std::to_string(resource.meshInstances().size()));
 	Log::bracketLine<2>("Model instances = " + std::to_string(resource.modelInstances().size()));
 	Log::bracketLine<2>("Materials = " + std::to_string(resource.materials().size()));
-	return true;
 }
