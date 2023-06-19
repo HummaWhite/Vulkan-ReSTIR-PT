@@ -17,7 +17,7 @@ void Camera::roll(float angle) {
 
 void Camera::rotate(glm::vec3 angle) {
 	mAngle += angle;
-	mAngle.y = glm::clamp(mAngle.y, 0.f, 90.f);
+	mAngle.y = glm::clamp(mAngle.y, -89.f, 89.f);
 	update();
 }
 

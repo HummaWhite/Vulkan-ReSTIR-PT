@@ -16,6 +16,7 @@
 class Resource {
 public:
 	friend class Scene;
+	~Resource() { destroy(); }
 
 	const std::vector<MeshVertex>& vertices() const { return mVertices; }
 	const std::vector<uint32_t>& indices() const { return mIndices; }

@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "WindowInput.h"
 #include "shader/HostDevice.h"
 
 const std::vector<const char*> DeviceExtensions = {
@@ -33,6 +34,10 @@ void Renderer::initWindow() {
 	mMainWindow = glfwCreateWindow(mWidth, mHeight, mName.c_str(), nullptr, nullptr);
 	glfwSetWindowUserPointer(mMainWindow, this);
 	glfwSetFramebufferSizeCallback(mMainWindow, framebufferResizeCallback);
+	glfwSetKeyCallback(mMainWindow, WindowInput::keyCallback);
+	glfwSetCursorPosCallback(mMainWindow, WindowInput::cursorCallback);
+	glfwSetScrollCallback(mMainWindow, WindowInput::scrollCallback);
+	WindowInput::setCamera(mScene.camera);
 
 	glfwMakeContextCurrent(mMainWindow);
 }
@@ -88,7 +93,7 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::initScene() {
-	mScene.load("res/zbidir.xml");
+	mScene.load("res/scene.xml");
 }
 
 void Renderer::createDeviceResource() {
@@ -112,16 +117,20 @@ void Renderer::createDeviceResource() {
 		vk::BufferUsageFlagBits::eStorageBuffer
 	);
 
-	auto hostImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, 4);
+	auto images = mScene.resource.imagePool();
+	auto extImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, 4);
+	images.push_back(extImage);
 
-	mTextureImage = zvk::Memory::createTexture2D(
-		mContext, zvk::QueueIdx::GeneralUse, hostImage,
-		vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
-		vk::ImageLayout::eShaderReadOnlyOptimal, vk::MemoryPropertyFlagBits::eDeviceLocal
-	);
-	mTextureImage->createSampler(vk::Filter::eLinear);
-
-	delete hostImage;
+	for (auto hostImage : images) {
+		auto image = zvk::Memory::createTexture2D(
+			mContext, zvk::QueueIdx::GeneralUse, hostImage,
+			vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+			vk::ImageLayout::eShaderReadOnlyOptimal, vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+		image->createSampler(vk::Filter::eLinear);
+		mTextures.push_back(image);
+	}
+	delete extImage;
 }
 
 void Renderer::createCameraUniform() {
@@ -196,7 +205,7 @@ void Renderer::initDescriptor() {
 		),
 		zvk::Descriptor::makeWrite(
 			mResourceDescLayout, mResourceDescSet, 0,
-			vk::DescriptorImageInfo(mTextureImage->sampler, mTextureImage->imageView, mTextureImage->layout)
+			vk::DescriptorImageInfo(mTextures[0]->sampler, mTextures[0]->imageView, mTextures[0]->layout)
 		),
 		zvk::Descriptor::makeWrite(
 			mResourceDescLayout, mResourceDescSet, 1,
@@ -245,8 +254,8 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 }
 
 void Renderer::updateCameraUniform() {
-	float time = mRenderTimer.get() * 1e-3f;
-	mScene.camera.setPos(glm::vec3(cos(time), sin(time), 0.f) * 4.f + glm::vec3(0.f, -8.f, 0.f));
+	// float time = mRenderTimer.get() * 1e-3f;
+	// mScene.camera.setPos(glm::vec3(cos(time), sin(time), 0.f) * 4.f + glm::vec3(0.f, -8.f, 0.f));
 	memcpy(mCameraBuffer->data, &mScene.camera, sizeof(Camera));
 }
 
@@ -340,7 +349,10 @@ void Renderer::cleanupVulkan() {
 	delete mIndexBuffer;
 	delete mMaterialBuffer;
 	delete mMaterialIdxBuffer;
-	delete mTextureImage;
+	
+	for (auto& image : mTextures) {
+		delete image;
+	}
 
 	delete mGBufferPass;
 	delete mPostProcPass;
@@ -367,18 +379,25 @@ void Renderer::exec() {
 	size_t frameCount = 0;
 	
 	while (!glfwWindowShouldClose(mMainWindow)) {
+		double time = mRenderTimer.get();
+		double FPSTime = mFPSTimer.get();
+
 		glfwPollEvents();
+
+		if (frameCount > 0) {
+			WindowInput::setDeltaTime(time - mLastTime);
+			WindowInput::processKeys();
+		}
 		loop();
 
-		double time = mFPSTimer.get();
-
-		if (time > 1000.0) {
-			double fps = frameCount / time * 1000.0;
+		if (FPSTime > 1000.0) {
+			double fps = frameCount / FPSTime * 1000.0;
 			glfwSetWindowTitle(mMainWindow, (mName + "  FPS: " + std::to_string(fps)).c_str());
 			mFPSTimer.reset();
 			frameCount = 0;
 		}
 		frameCount++;
+		mLastTime = time;
 	}
 	mContext->device.waitIdle();
 

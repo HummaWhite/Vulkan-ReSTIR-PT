@@ -75,6 +75,7 @@ private:
 	bool mShouldResetSwapchain = false;
 	Timer mFPSTimer;
 	Timer mRenderTimer;
+	double mLastTime = 0;
 
 	vk::ApplicationInfo mAppInfo;
 	zvk::Instance* mInstance = nullptr;
@@ -98,7 +99,7 @@ private:
 	zvk::Buffer* mMaterialBuffer = nullptr;
 	zvk::Buffer* mMaterialIdxBuffer = nullptr;
 	zvk::Buffer* mCameraBuffer = nullptr;
-	zvk::Image* mTextureImage = nullptr;
+	std::vector<zvk::Image*> mTextures;
 
 	zvk::DescriptorPool* mDescriptorPool = nullptr;
 	zvk::DescriptorSetLayout* mCameraDescLayout = nullptr;
