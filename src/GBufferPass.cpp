@@ -59,8 +59,7 @@ void GBufferPass::render(
 
 	for (uint32_t i = 0; i < count; i++) {
 		cmd.pushConstants(
-			mPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics,
-			0, sizeof(GBufferDrawParam), &mDrawParams[offset + i]
+			mPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(GBufferDrawParam), &mDrawParams[offset + i]
 		);
 
 		cmd.drawIndexedIndirect(
