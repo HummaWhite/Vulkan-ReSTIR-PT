@@ -20,6 +20,8 @@
   #define InvalidResourceIdx -1
 #endif
 
+const int MaxNumTextures = 32;
+
 const int PostProcBlockSizeX = 32;
 const int PostProcBlockSizeY = 32;
 

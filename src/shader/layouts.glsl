@@ -48,15 +48,15 @@ struct GBufferDrawParam {
 	int pad2;
 };
 
-layout(push_constant) uniform _PushConstant{
+layout(push_constant) uniform _PushConstant {
 	GBufferDrawParam uGBufferDrawParam;
 };
 
-layout(set = CameraDescSet, binding = 0, std140) uniform _Camera{
+layout(set = CameraDescSet, binding = 0, std140) uniform _Camera {
 	Camera uCamera;
 };
 
-layout(set = ResourceDescSet, binding = 0) uniform sampler2D uTexture;
+layout(set = ResourceDescSet, binding = 0) uniform sampler2D uTextures[];
 
 layout(set = ResourceDescSet, binding = 1, std140) readonly buffer _Materials {
 	Material uMaterials[];

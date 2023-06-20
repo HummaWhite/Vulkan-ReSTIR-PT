@@ -80,9 +80,9 @@ vk::ImageMemoryBarrier Image::getBarrier(
 		.setSubresourceRange(vk::ImageSubresourceRange()
 			.setAspectMask(vk::ImageAspectFlagBits::eColor)
 			.setBaseMipLevel(0)
-			.setLevelCount(nMipLevels)
+			.setLevelCount(numMipLevels)
 			.setBaseArrayLayer(0)
-			.setLayerCount(nArrayLayers))
+			.setLayerCount(numArrayLayers))
 		.setSrcAccessMask(srcAccessMask)
 		.setDstAccessMask(dstAccessMask);
 
@@ -134,43 +134,10 @@ void Image::changeLayout(vk::ImageLayout newLayout) {
 	);
 }
 
-void Image::createImageView(bool array) {
-	if (type == vk::ImageType::e1D) {
-		imageViewType = vk::ImageViewType::e1D;
-		nArrayLayers = 1;
-	}
-	else if (type == vk::ImageType::e2D) {
-		imageViewType = array ? vk::ImageViewType::e1DArray : vk::ImageViewType::e2D;
-		nArrayLayers = array ? extent.height : 1;
-	}
-	else {
-		imageViewType = array ? vk::ImageViewType::e2DArray : vk::ImageViewType::e3D;
-		nArrayLayers = array ? extent.depth : 1;
-	}
-
-	vk::ImageAspectFlags aspect = (usage == vk::ImageUsageFlagBits::eDepthStencilAttachment) ?
-		aspect = vk::ImageAspectFlagBits::eDepth : aspect = vk::ImageAspectFlagBits::eColor;
-
+vk::SamplerCreateInfo Image::samplerCreateInfo(vk::Filter filter, bool anisotropyIfPossible) {
 	// TODO: check for image arrays
 
-	auto createInfo = vk::ImageViewCreateInfo()
-		.setImage(image)
-		.setViewType(imageViewType)
-		.setFormat(format)
-		.setSubresourceRange(vk::ImageSubresourceRange()
-			.setAspectMask(aspect)
-			.setBaseMipLevel(0)
-			.setLevelCount(nMipLevels)
-			.setBaseArrayLayer(0)
-			.setLayerCount(nArrayLayers));
-
-	imageView = mCtx->device.createImageView(createInfo);
-}
-
-void Image::createSampler(vk::Filter filter, bool anisotropyIfPossible) {
-	// TODO: check for image arrays
-
-	auto createInfo = vk::SamplerCreateInfo()
+	return vk::SamplerCreateInfo()
 		.setMinFilter(filter)
 		.setMagFilter(filter)
 		.setAddressModeU(vk::SamplerAddressMode::eRepeat)
@@ -183,8 +150,44 @@ void Image::createSampler(vk::Filter filter, bool anisotropyIfPossible) {
 		.setMipmapMode(vk::SamplerMipmapMode::eLinear)
 		.setMipLodBias(0)
 		.setMinLod(0)
-		.setMaxLod(nMipLevels);
-	sampler = mCtx->device.createSampler(createInfo);
+		.setMaxLod(numMipLevels);
+}
+
+void Image::createImageView(bool array) {
+	if (type == vk::ImageType::e1D) {
+		viewType = vk::ImageViewType::e1D;
+		numArrayLayers = 1;
+	}
+	else if (type == vk::ImageType::e2D) {
+		viewType = array ? vk::ImageViewType::e1DArray : vk::ImageViewType::e2D;
+		numArrayLayers = array ? extent.height : 1;
+	}
+	else {
+		viewType = array ? vk::ImageViewType::e2DArray : vk::ImageViewType::e3D;
+		numArrayLayers = array ? extent.depth : 1;
+	}
+
+	vk::ImageAspectFlags aspect = (usage == vk::ImageUsageFlagBits::eDepthStencilAttachment) ?
+		aspect = vk::ImageAspectFlagBits::eDepth : aspect = vk::ImageAspectFlagBits::eColor;
+
+	// TODO: check for image arrays
+
+	auto createInfo = vk::ImageViewCreateInfo()
+		.setImage(image)
+		.setViewType(viewType)
+		.setFormat(format)
+		.setSubresourceRange(vk::ImageSubresourceRange()
+			.setAspectMask(aspect)
+			.setBaseMipLevel(0)
+			.setLevelCount(numMipLevels)
+			.setBaseArrayLayer(0)
+			.setLayerCount(numArrayLayers));
+
+	view = mCtx->device.createImageView(createInfo);
+}
+
+void Image::createSampler(vk::Filter filter, bool anisotropyIfPossible) {
+	sampler = mCtx->device.createSampler(samplerCreateInfo(filter, anisotropyIfPossible));
 }
 
 void Image::createMipmap() {
@@ -192,7 +195,7 @@ void Image::createMipmap() {
 		throw std::runtime_error("mipmap not implemented for 1D and 3D images");
 	}
 
-	if (nMipLevels < 2) {
+	if (numMipLevels < 2) {
 		return;
 	}
 	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
@@ -496,8 +499,8 @@ namespace Memory {
 		image->usage = usage;
 		image->layout = vk::ImageLayout::eUndefined;
 		image->format = format;
-		image->nMipLevels = nMipLevels;
-		image->nArrayLayers = 1;
+		image->numMipLevels = nMipLevels;
+		image->numArrayLayers = 1;
 		return image;
 	}
 

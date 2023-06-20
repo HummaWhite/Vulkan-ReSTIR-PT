@@ -2,12 +2,17 @@
 #include "WindowInput.h"
 #include "shader/HostDevice.h"
 
+const std::vector<const char*> InstanceExtensions{
+	//VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+};
+
 const std::vector<const char*> DeviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
 	VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
 	VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
 	VK_KHR_RAY_QUERY_EXTENSION_NAME,
+	//VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME
 };
 
 void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -152,7 +157,7 @@ void Renderer::createDescriptor() {
 
 	std::vector<vk::DescriptorSetLayoutBinding> resourceBindings = {
 		zvk::Descriptor::makeBinding(
-			0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment
+			0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, mTextures.size()
 		),
 		zvk::Descriptor::makeBinding(
 			1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment
@@ -198,26 +203,24 @@ void Renderer::initImageLayout() {
 }
 
 void Renderer::initDescriptor() {
-	auto updates = {
-		zvk::Descriptor::makeWrite(
-			mCameraDescLayout, mCameraDescSet, 0,
-			vk::DescriptorBufferInfo(mCameraBuffer->buffer, 0, mCameraBuffer->size)
-		),
-		zvk::Descriptor::makeWrite(
-			mResourceDescLayout, mResourceDescSet, 0,
-			vk::DescriptorImageInfo(mTextures[0]->sampler, mTextures[0]->imageView, mTextures[0]->layout)
-		),
-		zvk::Descriptor::makeWrite(
-			mResourceDescLayout, mResourceDescSet, 1,
-			vk::DescriptorBufferInfo(mMaterialBuffer->buffer, 0, mMaterialBuffer->size)
-		),
-		zvk::Descriptor::makeWrite(
-			mResourceDescLayout, mResourceDescSet, 2,
-			vk::DescriptorBufferInfo(mMaterialIdxBuffer->buffer, 0, mMaterialIdxBuffer->size)
-		),
-	};
+	zvk::DescriptorWrite update;
 
-	mContext->device.updateDescriptorSets(updates, {});
+	update.add(
+		mCameraDescLayout, mCameraDescSet, 0,
+		vk::DescriptorBufferInfo(mCameraBuffer->buffer, 0, mCameraBuffer->size)
+	);
+	update.add(mResourceDescLayout, mResourceDescSet, 0, zvk::Descriptor::makeImageDescriptorArray(mTextures));
+
+	update.add(
+		mResourceDescLayout, mResourceDescSet, 1,
+		vk::DescriptorBufferInfo(mMaterialBuffer->buffer, 0, mMaterialBuffer->size)
+	);
+	update.add(
+		mResourceDescLayout, mResourceDescSet, 2,
+		vk::DescriptorBufferInfo(mMaterialIdxBuffer->buffer, 0, mMaterialIdxBuffer->size)
+	);
+
+	mContext->device.updateDescriptorSets(update.writes, {});
 
 	mGBufferPass->initDescriptor();
 	//mPostProcPass->updateDescriptor(mGBufferPass->depthNormal, mSwapchain);

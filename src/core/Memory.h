@@ -65,7 +65,7 @@ public:
 
 	void destroy() {
 		mCtx->device.destroySampler(sampler);
-		mCtx->device.destroyImageView(imageView);
+		mCtx->device.destroyImageView(view);
 		mCtx->device.freeMemory(memory);
 		mCtx->device.destroyImage(image);
 	}
@@ -89,6 +89,8 @@ public:
 
 	void changeLayout(vk::ImageLayout newLayout);
 
+	vk::SamplerCreateInfo samplerCreateInfo(vk::Filter filter, bool anisotropyIfPossible = false);
+
 	void createImageView(bool array = false);
 	void createSampler(vk::Filter filter, bool anisotropyIfPossible = false);
 	void createMipmap();
@@ -104,16 +106,16 @@ public:
 public:
 	vk::Image image;
 	vk::ImageType type;
-	vk::ImageView imageView;
-	vk::ImageViewType imageViewType;
+	vk::ImageView view;
+	vk::ImageViewType viewType;
 	vk::ImageUsageFlags usage;
 	vk::ImageLayout layout;
 	vk::Format format;
 	vk::Extent3D extent;
 	vk::Sampler sampler;
 	vk::DeviceMemory memory;
-	uint32_t nMipLevels;
-	uint32_t nArrayLayers;
+	uint32_t numMipLevels;
+	uint32_t numArrayLayers;
 };
 
 namespace Memory {

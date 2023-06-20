@@ -44,6 +44,34 @@ DescriptorPool::DescriptorPool(
     pool = mCtx->device.createDescriptorPool(createInfo);
 }
 
+void DescriptorWrite::add(
+    const DescriptorSetLayout* layout,
+    vk::DescriptorSet set, uint32_t binding, const vk::DescriptorBufferInfo& bufferInfo
+) {
+    writes.push_back({ set, binding, 0, 1, layout->types.at(binding), nullptr, &bufferInfo });
+}
+
+void DescriptorWrite::add(
+    const DescriptorSetLayout* layout,
+    vk::DescriptorSet set, uint32_t binding, const vk::DescriptorImageInfo& imageInfo
+) {
+    writes.push_back({ set, binding, 0, 1, layout->types.at(binding), &imageInfo, nullptr });
+}
+
+void DescriptorWrite::add(
+    const DescriptorSetLayout* layout, vk::DescriptorSet set, uint32_t binding,
+    const std::vector<vk::DescriptorImageInfo>& imageInfo
+) {
+    imageArrayInfo.push_back(imageInfo);
+
+    writes.push_back(
+        vk::WriteDescriptorSet(
+            set, binding, 0, imageInfo.size(), layout->types.at(binding),
+            imageArrayInfo[imageArrayInfo.size() - 1].data(), nullptr, nullptr
+        )
+    );
+}
+
 namespace Descriptor {
     vk::DescriptorSetLayoutBinding makeBinding(
         uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages,
@@ -52,24 +80,13 @@ namespace Descriptor {
         return vk::DescriptorSetLayoutBinding(binding, type, count, stages, immutableSamplers);
     }
 
-    vk::WriteDescriptorSet makeWrite(
-        const DescriptorSetLayout* layout,
-        vk::DescriptorSet set, uint32_t binding, const vk::DescriptorBufferInfo& bufferInfo,
-        uint32_t arrayElement
-    ) {
-        return vk::WriteDescriptorSet(
-            set, binding, arrayElement, 1, layout->types.at(binding), nullptr, &bufferInfo
-        );
-    }
+    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<Image*>& images) {
+        std::vector<vk::DescriptorImageInfo> info;
 
-    vk::WriteDescriptorSet makeWrite(
-        const DescriptorSetLayout* layout,
-        vk::DescriptorSet set, uint32_t binding, const vk::DescriptorImageInfo& imageInfo,
-        uint32_t arrayElement
-    ) {
-        return vk::WriteDescriptorSet(
-            set, binding, arrayElement, 1, layout->types.at(binding), &imageInfo, nullptr
-        );
+        for (auto image : images) {
+            info.push_back({ image->sampler, image->view, image->layout });
+        }
+        return info;
     }
 }
 

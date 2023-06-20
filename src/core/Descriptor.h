@@ -7,6 +7,7 @@
 #include <map>
 
 #include "Context.h"
+#include "Memory.h"
 
 NAMESPACE_BEGIN(zvk)
 
@@ -47,20 +48,29 @@ public:
     vk::DescriptorPool pool;
 };
 
+struct DescriptorWrite {
+    void add(
+        const DescriptorSetLayout* layout, vk::DescriptorSet set, uint32_t binding,
+        const vk::DescriptorBufferInfo& bufferInfo);
+
+    void add(
+        const DescriptorSetLayout* layout, vk::DescriptorSet set, uint32_t binding,
+        const vk::DescriptorImageInfo& imageInfo);
+
+    void add(
+        const DescriptorSetLayout* layout, vk::DescriptorSet set, uint32_t binding,
+        const std::vector<vk::DescriptorImageInfo>& imageInfo);
+
+    std::vector<std::vector<vk::DescriptorImageInfo>> imageArrayInfo;
+    std::vector<vk::WriteDescriptorSet> writes;
+};
+
 namespace Descriptor {
     vk::DescriptorSetLayoutBinding makeBinding(
         uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages,
         uint32_t count = 1, const vk::Sampler* immutableSamplers = nullptr);
 
-    vk::WriteDescriptorSet makeWrite(
-        const DescriptorSetLayout* layout,
-        vk::DescriptorSet set, uint32_t binding, const vk::DescriptorBufferInfo& bufferInfo,
-        uint32_t arrayElement = 0);
-
-    vk::WriteDescriptorSet makeWrite(
-        const DescriptorSetLayout* layout,
-        vk::DescriptorSet set, uint32_t binding, const vk::DescriptorImageInfo& imageInfo,
-        uint32_t arrayElement = 0);
+    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<Image*>& images);
 }
 
 NAMESPACE_END(zvk)

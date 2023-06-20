@@ -198,6 +198,7 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 
 	mMemProperties = mPhysicalDevice.getMemoryProperties();
 	mDeviceProperties = mPhysicalDevice.getProperties();
+	mDeviceProperties2 = mPhysicalDevice.getProperties2();
 }
 
 NAMESPACE_END(zvk)

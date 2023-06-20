@@ -184,23 +184,19 @@ void PostProcPassFrag::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32
 }
 
 void PostProcPassFrag::initDescriptor(zvk::Image* depthNormal[2], zvk::Image* albedoMatIdx[2]) {
-	std::vector<vk::WriteDescriptorSet> updates;
+	zvk::DescriptorWrite update;
 
 	for (int i = 0; i < 2; i++) {
-		updates.push_back(
-			zvk::Descriptor::makeWrite(
-				mDescriptorSetLayout, mDescriptorSet[i], 0,
-				vk::DescriptorImageInfo(depthNormal[i]->sampler, depthNormal[i]->imageView, depthNormal[i]->layout)
-			)
+		update.add(
+			mDescriptorSetLayout, mDescriptorSet[i], 0,
+			vk::DescriptorImageInfo(depthNormal[i]->sampler, depthNormal[i]->view, depthNormal[i]->layout)
 		);
-		updates.push_back(
-			zvk::Descriptor::makeWrite(
-				mDescriptorSetLayout, mDescriptorSet[i], 1,
-				vk::DescriptorImageInfo(albedoMatIdx[i]->sampler, albedoMatIdx[i]->imageView, albedoMatIdx[i]->layout)
-			)
+		update.add(
+			mDescriptorSetLayout, mDescriptorSet[i], 1,
+			vk::DescriptorImageInfo(albedoMatIdx[i]->sampler, albedoMatIdx[i]->view, albedoMatIdx[i]->layout)
 		);
 	}
-	mCtx->device.updateDescriptorSets(updates, {});
+	mCtx->device.updateDescriptorSets(update.writes, {});
 }
 
 void PostProcPassFrag::createResource() {

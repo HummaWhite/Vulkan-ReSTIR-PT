@@ -70,13 +70,13 @@ void GBufferPass::render(
 }
 
 void GBufferPass::initDescriptor() {
-	auto updates = {
-		zvk::Descriptor::makeWrite(
-			mDrawParamDescLayout, mDrawParamDescSet, 0,
-			vk::DescriptorBufferInfo(mDrawParamBuffer->buffer, 0, mDrawParamBuffer->size)
-		)
-	};
-	mCtx->device.updateDescriptorSets(updates, {});
+	zvk::DescriptorWrite update;
+
+	update.add(
+		mDrawParamDescLayout, mDrawParamDescSet, 0,
+		vk::DescriptorBufferInfo(mDrawParamBuffer->buffer, 0, mDrawParamBuffer->size)
+	);
+	mCtx->device.updateDescriptorSets(update.writes, {});
 }
 
 void GBufferPass::swap() {
@@ -210,7 +210,7 @@ void GBufferPass::createRenderPass(vk::ImageLayout outLayout) {
 
 void GBufferPass::createFramebuffer(vk::Extent2D extent) {
 	for (int i = 0; i < 2; i++) {
-		auto attachments = { depthNormal[i]->imageView, albedoMatIdx[i]->imageView, mDepthStencil[i]->imageView };
+		auto attachments = { depthNormal[i]->view, albedoMatIdx[i]->view, mDepthStencil[i]->view };
 
 		auto createInfo = vk::FramebufferCreateInfo()
 			.setRenderPass(mRenderPass)

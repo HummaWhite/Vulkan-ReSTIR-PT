@@ -54,6 +54,7 @@ private:
 	vk::SurfaceKHR mSurface;
 	vk::PhysicalDeviceFeatures mDeviceFeatures;
 	vk::PhysicalDeviceProperties mDeviceProperties;
+	vk::PhysicalDeviceProperties2 mDeviceProperties2;
 	vk::PhysicalDeviceMemoryProperties mMemProperties;
 
 	QueueFamilies mQueueFamilies;
