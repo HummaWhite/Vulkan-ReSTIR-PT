@@ -28,7 +28,10 @@ public:
 
 class DescriptorPool : public BaseVkObject {
 public:
-    DescriptorPool(const Context* ctx, const std::vector<DescriptorSetLayout*>& layouts, uint32_t numCopies);
+    DescriptorPool(
+        const Context* ctx, const std::vector<DescriptorSetLayout*>& layouts, uint32_t numCopies,
+        vk::DescriptorPoolCreateFlags flags = vk::DescriptorPoolCreateFlags{ 0 });
+
     ~DescriptorPool() { destroy(); }
 
     void destroy() {

@@ -6,8 +6,9 @@
 
 NAMESPACE_BEGIN(zvk)
 
-Context::Context(const Instance* instance, const std::vector<const char*>& extensions) :
-	mInstance(instance) {
+Context::Context(const Instance* instance, const std::vector<const char*>& extensions, void* featureChain) :
+	mInstance(instance)
+{
 	std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 
 	auto [general, compute, transfer] = instance->queueFamilies();
@@ -55,13 +56,15 @@ Context::Context(const Instance* instance, const std::vector<const char*>& exten
 
 		queueCreateInfos.push_back(createInfo);
 	}
-	auto deviceFeatures = vk::PhysicalDeviceFeatures();
+
+	auto deviceFeatures2 = instance->physicalDevice().getFeatures2();
+	deviceFeatures2.setPNext(featureChain);
 
 	auto deviceCreateInfo = vk::DeviceCreateInfo()
 		.setQueueCreateInfos(queueCreateInfos)
-		.setPEnabledFeatures(&deviceFeatures)
 		.setPEnabledLayerNames(ValidationLayers)
-		.setPEnabledExtensionNames(extensions);
+		.setPEnabledExtensionNames(extensions)
+		.setPNext(&deviceFeatures2);
 
 	device = instance->physicalDevice().createDevice(deviceCreateInfo);
 

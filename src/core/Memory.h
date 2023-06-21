@@ -30,13 +30,17 @@ public:
 	Buffer(const Context* ctx) : BaseVkObject(ctx) {}
 	~Buffer() { destroy(); }
 
+	void destroy() {
+		mCtx->device.destroy(buffer);
+		mCtx->device.freeMemory(memory);
+	}
+
 	bool isHostVisible() const {
 		return hasFlagBit(properties, vk::MemoryPropertyFlagBits::eHostVisible);
 	}
 
-	void destroy() {
-		mCtx->device.destroy(buffer);
-		mCtx->device.freeMemory(memory);
+	vk::DeviceAddress address() const {
+		return mCtx->device.getBufferAddress({ buffer });
 	}
 
 	void mapMemory() {

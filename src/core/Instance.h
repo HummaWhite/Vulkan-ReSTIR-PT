@@ -24,13 +24,12 @@ struct QueueFamilies {
 
 class Instance {
 public:
-	Instance(const vk::ApplicationInfo& appInfo, GLFWwindow* window, const std::vector<const char*>& extensions);
+	Instance(
+		const vk::ApplicationInfo& appInfo, GLFWwindow* window,
+		const std::vector<const char*>& extensions, const void* featureChain = nullptr);
+
 	~Instance() { destroy(); }
 	void destroy();
-
-	static Instance create(const vk::ApplicationInfo& appInfo, GLFWwindow* window, const std::vector<const char*>& extensions) {
-		return Instance(appInfo, window, extensions);
-	}
 
 	vk::Instance instance() const { return mInstance; }
 	vk::PhysicalDevice physicalDevice() const { return mPhysicalDevice; }
@@ -54,7 +53,6 @@ private:
 	vk::SurfaceKHR mSurface;
 	vk::PhysicalDeviceFeatures mDeviceFeatures;
 	vk::PhysicalDeviceProperties mDeviceProperties;
-	vk::PhysicalDeviceProperties2 mDeviceProperties2;
 	vk::PhysicalDeviceMemoryProperties mMemProperties;
 
 	QueueFamilies mQueueFamilies;

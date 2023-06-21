@@ -17,8 +17,9 @@ DescriptorSetLayout::DescriptorSetLayout(
 }
 
 DescriptorPool::DescriptorPool(
-    const Context* ctx, const std::vector<DescriptorSetLayout*>& layouts, uint32_t numCopies) :
-    BaseVkObject(ctx)
+    const Context* ctx, const std::vector<DescriptorSetLayout*>& layouts, uint32_t numCopies,
+    vk::DescriptorPoolCreateFlags flags
+) : BaseVkObject(ctx)
 {
     std::map<vk::DescriptorType, uint32_t> typeCount;
 
@@ -39,6 +40,7 @@ DescriptorPool::DescriptorPool(
 
     auto createInfo = vk::DescriptorPoolCreateInfo()
         .setPoolSizes(sizes)
+        .setFlags(flags)
         .setMaxSets(layouts.size() * numCopies);
 
     pool = mCtx->device.createDescriptorPool(createInfo);

@@ -29,15 +29,21 @@ vk::DebugUtilsMessengerCreateInfoEXT zvkNormalDebugCreateInfo() {
 	return createInfo;
 }
 
-Instance::Instance(const vk::ApplicationInfo& appInfo, GLFWwindow* window, const std::vector<const char*>& extensions) {
+Instance::Instance(
+	const vk::ApplicationInfo& appInfo, GLFWwindow* window,
+	const std::vector<const char*>& extensions, const void* featureChain
+) {
 	queryExtensionsAndLayers();
-
 	auto debugInfo = zvkNormalDebugCreateInfo();
+
+	if (EnableValidationLayer) {
+		debugInfo.setPNext(featureChain);
+	}
 	auto instanceInfo = vk::InstanceCreateInfo()
 		.setPApplicationInfo(&appInfo)
 		.setPEnabledExtensionNames(mRequiredVkExtensions)
 		.setPEnabledLayerNames(ValidationLayers)
-		.setPNext(EnableValidationLayer ? &debugInfo : nullptr);
+		.setPNext(EnableValidationLayer ? &debugInfo : featureChain);
 
 	mInstance = vk::createInstance(instanceInfo);
 	mExtFunctions = ExtFunctions(mInstance);
@@ -173,12 +179,14 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 		throw std::runtime_error("No physical device found");
 	}
 	Log::bracketLine<0>(std::to_string(physicalDevices.size()) + " physical device(s) found");
+
 	for (const auto& device : physicalDevices) {
 		auto props = device.getProperties();
 		auto features = device.getFeatures();
 
 		Log::bracketLine<1>("Device " + std::to_string(props.deviceID) + ", " +
-			props.deviceName.data());
+			props.deviceName.data() + ", driver = " + std::to_string(props.driverVersion) +
+			", API = " + std::to_string(props.apiVersion));
 
 		auto queueFamilies = getQueueFamilies(device);
 
@@ -198,7 +206,6 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 
 	mMemProperties = mPhysicalDevice.getMemoryProperties();
 	mDeviceProperties = mPhysicalDevice.getProperties();
-	mDeviceProperties2 = mPhysicalDevice.getProperties2();
 }
 
 NAMESPACE_END(zvk)

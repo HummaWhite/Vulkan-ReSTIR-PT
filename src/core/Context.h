@@ -66,7 +66,7 @@ using CommandPoolSet = ObjectSet<vk::CommandPool, 4, QueueIdx>;
 class Context {
 public:
     Context() : mInstance(nullptr) {}
-    Context(const Instance* instance, const std::vector<const char*>& extensions);
+    Context(const Instance* instance, const std::vector<const char*>& extensions, void* featureChain = nullptr);
     ~Context() { destroy(); }
     void destroy();
 

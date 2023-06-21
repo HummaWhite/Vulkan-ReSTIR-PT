@@ -2,6 +2,8 @@
 #include "WindowInput.h"
 #include "shader/HostDevice.h"
 
+#include <sstream>
+
 const std::vector<const char*> InstanceExtensions{
 	//VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
 };
@@ -12,7 +14,8 @@ const std::vector<const char*> DeviceExtensions = {
 	VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
 	VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
 	VK_KHR_RAY_QUERY_EXTENSION_NAME,
-	//VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME
+	VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+	VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME
 };
 
 void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -55,9 +58,31 @@ void Renderer::initVulkan() {
 		.setEngineVersion(VK_MAKE_VERSION(1, 0, 0))
 		.setApiVersion(VK_API_VERSION_1_3);
 
+	auto descIndexing = vk::PhysicalDeviceDescriptorIndexingFeatures()
+		.setShaderSampledImageArrayNonUniformIndexing(true)
+		.setDescriptorBindingVariableDescriptorCount(true);
+
+	auto bufferDeviceAddress = vk::PhysicalDeviceBufferDeviceAddressFeatures()
+		.setBufferDeviceAddress(true)
+		.setPNext(&descIndexing);
+
+	auto rayQuery = vk::PhysicalDeviceRayQueryFeaturesKHR()
+		.setRayQuery(true)
+		.setPNext(&bufferDeviceAddress);
+
+	auto RTPipeline = vk::PhysicalDeviceRayTracingPipelineFeaturesKHR()
+		.setRayTracingPipeline(true)
+		.setPNext(&rayQuery);
+
+	auto accelStructure = vk::PhysicalDeviceAccelerationStructureFeaturesKHR()
+		.setAccelerationStructure(true)
+		.setPNext(&RTPipeline);
+
+	void* featureChain = &accelStructure;
+
 	try {
 		mInstance = new zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
-		mContext = new zvk::Context(mInstance, DeviceExtensions);
+		mContext = new zvk::Context(mInstance, DeviceExtensions, featureChain);
 		mSwapchain = new zvk::Swapchain(mContext, mWidth, mHeight, SWAPCHAIN_FORMAT, false);
 		mShaderManager = new zvk::ShaderManager(mContext->device);
 
@@ -98,7 +123,7 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::initScene() {
-	mScene.load("res/scene.xml");
+	mScene.load("res/sponza.xml");
 }
 
 void Renderer::createDeviceResource() {
@@ -170,7 +195,9 @@ void Renderer::createDescriptor() {
 	mCameraDescLayout = new zvk::DescriptorSetLayout(mContext, cameraBindings);
 	mResourceDescLayout = new zvk::DescriptorSetLayout(mContext, resourceBindings);
 
-	mDescriptorPool = new zvk::DescriptorPool(mContext, { mCameraDescLayout, mResourceDescLayout }, 1);
+	mDescriptorPool = new zvk::DescriptorPool(
+		mContext, { mCameraDescLayout, mResourceDescLayout }, 1, vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind
+	);
 
 	mCameraDescSet = mDescriptorPool->allocDescriptorSet(mCameraDescLayout->layout);
 	mResourceDescSet = mDescriptorPool->allocDescriptorSet(mResourceDescLayout->layout);
@@ -379,7 +406,7 @@ void Renderer::exec() {
 	glfwShowWindow(mMainWindow);
 
 	mRenderTimer.reset();
-	size_t frameCount = 0;
+	size_t frameCount = std::numeric_limits<size_t>::max();
 	
 	while (!glfwWindowShouldClose(mMainWindow)) {
 		double time = mRenderTimer.get();
@@ -387,15 +414,23 @@ void Renderer::exec() {
 
 		glfwPollEvents();
 
-		if (frameCount > 0) {
+		if (frameCount != std::numeric_limits<size_t>::max()) {
 			WindowInput::setDeltaTime(time - mLastTime);
 			WindowInput::processKeys();
+		}
+		else {
+			frameCount = 0;
 		}
 		loop();
 
 		if (FPSTime > 1000.0) {
 			double fps = frameCount / FPSTime * 1000.0;
-			glfwSetWindowTitle(mMainWindow, (mName + "  FPS: " + std::to_string(fps)).c_str());
+			double renderTime = 1000.0 / fps;
+
+			std::stringstream ss;
+			ss << mName << std::fixed << std::setprecision(2) << "  FPS: " << fps << ", " << renderTime << " ms";
+
+			glfwSetWindowTitle(mMainWindow,ss.str().c_str());
 			mFPSTimer.reset();
 			frameCount = 0;
 		}
