@@ -111,7 +111,7 @@ void Instance::setupDebugMessenger() {
 	}
 	auto createInfo = zvkNormalDebugCreateInfo();
 	//mVkDebugMessenger = mVkInstance.createDebugUtilsMessengerEXT(createInfo);
-	mDebugMessenger = mExtFunctions.createDebugUtilsMessenger(createInfo);
+	mDebugMessenger = mExtFunctions.createDebugUtilsMessengerEXT(createInfo);
 }
 
 void Instance::createSurface(GLFWwindow* window) {

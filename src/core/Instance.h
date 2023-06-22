@@ -38,6 +38,7 @@ public:
 	const vk::PhysicalDeviceFeatures& deviceFeatures() const { return mDeviceFeatures; }
 	const vk::PhysicalDeviceProperties& deviceProperties() const { return mDeviceProperties; }
 	const vk::PhysicalDeviceMemoryProperties& memProperties() const { return mMemProperties; }
+	const ExtFunctions& extFunctions() const { return mExtFunctions; }
 
 private:
 	void queryExtensionsAndLayers();

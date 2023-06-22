@@ -9,6 +9,8 @@ AccelerationStructure::AccelerationStructure(
     vk::BuildAccelerationStructureFlagsKHR flags
 ) : BaseVkObject(ctx), type(type)
 {
+    const auto& ext = mCtx->instance()->extFunctions();
+
     std::vector<vk::AccelerationStructureGeometryKHR> geometries;
     std::vector<uint32_t> maxPrimitiveCounts;
 
@@ -37,8 +39,8 @@ AccelerationStructure::AccelerationStructure(
         .setFlags(flags)
         .setGeometries(geometries);
 
-    auto buildSizeInfo = mCtx->device.getAccelerationStructureBuildSizesKHR(
-        vk::AccelerationStructureBuildTypeKHR::eDevice, buildGeometryInfo, maxPrimitiveCounts
+    auto buildSizeInfo = ext.getAccelerationStructureBuildSizesKHR(
+        mCtx->device, vk::AccelerationStructureBuildTypeKHR::eDevice, buildGeometryInfo, maxPrimitiveCounts
     );
 
     mBuffer = Memory::createBuffer(
@@ -52,12 +54,12 @@ AccelerationStructure::AccelerationStructure(
         .setSize(buildSizeInfo.accelerationStructureSize)
         .setType(type);
 
-    structure = mCtx->device.createAccelerationStructureKHR(createInfo);
+    structure = ext.createAccelerationStructureKHR(mCtx->device, createInfo);
 
     auto addressInfo = vk::AccelerationStructureDeviceAddressInfoKHR()
         .setAccelerationStructure(structure);
 
-    address = mCtx->device.getAccelerationStructureAddressKHR(addressInfo);
+    address = ext.getAccelerationStructureDeviceAddressKHR(mCtx->device, addressInfo);
 
     auto scratchBuffer = Memory::createBuffer(
         mCtx, buildSizeInfo.buildScratchSize,
@@ -65,12 +67,9 @@ AccelerationStructure::AccelerationStructure(
         vk::MemoryPropertyFlagBits::eDeviceLocal, vk::MemoryAllocateFlagBits::eDeviceAddress
     );
 
-    auto buildGeometryInfo = vk::AccelerationStructureBuildGeometryInfoKHR()
-        .setType(type)
-        .setFlags(flags)
+    buildGeometryInfo
         .setMode(vk::BuildAccelerationStructureModeKHR::eBuild)
         .setDstAccelerationStructure(structure)
-        .setGeometries(geometries)
         .setScratchData(scratchBuffer->address());
 
     std::vector<vk::AccelerationStructureBuildRangeInfoKHR> buildRangeInfos;
@@ -86,7 +85,7 @@ AccelerationStructure::AccelerationStructure(
     }
     auto cmd = Command::createOneTimeSubmit(mCtx, queueIdx);
 
-    cmd->cmd.buildAccelerationStructuresKHR(buildGeometryInfo, { buildRangeInfos.data() });
+    ext.cmdBuildAccelerationStructuresKHR(cmd->cmd, buildGeometryInfo, { buildRangeInfos.data() });
 
     cmd->oneTimeSubmit();
     delete cmd;

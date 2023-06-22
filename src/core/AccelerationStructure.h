@@ -30,7 +30,7 @@ public:
     ~AccelerationStructure() { destroy(); }
 
     void destroy() {
-        mCtx->device.destroyAccelerationStructureKHR(structure);
+        mCtx->instance()->extFunctions().destroyAccelerationStructureKHR(mCtx->device, structure);
         delete mBuffer;
     }
 
