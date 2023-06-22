@@ -179,6 +179,7 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 	numVertices = scene.resource.vertices().size();
 	numIndices = scene.resource.indices().size();
 	numMaterials = scene.resource.materials().size();
+	numTriangles = numIndices / 3;
 
 	vertices = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.resource.vertices().data(), zvk::sizeOf(scene.resource.vertices()),

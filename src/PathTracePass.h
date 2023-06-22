@@ -18,6 +18,7 @@
 #include "core/ShaderManager.h"
 #include "core/Memory.h"
 #include "core/Descriptor.h"
+#include "core/AccelerationStructure.h"
 #include "Scene.h"
 
 #include "util/Error.h"
@@ -25,7 +26,7 @@
 
 class PathTracePass : public zvk::BaseVkObject {
 public:
-	PathTracePass(const zvk::Context* ctx, const DeviceScene* scene);
+	PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, zvk::QueueIdx queueIdx);
 
 	~PathTracePass() { destroy(); }
 	void destroy();
@@ -39,15 +40,16 @@ public:
 	void swap();
 
 private:
-	void createBottomLevelStructure(const DeviceScene* scene);
-	void createTopLevelStructure();
+	void createBottomLevelAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx);
+	void createTopLevelAccelerationStructure();
 	void createDescriptor();
-
-public:
 
 private:
 	vk::Pipeline mPipeline;
 	vk::PipelineLayout mPipelineLayout;
+
+	zvk::AccelerationStructure* mBLAS;
+	zvk::AccelerationStructure* mTLAS;
 
 	zvk::DescriptorPool* mDescriptorPool = nullptr;
 	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;

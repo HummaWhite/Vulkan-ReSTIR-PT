@@ -1,12 +1,17 @@
 #include "PathTracePass.h"
 #include "shader/HostDevice.h"
 
-PathTracePass::PathTracePass(const zvk::Context* ctx, const DeviceScene* scene) : zvk::BaseVkObject(ctx) {
-	createBottomLevelStructure(scene);
-	createTopLevelStructure();
+PathTracePass::PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, zvk::QueueIdx queueIdx) :
+	zvk::BaseVkObject(ctx)
+{
+	createBottomLevelAccelerationStructure(scene, queueIdx);
+	createTopLevelAccelerationStructure();
 }
 
 void PathTracePass::destroy() {
+	delete mBLAS;
+	delete mTLAS;
+
 	delete mDescriptorSetLayout;
 	delete mDescriptorPool;
 
@@ -26,18 +31,24 @@ void PathTracePass::swap() {
 void PathTracePass::createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
 }
 
-void PathTracePass::createBottomLevelStructure(const DeviceScene* scene) {
-	auto triangleData = vk::AccelerationStructureGeometryTrianglesDataKHR()
-		.setVertexFormat(vk::Format::eR32G32B32Sfloat);
+void PathTracePass::createBottomLevelAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx) {
+	zvk::AccelerationStructureTriangleData triangleData {
+		.vertexAddress = scene->vertices->address(),
+		.indexAddress = scene->indices->address(),
+		.vertexStride = sizeof(MeshVertex),
+		.vertexFormat = vk::Format::eR32G32B32Sfloat,
+		.indexType = vk::IndexType::eUint32,
+		.numVertices = scene->numVertices,
+		.numIndices = scene->numIndices
+	};
 
-	auto geometryData = vk::AccelerationStructureGeometryDataKHR();
-
-	auto geometry = vk::AccelerationStructureGeometryKHR()
-		.setFlags(vk::GeometryFlagBitsKHR::eOpaque)
-		.setGeometryType(vk::GeometryTypeKHR::eTriangles);
+	mBLAS = new zvk::AccelerationStructure(
+		mCtx, zvk::QueueIdx::GeneralUse, { triangleData },
+		vk::AccelerationStructureTypeKHR::eBottomLevel, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
+	);
 }
 
-void PathTracePass::createTopLevelStructure() {
+void PathTracePass::createTopLevelAccelerationStructure() {
 }
 
 void PathTracePass::createDescriptor() {

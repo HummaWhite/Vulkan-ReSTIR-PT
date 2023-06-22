@@ -54,6 +54,7 @@ public:
 	uint32_t numVertices = 0;
 	uint32_t numIndices = 0;
 	uint32_t numMaterials = 0;
+	uint32_t numTriangles = 0;
 
 	zvk::DescriptorSetLayout* cameraDescLayout = nullptr;
 	zvk::DescriptorSetLayout* resourceDescLayout = nullptr;

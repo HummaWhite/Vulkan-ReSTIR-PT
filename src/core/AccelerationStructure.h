@@ -10,9 +10,23 @@
 
 NAMESPACE_BEGIN(zvk)
 
+struct AccelerationStructureTriangleData {
+    vk::DeviceAddress vertexAddress;
+    vk::DeviceAddress indexAddress;
+    vk::DeviceSize vertexStride;
+    vk::Format vertexFormat;
+    vk::IndexType indexType;
+    uint32_t numVertices;
+    uint32_t numIndices;
+};
+
 class AccelerationStructure : public BaseVkObject {
 public:
-    AccelerationStructure(const Context* ctx, const zvk::Buffer* vertexBuffer, const zvk::Buffer* indexBuffer, QueueIdx queueIdx) : BaseVkObject(ctx) {}
+    AccelerationStructure(
+        const Context* ctx, QueueIdx queueIdx,
+        const std::vector<AccelerationStructureTriangleData>& triangleMeshes, vk::AccelerationStructureTypeKHR type,
+        vk::BuildAccelerationStructureFlagsKHR flags);
+
     ~AccelerationStructure() { destroy(); }
 
     void destroy() {
@@ -20,14 +34,9 @@ public:
         delete mBuffer;
     }
 
-
-private:
-    void createBottomLevelStructure();
-    void createTopLevelStructure();
-    void createDescriptor();
-
 public:
     vk::AccelerationStructureKHR structure;
+    vk::AccelerationStructureTypeKHR type;
     vk::DeviceAddress address;
 
 private:

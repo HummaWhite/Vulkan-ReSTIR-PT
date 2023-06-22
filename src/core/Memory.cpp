@@ -243,7 +243,8 @@ namespace Memory {
 
 	vk::Buffer createBuffer(
 		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
-		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::DeviceMemory& memory
+		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::DeviceMemory& memory,
+		vk::MemoryAllocateFlags allocFlags
 	) {
 		auto bufferCreateInfo = vk::BufferCreateInfo()
 			.setSize(size)
@@ -258,9 +259,13 @@ namespace Memory {
 			throw std::runtime_error("Required memory type not found");
 		}
 
+		auto allocFlagInfo = vk::MemoryAllocateFlagsInfo()
+			.setFlags(allocFlags);
+
 		auto allocInfo = vk::MemoryAllocateInfo()
 			.setAllocationSize(requirements.size)
-			.setMemoryTypeIndex(memTypeIndex.value());
+			.setMemoryTypeIndex(memTypeIndex.value())
+			.setPNext((allocFlags == vk::MemoryAllocateFlags{ 0 }) ? nullptr : &allocFlagInfo);
 
 		memory = device.allocateMemory(allocInfo);
 		device.bindBufferMemory(buffer, memory, 0);
@@ -269,7 +274,8 @@ namespace Memory {
 	}
 
 	Buffer* createBuffer(
-		const Context* ctx, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties
+		const Context* ctx, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
+		vk::MemoryAllocateFlags allocFlags
 	) {
 		auto buffer = new Buffer(ctx);
 
@@ -286,9 +292,13 @@ namespace Memory {
 			throw std::runtime_error("Required memory type not found");
 		}
 
+		auto allocFlagInfo = vk::MemoryAllocateFlagsInfo()
+			.setFlags(allocFlags);
+
 		auto allocInfo = vk::MemoryAllocateInfo()
 			.setAllocationSize(requirements.size)
-			.setMemoryTypeIndex(memTypeIndex.value());
+			.setMemoryTypeIndex(memTypeIndex.value())
+			.setPNext((allocFlags == vk::MemoryAllocateFlags{ 0 }) ? nullptr : &allocFlagInfo);
 
 		buffer->memory = ctx->device.allocateMemory(allocInfo);
 		ctx->device.bindBufferMemory(buffer->buffer, buffer->memory, 0);
@@ -351,7 +361,8 @@ namespace Memory {
 	vk::Buffer createBufferFromHost(
 		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
 		vk::CommandPool cmdPool, vk::Queue queue,
-		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory
+		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory,
+		vk::MemoryAllocateFlags allocFlags
 	) {
 		vk::DeviceMemory transferMem;
 		auto transferBuf = createTransferBuffer(device, memProps, size, transferMem);
@@ -363,7 +374,7 @@ namespace Memory {
 		auto localBuf = createBuffer(
 			device, memProps, size,
 			vk::BufferUsageFlagBits::eTransferDst | usage, vk::MemoryPropertyFlagBits::eDeviceLocal,
-			memory
+			memory, allocFlags
 		);
 
 		copyBuffer(device, cmdPool, queue, localBuf, transferBuf, size);
@@ -373,7 +384,8 @@ namespace Memory {
 
 	Buffer* createBufferFromHostCmd(
 		vk::CommandBuffer cmd, const Context* ctx,
-		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
+		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage,
+		vk::MemoryAllocateFlags allocFlags
 	) {
 		auto transferBuf = createTransferBuffer(ctx, size);
 		transferBuf->mapMemory();
@@ -382,7 +394,7 @@ namespace Memory {
 
 		auto localBuf = createBuffer(
 			ctx, size,
-			vk::BufferUsageFlagBits::eTransferDst | usage, vk::MemoryPropertyFlagBits::eDeviceLocal
+			vk::BufferUsageFlagBits::eTransferDst | usage, vk::MemoryPropertyFlagBits::eDeviceLocal, allocFlags
 		);
 		copyBufferCmd(cmd, localBuf->buffer, transferBuf->buffer, size);
 
@@ -399,7 +411,7 @@ namespace Memory {
 
 	Buffer* createBufferFromHost(
 		const Context* ctx, QueueIdx queueIdx,
-		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage
+		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryAllocateFlags allocFlags
 	) {
 		auto transferBuf = createTransferBuffer(ctx, size);
 		transferBuf->mapMemory();
@@ -408,7 +420,7 @@ namespace Memory {
 
 		auto localBuf = createBuffer(
 			ctx, size,
-			vk::BufferUsageFlagBits::eTransferDst | usage, vk::MemoryPropertyFlagBits::eDeviceLocal
+			vk::BufferUsageFlagBits::eTransferDst | usage, vk::MemoryPropertyFlagBits::eDeviceLocal, allocFlags
 		);
 
 		copyBuffer(

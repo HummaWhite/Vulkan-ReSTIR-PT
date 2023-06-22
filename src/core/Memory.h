@@ -130,11 +130,12 @@ namespace Memory {
 
 	vk::Buffer createBuffer(
 		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
-		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::DeviceMemory& memory);
+		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::DeviceMemory& memory,
+		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 });
 
 	Buffer* createBuffer(
-		const Context* ctx,
-		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+		const Context* ctx, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
+		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 });
 
 	void copyBufferCmd(vk::CommandBuffer cmd, vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size);
 
@@ -151,15 +152,18 @@ namespace Memory {
 	vk::Buffer createBufferFromHost(
 		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
 		vk::CommandPool cmdPool, vk::Queue queue,
-		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory);
+		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory,
+		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 });
 
 	Buffer* createBufferFromHostCmd(
 		vk::CommandBuffer cmd, const Context* ctx,
-		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
+		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage,
+		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 });
 
 	Buffer* createBufferFromHost(
 		const Context* ctx, QueueIdx queueIdx,
-		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage);
+		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage,
+		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 });
 
 	vk::Image createImage2D(
 		const Context* ctx, vk::Extent2D extent, vk::Format format,
