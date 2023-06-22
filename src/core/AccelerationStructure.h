@@ -10,7 +10,7 @@
 
 NAMESPACE_BEGIN(zvk)
 
-struct AccelerationStructureTriangleData {
+struct AccelerationStructureTriangleMesh {
     vk::DeviceAddress vertexAddress;
     vk::DeviceAddress indexAddress;
     vk::DeviceSize vertexStride;
@@ -24,7 +24,12 @@ class AccelerationStructure : public BaseVkObject {
 public:
     AccelerationStructure(
         const Context* ctx, QueueIdx queueIdx,
-        const std::vector<AccelerationStructureTriangleData>& triangleMeshes, vk::AccelerationStructureTypeKHR type,
+        const std::vector<AccelerationStructureTriangleMesh>& triangleMeshes,
+        vk::BuildAccelerationStructureFlagsKHR flags);
+
+    AccelerationStructure(
+        const Context* ctx, QueueIdx queueIdx,
+        const AccelerationStructure* BLAS, vk::TransformMatrixKHR transform,
         vk::BuildAccelerationStructureFlagsKHR flags);
 
     ~AccelerationStructure() { destroy(); }
@@ -33,6 +38,14 @@ public:
         mCtx->instance()->extFunctions().destroyAccelerationStructureKHR(mCtx->device, structure);
         delete mBuffer;
     }
+
+private:
+    void buildAccelerationStructure(
+        const vk::ArrayProxy<const vk::AccelerationStructureGeometryKHR>& geometries,
+        const vk::ArrayProxy<const uint32_t>& maxPrimitiveCounts,
+        const vk::ArrayProxy<const vk::AccelerationStructureBuildRangeInfoKHR>& buildRangeInfos,
+        vk::BuildAccelerationStructureFlagsKHR flags,
+        QueueIdx queueIdx);
 
 public:
     vk::AccelerationStructureKHR structure;

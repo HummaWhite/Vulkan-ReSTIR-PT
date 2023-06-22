@@ -40,8 +40,8 @@ public:
 	void swap();
 
 private:
-	void createBottomLevelAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx);
-	void createTopLevelAccelerationStructure();
+	void createAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx);
+	void createShaderBindingTable();
 	void createDescriptor();
 
 private:
