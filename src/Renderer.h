@@ -46,8 +46,6 @@ private:
 
 	void initScene();
 
-	void createDeviceResource();
-	void createCameraUniform();
 	void createDescriptor();
 	void initImageLayout();
 	void initDescriptor();
@@ -93,19 +91,7 @@ private:
 	vk::Fence mInFlightFence;
 
 	Scene mScene;
-
-	zvk::Buffer* mVertexBuffer = nullptr;
-	zvk::Buffer* mIndexBuffer = nullptr;
-	zvk::Buffer* mMaterialBuffer = nullptr;
-	zvk::Buffer* mMaterialIdxBuffer = nullptr;
-	zvk::Buffer* mCameraBuffer = nullptr;
-	std::vector<zvk::Image*> mTextures;
-
-	zvk::DescriptorPool* mDescriptorPool = nullptr;
-	zvk::DescriptorSetLayout* mCameraDescLayout = nullptr;
-	zvk::DescriptorSetLayout* mResourceDescLayout = nullptr;
-	vk::DescriptorSet mCameraDescSet;
-	vk::DescriptorSet mResourceDescSet;
+	DeviceScene* mDeviceScene = nullptr;
 
 	GBufferPass* mGBufferPass = nullptr;
 	PostProcPassFrag* mPostProcPass = nullptr;

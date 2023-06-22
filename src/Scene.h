@@ -7,8 +7,10 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "core/HostImage.h"
-#include "Camera.h"
+#include "core/Memory.h"
+#include "core/Descriptor.h""
 #include "Model.h"
+#include "Camera.h"
 #include "Resource.h"
 
 class Scene
@@ -25,6 +27,39 @@ private:
 	std::pair<ModelInstance*, std::optional<glm::vec3>> loadModelInstance(const pugi::xml_node& modelNode);
 
 public:
-	Resource resource;
 	Camera camera;
+	Resource resource;
+};
+
+class DeviceScene : public zvk::BaseVkObject {
+public:
+	DeviceScene(const zvk::Context* ctx, const Scene& scene, zvk::QueueIdx queueIdx);
+	~DeviceScene() { destroy(); }
+	void destroy();
+
+	void initDescriptor();
+
+private:
+	void createBufferAndImages(const Scene& scene, zvk::QueueIdx queueIdx);
+	void createDescriptor();
+
+public:
+	zvk::Buffer* vertices = nullptr;
+	zvk::Buffer* indices = nullptr;
+	zvk::Buffer* materials = nullptr;
+	zvk::Buffer* materialIds = nullptr;
+	zvk::Buffer* camera = nullptr;
+	std::vector<zvk::Image*> textures;
+
+	uint32_t numVertices = 0;
+	uint32_t numIndices = 0;
+	uint32_t numMaterials = 0;
+
+	zvk::DescriptorSetLayout* cameraDescLayout = nullptr;
+	zvk::DescriptorSetLayout* resourceDescLayout = nullptr;
+	vk::DescriptorSet cameraDescSet;
+	vk::DescriptorSet resourceDescSet;
+
+private:
+	zvk::DescriptorPool* mDescriptorPool = nullptr;
 };

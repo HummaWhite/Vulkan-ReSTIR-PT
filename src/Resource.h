@@ -29,6 +29,7 @@ public:
 	zvk::HostImage* getImageByPath(const File::path& path);
 	std::optional<uint32_t> addImage(const File::path& path, zvk::HostImageType type);
 	std::vector<zvk::HostImage*>& imagePool() { return mImagePool; }
+	const std::vector<zvk::HostImage*>& imagePool() const { return mImagePool; }
 
 	ModelInstance* openModelInstance(
 		const File::path& path,

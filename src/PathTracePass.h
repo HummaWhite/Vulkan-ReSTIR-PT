@@ -25,8 +25,8 @@
 
 class PathTracePass : public zvk::BaseVkObject {
 public:
+	PathTracePass(const zvk::Context* ctx, const DeviceScene* scene);
 
-	PathTracePass(const zvk::Context* ctx, const zvk::Swapchain* swapchain);
 	~PathTracePass() { destroy(); }
 	void destroy();
 
@@ -35,20 +35,20 @@ public:
 	void createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx);
-	void updateDescriptor(zvk::Image* inImage[2], const zvk::Swapchain* swapchain);
+	void updateDescriptor();
 	void swap();
 
 private:
-	void createDescriptor(uint32_t nSwapchainImages);
+	void createBottomLevelStructure(const DeviceScene* scene);
+	void createTopLevelStructure();
+	void createDescriptor();
 
 public:
-	uint32_t toneMapping = 0;
 
 private:
 	vk::Pipeline mPipeline;
 	vk::PipelineLayout mPipelineLayout;
 
-	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;
 	zvk::DescriptorPool* mDescriptorPool = nullptr;
-	std::vector<vk::DescriptorSet> mDescriptorSet[2];
+	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;
 };

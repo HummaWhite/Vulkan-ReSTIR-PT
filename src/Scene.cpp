@@ -140,3 +140,117 @@ void Scene::load(const File::path& path) {
 	Log::bracketLine<2>("Model instances = " + std::to_string(resource.modelInstances().size()));
 	Log::bracketLine<2>("Materials = " + std::to_string(resource.materials().size()));
 }
+
+DeviceScene::DeviceScene(const zvk::Context* ctx, const Scene& scene, zvk::QueueIdx queueIdx) :
+	BaseVkObject(ctx)
+{
+	createBufferAndImages(scene, queueIdx);
+	createDescriptor();
+}
+
+void DeviceScene::destroy() {
+	delete cameraDescLayout;
+	delete resourceDescLayout;
+	delete mDescriptorPool;
+
+	delete camera;
+	delete vertices;
+	delete indices;
+	delete materials;
+	delete materialIds;
+
+	for (auto& image : textures) {
+		delete image;
+	}
+}
+
+void DeviceScene::initDescriptor() {
+	zvk::DescriptorWrite update;
+
+	update.add(cameraDescLayout, cameraDescSet, 0, vk::DescriptorBufferInfo(camera->buffer, 0, camera->size));
+	update.add(resourceDescLayout, resourceDescSet, 0, zvk::Descriptor::makeImageDescriptorArray(textures));
+	update.add(resourceDescLayout, resourceDescSet, 1, vk::DescriptorBufferInfo(materials->buffer, 0, materials->size));
+	update.add(resourceDescLayout, resourceDescSet, 2, vk::DescriptorBufferInfo(materialIds->buffer, 0, materialIds->size));
+
+	mCtx->device.updateDescriptorSets(update.writes, {});
+}
+
+void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueIdx) {
+	numVertices = scene.resource.vertices().size();
+	numIndices = scene.resource.indices().size();
+	numMaterials = scene.resource.materials().size();
+
+	vertices = zvk::Memory::createBufferFromHost(
+		mCtx, queueIdx, scene.resource.vertices().data(), zvk::sizeOf(scene.resource.vertices()),
+		vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer
+	);
+
+	indices = zvk::Memory::createBufferFromHost(
+		mCtx, queueIdx, scene.resource.indices().data(), zvk::sizeOf(scene.resource.indices()),
+		vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer
+	);
+
+	materials = zvk::Memory::createBufferFromHost(
+		mCtx, queueIdx, scene.resource.materials().data(), zvk::sizeOf(scene.resource.materials()),
+		vk::BufferUsageFlagBits::eStorageBuffer
+	);
+
+	materialIds = zvk::Memory::createBufferFromHost(
+		mCtx, queueIdx, scene.resource.materialIndices().data(), zvk::sizeOf(scene.resource.materialIndices()),
+		vk::BufferUsageFlagBits::eStorageBuffer
+	);
+
+	camera = zvk::Memory::createBuffer(
+		mCtx, sizeof(Camera),
+		vk::BufferUsageFlagBits::eUniformBuffer,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+	);
+	camera->mapMemory();
+
+	auto images = scene.resource.imagePool();
+
+	auto extImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, 4);
+	images.push_back(extImage);
+
+	for (auto hostImage : images) {
+		auto image = zvk::Memory::createTexture2D(
+			mCtx, queueIdx, hostImage,
+			vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+			vk::ImageLayout::eShaderReadOnlyOptimal, vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+		image->createSampler(vk::Filter::eLinear);
+		textures.push_back(image);
+	}
+	delete extImage;
+}
+
+void DeviceScene::createDescriptor() {
+	std::vector<vk::DescriptorSetLayoutBinding> cameraBindings = {
+		zvk::Descriptor::makeBinding(
+			0, vk::DescriptorType::eUniformBuffer,
+			vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute
+		)
+	};
+
+	std::vector<vk::DescriptorSetLayoutBinding> resourceBindings = {
+		zvk::Descriptor::makeBinding(
+			0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, textures.size()
+		),
+		zvk::Descriptor::makeBinding(
+			1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment
+		),
+		zvk::Descriptor::makeBinding(
+			2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex
+		),
+	};
+
+	cameraDescLayout = new zvk::DescriptorSetLayout(mCtx, cameraBindings);
+	resourceDescLayout = new zvk::DescriptorSetLayout(mCtx, resourceBindings);
+
+	mDescriptorPool = new zvk::DescriptorPool(
+		mCtx, { cameraDescLayout, resourceDescLayout }, 1, vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind
+	);
+
+	cameraDescSet = mDescriptorPool->allocDescriptorSet(cameraDescLayout->layout);
+	resourceDescSet = mDescriptorPool->allocDescriptorSet(resourceDescLayout->layout);
+}

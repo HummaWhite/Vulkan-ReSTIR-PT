@@ -12,13 +12,19 @@ NAMESPACE_BEGIN(zvk)
 
 class AccelerationStructure : public BaseVkObject {
 public:
-    AccelerationStructure(const Context* ctx, QueueIdx queueIdx) : BaseVkObject(ctx) {}
+    AccelerationStructure(const Context* ctx, const zvk::Buffer* vertexBuffer, const zvk::Buffer* indexBuffer, QueueIdx queueIdx) : BaseVkObject(ctx) {}
     ~AccelerationStructure() { destroy(); }
 
     void destroy() {
         mCtx->device.destroyAccelerationStructureKHR(structure);
         delete mBuffer;
     }
+
+
+private:
+    void createBottomLevelStructure();
+    void createTopLevelStructure();
+    void createDescriptor();
 
 public:
     vk::AccelerationStructureKHR structure;
