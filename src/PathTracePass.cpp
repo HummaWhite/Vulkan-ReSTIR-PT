@@ -41,6 +41,10 @@ void PathTracePass::createAccelerationStructure(const DeviceScene* scene, zvk::Q
 		.numIndices = scene->numIndices
 	};
 
+	mBLAS = new zvk::AccelerationStructure(
+		mCtx, zvk::QueueIdx::GeneralUse, triangleData, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
+	);
+
 	vk::TransformMatrixKHR transform;
 	auto& m = transform.matrix;
 
@@ -48,12 +52,16 @@ void PathTracePass::createAccelerationStructure(const DeviceScene* scene, zvk::Q
 	m[1][0] = 0.f, m[1][1] = 1.f, m[1][2] = 0.f, m[1][3] = 0.f;
 	m[2][0] = 0.f, m[2][1] = 0.f, m[2][2] = 1.f, m[2][3] = 0.f;
 
-	mBLAS = new zvk::AccelerationStructure(
-		mCtx, zvk::QueueIdx::GeneralUse, { triangleData }, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
-	);
+	auto instance = vk::AccelerationStructureInstanceKHR()
+		.setTransform(transform)
+		.setInstanceCustomIndex(0)
+		.setMask(0xff)
+		.setInstanceShaderBindingTableRecordOffset(0)
+		.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)
+		.setAccelerationStructureReference(mBLAS->address);
 
 	mTLAS = new zvk::AccelerationStructure(
-		mCtx, zvk::QueueIdx::GeneralUse, mBLAS, transform, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
+		mCtx, zvk::QueueIdx::GeneralUse, instance, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
 	);
 }
 

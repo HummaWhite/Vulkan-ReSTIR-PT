@@ -51,7 +51,7 @@ void Swapchain::changeImageLayout(
 ) {
 	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
 	changeImageLayoutCmd(cmd->cmd, imageIdx, newLayout, srcStage, srcAccessMask, dstStage, dstAccessMask);
-	cmd->oneTimeSubmit();
+	cmd->submitAndWait();
 	delete cmd;
 }
 
@@ -87,7 +87,7 @@ void Swapchain::initImageLayoutAll(
 ) {
 	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
 	initImageLayoutAllCmd(cmd->cmd, layout, srcStage, srcAccessMask, dstStage, dstAccessMask);
-	cmd->oneTimeSubmit();
+	cmd->submitAndWait();
 	delete cmd;
 }
 

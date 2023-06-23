@@ -2,7 +2,7 @@
 
 NAMESPACE_BEGIN(zvk)
 
-void CommandBuffer::oneTimeSubmit() {
+void CommandBuffer::submitAndWait() {
     cmd.end();
     auto submitInfo = vk::SubmitInfo().setCommandBuffers(cmd);
     mCtx->queues[mQueueIdx].queue.submit(submitInfo);

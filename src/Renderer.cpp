@@ -148,7 +148,7 @@ void Renderer::initImageLayout() {
 		{}, {}, barriers
 	);
 
-	cmd->oneTimeSubmit();
+	cmd->submitAndWait();
 	delete cmd;
 }
 

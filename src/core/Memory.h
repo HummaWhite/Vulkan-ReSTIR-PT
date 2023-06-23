@@ -16,12 +16,22 @@
 NAMESPACE_BEGIN(zvk)
 
 template<typename T>
-uint32_t sizeOf(const std::vector<T>& array) {
+size_t sizeOf(const std::vector<T>& array) {
 	return array.size() * sizeof(T);
 }
 
 template<typename T, size_t N>
-uint32_t sizeOf(const std::array<T, N>& array) {
+size_t sizeOf(const std::array<T, N>& array) {
+	return array.size() * sizeof(T);
+}
+
+template<typename T>
+size_t sizeOf(const vk::ArrayProxy<const T>& array) {
+	return array.size() * sizeof(T);
+}
+
+template<typename T>
+size_t sizeOf(const vk::ArrayProxyNoTemporaries<const T>& array) {
 	return array.size() * sizeof(T);
 }
 
@@ -164,6 +174,15 @@ namespace Memory {
 		const Context* ctx, QueueIdx queueIdx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage,
 		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 });
+
+	template<typename T>
+	Buffer* createBufferFromHost(
+		const Context* ctx, QueueIdx queueIdx,
+		const vk::ArrayProxy<const T>& data, vk::BufferUsageFlags usage,
+		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 }
+	) {
+		return createBufferFromHost(ctx, queuIdx, data.data(), sizeof(T) * data.size(), usage, allocFlags);
+	}
 
 	vk::Image createImage2D(
 		const Context* ctx, vk::Extent2D extent, vk::Format format,

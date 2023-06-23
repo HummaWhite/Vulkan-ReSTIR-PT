@@ -108,7 +108,7 @@ void Image::changeLayout(
 ) {
 	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
 	changeLayoutCmd(cmd->cmd, newLayout, srcStage, srcAccessMask, dstStage, dstAccessMask);
-	cmd->oneTimeSubmit();
+	cmd->submitAndWait();
 	delete cmd;
 }
 
@@ -215,7 +215,7 @@ void Image::createMipmap() {
 
 	// TODO: generate mipmap level data
 
-	cmd->oneTimeSubmit();
+	cmd->submitAndWait();
 }
 
 namespace Memory {
@@ -587,7 +587,7 @@ namespace Memory {
 	void copyBufferToImage(const Context* ctx, QueueIdx queueIdx, const Buffer* buffer, Image* image) {
 		auto cmd = Command::createOneTimeSubmit(ctx, queueIdx);
 		copyBufferToImageCmd(cmd->cmd, buffer, image);
-		cmd->oneTimeSubmit();
+		cmd->submitAndWait();
 	}
 }
 

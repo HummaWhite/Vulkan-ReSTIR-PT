@@ -5,14 +5,13 @@ NAMESPACE_BEGIN(zvk)
 
 AccelerationStructure::AccelerationStructure(
     const Context* ctx, QueueIdx queueIdx,
-    const std::vector<AccelerationStructureTriangleMesh>& triangleMeshes,
+    const vk::ArrayProxy<const AccelerationStructureTriangleMesh>& triangleMeshes,
     vk::BuildAccelerationStructureFlagsKHR flags
 ) : BaseVkObject(ctx), type(vk::AccelerationStructureTypeKHR::eBottomLevel)
 {
     const auto& ext = mCtx->instance()->extFunctions();
 
     std::vector<vk::AccelerationStructureGeometryKHR> geometries;
-    std::vector<uint32_t> maxPrimitiveCounts;
     std::vector<vk::AccelerationStructureBuildRangeInfoKHR> buildRangeInfos;
 
     for (const auto& triangle : triangleMeshes) {
@@ -38,33 +37,25 @@ AccelerationStructure::AccelerationStructure(
             .setTransformOffset(0);
 
         geometries.push_back(geometry);
-        maxPrimitiveCounts.push_back(triangle.numIndices / 3);
         buildRangeInfos.push_back(buildRange);
     }
 
-    buildAccelerationStructure(geometries, maxPrimitiveCounts, buildRangeInfos, flags, queueIdx);
+    buildAccelerationStructure(queueIdx, geometries, buildRangeInfos, flags);
 }
 
 AccelerationStructure::AccelerationStructure(
     const Context* ctx, QueueIdx queueIdx,
-    const AccelerationStructure* BLAS, vk::TransformMatrixKHR transform,
+    const vk::ArrayProxy<const vk::AccelerationStructureInstanceKHR>& instances,
     vk::BuildAccelerationStructureFlagsKHR flags
 ) : BaseVkObject(ctx), type(vk::AccelerationStructureTypeKHR::eTopLevel)
 {
     const auto& ext = mCtx->instance()->extFunctions();
 
-    auto instance = vk::AccelerationStructureInstanceKHR()
-        .setTransform(transform)
-        .setInstanceCustomIndex(0)
-        .setMask(0xff)
-        .setInstanceShaderBindingTableRecordOffset(0)
-        .setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)
-        .setAccelerationStructureReference(BLAS->address);
-
-    auto instanceBuffer = Memory::createBuffer(
-        mCtx, sizeof(vk::AccelerationStructureInstanceKHR),
+    auto instanceBuffer = Memory::createBufferFromHost(
+        mCtx, queueIdx, instances,
         vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress,
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+        vk::MemoryAllocateFlagBits::eDeviceAddress
+    );
 
     auto instanceData = vk::AccelerationStructureGeometryInstancesDataKHR()
         .setArrayOfPointers(false)
@@ -78,24 +69,21 @@ AccelerationStructure::AccelerationStructure(
         .setFlags(vk::GeometryFlagBitsKHR::eOpaque)
         .setGeometry(geometryData);
 
-    uint32_t maxPrimitiveCount = 1;
-
     auto buildRangeInfo = vk::AccelerationStructureBuildRangeInfoKHR()
         .setPrimitiveCount(1)
         .setPrimitiveOffset(0)
         .setFirstVertex(0)
         .setTransformOffset(0);
 
-    buildAccelerationStructure(geometry, 1, buildRangeInfo, flags, queueIdx);
+    buildAccelerationStructure(queueIdx, geometry, buildRangeInfo, flags);
     delete instanceBuffer;
 }
 
 void AccelerationStructure::buildAccelerationStructure(
+    QueueIdx queueIdx,
     const vk::ArrayProxy<const vk::AccelerationStructureGeometryKHR>& geometries,
-    const vk::ArrayProxy<const uint32_t>& maxPrimitiveCounts,
     const vk::ArrayProxy<const vk::AccelerationStructureBuildRangeInfoKHR>& buildRangeInfos,
-    vk::BuildAccelerationStructureFlagsKHR flags,
-    QueueIdx queueIdx
+    vk::BuildAccelerationStructureFlagsKHR flags
 ) {
     const auto& ext = mCtx->instance()->extFunctions();
 
@@ -103,6 +91,12 @@ void AccelerationStructure::buildAccelerationStructure(
         .setType(type)
         .setFlags(flags)
         .setGeometries(geometries);
+
+    std::vector<uint32_t> maxPrimitiveCounts;
+
+    for (const auto& buildRange : buildRangeInfos) {
+        maxPrimitiveCounts.push_back(buildRange.primitiveCount);
+    }
 
     auto buildSizeInfo = ext.getAccelerationStructureBuildSizesKHR(
         mCtx->device, vk::AccelerationStructureBuildTypeKHR::eDevice, buildGeometryInfo, maxPrimitiveCounts
@@ -138,8 +132,8 @@ void AccelerationStructure::buildAccelerationStructure(
         .setScratchData(scratchBuffer->address());
 
     auto cmd = Command::createOneTimeSubmit(mCtx, queueIdx);
-    ext.cmdBuildAccelerationStructuresKHR(cmd->cmd, buildGeometryInfo, { buildRangeInfos.data() });
-    cmd->oneTimeSubmit();
+    ext.cmdBuildAccelerationStructuresKHR(cmd->cmd, buildGeometryInfo, buildRangeInfos.data());
+    cmd->submitAndWait();
 
     delete cmd;
     delete scratchBuffer;

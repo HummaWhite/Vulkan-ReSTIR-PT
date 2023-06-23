@@ -24,12 +24,12 @@ class AccelerationStructure : public BaseVkObject {
 public:
     AccelerationStructure(
         const Context* ctx, QueueIdx queueIdx,
-        const std::vector<AccelerationStructureTriangleMesh>& triangleMeshes,
+        const vk::ArrayProxy<const AccelerationStructureTriangleMesh>& triangleMeshes,
         vk::BuildAccelerationStructureFlagsKHR flags);
 
     AccelerationStructure(
         const Context* ctx, QueueIdx queueIdx,
-        const AccelerationStructure* BLAS, vk::TransformMatrixKHR transform,
+        const vk::ArrayProxy<const vk::AccelerationStructureInstanceKHR>& instances,
         vk::BuildAccelerationStructureFlagsKHR flags);
 
     ~AccelerationStructure() { destroy(); }
@@ -41,11 +41,10 @@ public:
 
 private:
     void buildAccelerationStructure(
+        QueueIdx queueIdx,
         const vk::ArrayProxy<const vk::AccelerationStructureGeometryKHR>& geometries,
-        const vk::ArrayProxy<const uint32_t>& maxPrimitiveCounts,
         const vk::ArrayProxy<const vk::AccelerationStructureBuildRangeInfoKHR>& buildRangeInfos,
-        vk::BuildAccelerationStructureFlagsKHR flags,
-        QueueIdx queueIdx);
+        vk::BuildAccelerationStructureFlagsKHR flags);
 
 public:
     vk::AccelerationStructureKHR structure;
