@@ -21,7 +21,7 @@ void PostProcPassComp::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32
 	PushConstant pushConstant{ frameSize, toneMapping };
 	cmd.pushConstants(mPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(PushConstant), &pushConstant);
 
-	cmd.dispatch(ceilDiv(extent.width, PostProcBlockSizeX), ceilDiv(extent.height, PostProcBlockSizeY), 1);
+	cmd.dispatch(zvk::ceilDiv(extent.width, PostProcBlockSizeX), zvk::ceilDiv(extent.height, PostProcBlockSizeY), 1);
 }
 
 void PostProcPassComp::updateDescriptor(zvk::Image* inImage[2], const zvk::Swapchain* swapchain) {
@@ -66,7 +66,7 @@ void PostProcPassComp::createPipeline(zvk::ShaderManager* shaderManager, const s
 	auto result = mCtx->device.createComputePipeline({}, pipelineCreateInfo);
 
 	if (result.result != vk::Result::eSuccess) {
-		throw std::runtime_error("Failed to create pipeline");
+		throw std::runtime_error("Failed to create PostProcPassComp pipeline");
 	}
 	mPipeline = result.value;
 }

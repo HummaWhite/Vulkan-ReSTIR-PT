@@ -35,9 +35,6 @@ public:
 	vk::PhysicalDevice physicalDevice() const { return mPhysicalDevice; }
 	vk::SurfaceKHR surface() const { return mSurface; }
 	QueueFamilies queueFamilies() const { return mQueueFamilies; }
-	const vk::PhysicalDeviceFeatures& deviceFeatures() const { return mDeviceFeatures; }
-	const vk::PhysicalDeviceProperties& deviceProperties() const { return mDeviceProperties; }
-	const vk::PhysicalDeviceMemoryProperties& memProperties() const { return mMemProperties; }
 	const ExtFunctions& extFunctions() const { return mExtFunctions; }
 
 private:
@@ -48,13 +45,16 @@ private:
 	bool hasDeviceExtensions(vk::PhysicalDevice device, const std::vector<const char*>& extensions);
 	void selectPhysicalDevice(const std::vector<const char*>& extensions);
 
+public:
+	vk::PhysicalDeviceFeatures deviceFeatures;
+	vk::PhysicalDeviceProperties deviceProperties;
+	vk::PhysicalDeviceMemoryProperties memProperties;
+	vk::PhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties;
+
 private:
 	vk::Instance mInstance;
-	vk::PhysicalDevice mPhysicalDevice;
 	vk::SurfaceKHR mSurface;
-	vk::PhysicalDeviceFeatures mDeviceFeatures;
-	vk::PhysicalDeviceProperties mDeviceProperties;
-	vk::PhysicalDeviceMemoryProperties mMemProperties;
+	vk::PhysicalDevice mPhysicalDevice;
 
 	QueueFamilies mQueueFamilies;
 

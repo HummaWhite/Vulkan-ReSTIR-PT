@@ -26,15 +26,20 @@ ExtFunctions::ExtFunctions(vk::Instance instance) :
 	loadFunction(instance, "vkGetAccelerationStructureDeviceAddressKHR", fpGetAccelerationStructureDeviceAddressKHR);
 	loadFunction(instance, "vkCmdBuildAccelerationStructuresKHR", fpCmdBuildAccelerationStructuresKHR);
 	loadFunction(instance, "vkDestroyAccelerationStructureKHR", fpDestroyAccelerationStructureKHR);
+	loadFunction(instance, "vkGetRayTracingShaderGroupHandlesKHR", fpGetRayTracingShaderGroupHandlesKHR);
 }
 
 vk::DebugUtilsMessengerEXT ExtFunctions::createDebugUtilsMessengerEXT(const vk::DebugUtilsMessengerCreateInfoEXT& createInfo) const {
 	VkDebugUtilsMessengerEXT messenger;
 
-	fpCreateDebugUtilsMessengerEXT(
+	auto result = fpCreateDebugUtilsMessengerEXT(
 		mInstance,
 		reinterpret_cast<const VkDebugUtilsMessengerCreateInfoEXT*>(&createInfo),
 		nullptr, &messenger);
+
+	if (result != VK_SUCCESS) {
+		vk::throwResultException(vk::Result(result), "zvk::VkExt vkCreateDebugUtilsMessengerEXT failed");
+	}
 	return vk::DebugUtilsMessengerEXT(messenger);
 }
 
@@ -73,7 +78,7 @@ vk::AccelerationStructureKHR ExtFunctions::createAccelerationStructureKHR(
 	);
 
 	if (result != VK_SUCCESS) {
-		vk::throwResultException(vk::Result(result), "createAccelerationStructureKHR failed");
+		vk::throwResultException(vk::Result(result), "zvk::VkExt vkCreateAccelerationStructureKHR failed");
 	}
 	return structure;
 }
@@ -99,6 +104,30 @@ void ExtFunctions::cmdBuildAccelerationStructuresKHR(
 		reinterpret_cast<const VkAccelerationStructureBuildGeometryInfoKHR*>(infos.data()),
 		reinterpret_cast<const VkAccelerationStructureBuildRangeInfoKHR* const*>(pBuildRangeInfos.data())
 	);
+}
+
+std::vector<uint8_t> ExtFunctions::getRayTracingShaderGroupHandlesKHR(
+	vk::Device device,
+	vk::Pipeline pipeline,
+	uint32_t firstGroup,
+	uint32_t groupCount,
+	size_t dataSize
+) const {
+	std::vector<uint8_t> handles(dataSize);
+
+	auto result = fpGetRayTracingShaderGroupHandlesKHR(
+		device,
+		pipeline,
+		firstGroup,
+		groupCount,
+		dataSize,
+		handles.data()
+	);
+
+	if (result != VK_SUCCESS) {
+		vk::throwResultException(vk::Result(result), "zvk::VkExt vkGetRayTracingShaderGroupHandlesKHR failed");
+	}
+	return handles;
 }
 
 void ExtFunctions::destroyAccelerationStructureKHR(

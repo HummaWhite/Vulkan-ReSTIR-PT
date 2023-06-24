@@ -29,14 +29,14 @@ struct Reservoir {
 
 class PathTracePass : public zvk::BaseVkObject {
 public:
-	PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx);
+	PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, uint32_t maxDepth, zvk::QueueIdx queueIdx);
 
 	~PathTracePass() { destroy(); }
 	void destroy();
 
 	vk::DescriptorSetLayout descSetLayout() const { return mDescriptorSetLayout->layout; }
 
-	void createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts);
+	void createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx);
 	void updateDescriptor();
@@ -61,6 +61,12 @@ private:
 
 	zvk::AccelerationStructure* mBLAS = nullptr;
 	zvk::AccelerationStructure* mTLAS = nullptr;
+	zvk::Buffer* mShaderBindingTable = nullptr;
+
+	vk::StridedDeviceAddressRegionKHR mRayGenRegion;
+	vk::StridedDeviceAddressRegionKHR mMissRegion;
+	vk::StridedDeviceAddressRegionKHR mHitRegion;
+	vk::StridedDeviceAddressRegionKHR mCallRegion;
 
 	zvk::DescriptorPool* mDescriptorPool = nullptr;
 	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;

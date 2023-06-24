@@ -8,9 +8,15 @@
   #define ENUM_END(x) }
   #define SWAPCHAIN_FORMAT vk::Format::eB8G8R8A8Unorm
 
-  inline uint32_t ceilDiv(uint32_t x, uint32_t y) {
-      return (x + y - 1) / y;
-  }
+namespace zvk {
+    inline uint32_t ceilDiv(uint32_t x, uint32_t y) {
+        return (x + y - 1) / y;
+    }
+
+    inline uint32_t ceil(uint32_t x, uint32_t y) {
+        return ceilDiv(x, y) * y;
+    }
+}
 
 #else
   #define ENUM_BEGIN(x) uint

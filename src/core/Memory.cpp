@@ -144,8 +144,8 @@ vk::SamplerCreateInfo Image::samplerCreateInfo(vk::Filter filter, bool anisotrop
 		.setAddressModeV(vk::SamplerAddressMode::eRepeat)
 		.setAddressModeW(vk::SamplerAddressMode::eRepeat)
 		.setUnnormalizedCoordinates(false)
-		.setAnisotropyEnable(mCtx->instance()->deviceFeatures().samplerAnisotropy & anisotropyIfPossible)
-		.setMaxAnisotropy(mCtx->instance()->deviceProperties().limits.maxSamplerAnisotropy)
+		.setAnisotropyEnable(mCtx->instance()->deviceFeatures.samplerAnisotropy & anisotropyIfPossible)
+		.setMaxAnisotropy(mCtx->instance()->deviceProperties.limits.maxSamplerAnisotropy)
 		.setCompareEnable(false)
 		.setMipmapMode(vk::SamplerMipmapMode::eLinear)
 		.setMipLodBias(0)
@@ -238,7 +238,7 @@ namespace Memory {
 		vk::MemoryRequirements requirements,
 		vk::MemoryPropertyFlags requestedProps
 	) {
-		return findMemoryType(ctx->instance()->memProperties(), requirements, requestedProps);
+		return findMemoryType(ctx->instance()->memProperties, requirements, requestedProps);
 	}
 
 	vk::Buffer createBuffer(
@@ -286,7 +286,7 @@ namespace Memory {
 
 		buffer->buffer = ctx->device.createBuffer(bufferCreateInfo);
 		auto requirements = ctx->device.getBufferMemoryRequirements(buffer->buffer);
-		auto memTypeIndex = findMemoryType(ctx->instance()->memProperties(), requirements, properties);
+		auto memTypeIndex = findMemoryType(ctx->instance()->memProperties, requirements, properties);
 
 		if (!memTypeIndex) {
 			throw std::runtime_error("Required memory type not found");

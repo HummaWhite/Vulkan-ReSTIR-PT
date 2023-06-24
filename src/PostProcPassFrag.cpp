@@ -153,7 +153,7 @@ void PostProcPassFrag::createPipeline(
 	auto result = mCtx->device.createGraphicsPipeline({}, pipelineCreateInfo);
 
 	if (result.result != vk::Result::eSuccess) {
-		throw std::runtime_error("Failed to create pipeline");
+		throw std::runtime_error("Failed to create PostProcPassFrag pipeline");
 	}
 	mPipeline = result.value;
 }

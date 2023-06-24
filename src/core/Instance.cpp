@@ -204,8 +204,8 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 	}
 	Log::bracketLine<1>("Selected device: " + std::string(mPhysicalDevice.getProperties().deviceName.data()));
 
-	mMemProperties = mPhysicalDevice.getMemoryProperties();
-	mDeviceProperties = mPhysicalDevice.getProperties();
+	memProperties = mPhysicalDevice.getMemoryProperties();
+	deviceProperties = mPhysicalDevice.getProperties();
 }
 
 NAMESPACE_END(zvk)

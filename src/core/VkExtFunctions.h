@@ -25,6 +25,10 @@ public:
 		vk::Device device,
 		const vk::AccelerationStructureCreateInfoKHR& createInfo) const;
 
+	void destroyAccelerationStructureKHR(
+		vk::Device device,
+		vk::AccelerationStructureKHR accelerationStructure) const;
+
 	vk::DeviceAddress getAccelerationStructureDeviceAddressKHR(
 		vk::Device device,
 		const vk::AccelerationStructureDeviceAddressInfoKHR& info) const;
@@ -34,9 +38,12 @@ public:
 		vk::ArrayProxy<const vk::AccelerationStructureBuildGeometryInfoKHR> const& infos,
 		vk::ArrayProxy<const vk::AccelerationStructureBuildRangeInfoKHR* const> const& pBuildRangeInfos) const;
 
-	void destroyAccelerationStructureKHR(
+	std::vector<uint8_t> getRayTracingShaderGroupHandlesKHR(
 		vk::Device device,
-		vk::AccelerationStructureKHR accelerationStructure) const;
+		vk::Pipeline pipeline,
+		uint32_t firstGroup,
+		uint32_t groupCount,
+		size_t dataSize) const;
 
 private:
 	vk::Instance mInstance;
@@ -48,6 +55,7 @@ private:
 	PFN_vkDestroyAccelerationStructureKHR fpDestroyAccelerationStructureKHR = nullptr;
 	PFN_vkGetAccelerationStructureDeviceAddressKHR fpGetAccelerationStructureDeviceAddressKHR = nullptr;
 	PFN_vkCmdBuildAccelerationStructuresKHR fpCmdBuildAccelerationStructuresKHR = nullptr;
+	PFN_vkGetRayTracingShaderGroupHandlesKHR fpGetRayTracingShaderGroupHandlesKHR = nullptr;
 };
 
 NAMESPACE_END(zvk)

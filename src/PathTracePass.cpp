@@ -1,7 +1,7 @@
 #include "PathTracePass.h"
 #include "shader/HostDevice.h"
 
-PathTracePass::PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :
+PathTracePass::PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, uint32_t maxDepth, zvk::QueueIdx queueIdx) :
 	zvk::BaseVkObject(ctx)
 {
 	createAccelerationStructure(scene, queueIdx);
@@ -11,6 +11,7 @@ PathTracePass::PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, 
 void PathTracePass::destroy() {
 	destroyFrame();
 
+	delete mShaderBindingTable;
 	delete mBLAS;
 	delete mTLAS;
 
@@ -55,7 +56,57 @@ void PathTracePass::recreateFrame(vk::Extent2D extent) {
 	createFrame(extent);
 }
 
-void PathTracePass::createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+void PathTracePass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+	enum Stages : uint32_t {
+		RayGen,
+		Miss,
+		ClosestHit,
+		NumStages
+	};
+
+	std::array<vk::PipelineShaderStageCreateInfo, NumStages> stages;
+	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
+
+	stages[RayGen] = zvk::ShaderManager::shaderStageCreateInfo(
+		shaderManager->createShaderModule("shaders/rayTrace.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
+	);
+	stages[Miss] = zvk::ShaderManager::shaderStageCreateInfo(
+		shaderManager->createShaderModule("shaders/rayTrace.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
+	);
+	stages[ClosestHit] = zvk::ShaderManager::shaderStageCreateInfo(
+		shaderManager->createShaderModule("shaders/rayTrace.rchit.spv"), vk::ShaderStageFlagBits::eClosestHitKHR
+	);
+
+	groups.push_back(
+		vk::RayTracingShaderGroupCreateInfoKHR(vk::RayTracingShaderGroupTypeKHR::eGeneral)
+			.setGeneralShader(RayGen)
+	);
+	groups.push_back(
+		vk::RayTracingShaderGroupCreateInfoKHR(vk::RayTracingShaderGroupTypeKHR::eGeneral)
+			.setGeneralShader(Miss)
+	);
+	groups.push_back(
+		vk::RayTracingShaderGroupCreateInfoKHR(vk::RayTracingShaderGroupTypeKHR::eTrianglesHitGroup)
+			.setClosestHitShader(ClosestHit)
+	);
+
+	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
+		.setSetLayouts(descLayouts);
+
+	mPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
+
+	auto pipelineCreateInfo = vk::RayTracingPipelineCreateInfoKHR()
+		.setLayout(mPipelineLayout)
+		.setStages(stages)
+		.setGroups(groups)
+		.setMaxPipelineRayRecursionDepth(maxDepth);
+
+	auto result = mCtx->device.createRayTracingPipelineKHR({}, {}, pipelineCreateInfo);
+
+	if (result.result != vk::Result::eSuccess) {
+		throw std::runtime_error("Failed to create RayTracingPass pipeline");
+	}
+	mPipeline = result.value;
 }
 
 void PathTracePass::createAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx) {
@@ -111,6 +162,66 @@ void PathTracePass::createFrame(vk::Extent2D extent) {
 }
 
 void PathTracePass::createShaderBindingTable() {
+	const auto& ext = mCtx->instance()->extFunctions();
+	const auto& pipelineProps = mCtx->instance()->rayTracingPipelineProperties;
+
+	uint32_t numMiss = 1;
+	uint32_t numHit = 1;
+	uint32_t numHandles = 1 + numMiss + numHit;
+	uint32_t handleSize = pipelineProps.shaderGroupHandleSize;
+
+	uint32_t alignedHandleSize = zvk::ceil(pipelineProps.shaderGroupHandleSize, pipelineProps.shaderGroupHandleAlignment);
+	uint32_t baseAlignment = pipelineProps.shaderGroupBaseAlignment;
+
+	mRayGenRegion.stride = zvk::ceil(alignedHandleSize, baseAlignment);
+	mRayGenRegion.size = mRayGenRegion.stride;
+
+	mMissRegion.stride = alignedHandleSize;
+	mMissRegion.size = zvk::ceil(numMiss * alignedHandleSize, baseAlignment);
+
+	mHitRegion.stride = alignedHandleSize;
+	mHitRegion.size = zvk::ceil(numHit * alignedHandleSize, baseAlignment);
+
+	uint32_t dataSize = numHandles * handleSize;
+	auto handles = ext.getRayTracingShaderGroupHandlesKHR(mCtx->device, mPipeline, 0, numHandles, dataSize);
+
+	vk::DeviceSize SBTSize = mRayGenRegion.size + mMissRegion.size + mHitRegion.size + mCallRegion.size;
+
+	mShaderBindingTable = zvk::Memory::createBuffer(
+		mCtx, SBTSize,
+		vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eShaderBindingTableKHR,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		vk::MemoryAllocateFlagBits::eDeviceAddress
+	);
+	mShaderBindingTable->mapMemory();
+
+	vk::DeviceAddress SBTAddress = mShaderBindingTable->address();
+	mRayGenRegion.deviceAddress = SBTAddress;
+	mMissRegion.deviceAddress = SBTAddress + mRayGenRegion.size;
+	mHitRegion.deviceAddress = SBTAddress + mRayGenRegion.size + mMissRegion.size;
+
+	auto getHandle = [&](uint32_t i) { return handles.data() + i * handleSize; };
+
+	auto pSBTBuffer = reinterpret_cast<uint8_t*>(mShaderBindingTable->data);
+	uint8_t* pData = nullptr;
+	uint32_t handleIdx = 0;
+
+	pData = pSBTBuffer;
+	memcpy(pData, getHandle(handleIdx++), handleSize);
+
+	pData = pSBTBuffer + mRayGenRegion.size;
+	for (uint32_t i = 0; i < numMiss; i++) {
+		memcpy(pData, getHandle(handleIdx++), handleSize);
+		pData += mMissRegion.stride;
+	}
+
+	pData = pSBTBuffer + mRayGenRegion.size + mMissRegion.size;
+	for (uint32_t i = 0; i < numHit; i++) {
+		memcpy(pData, getHandle(handleIdx++), handleSize);
+		pData += mHitRegion.stride;
+	}
+
+	mShaderBindingTable->unmapMemory();
 }
 
 void PathTracePass::createDescriptor() {
