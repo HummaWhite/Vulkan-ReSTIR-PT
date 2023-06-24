@@ -64,6 +64,10 @@ struct DescriptorWrite {
         const DescriptorSetLayout* layout, vk::DescriptorSet set, uint32_t binding,
         const std::vector<vk::DescriptorImageInfo>& imageInfo);
 
+    void add(
+        const DescriptorSetLayout* layout, vk::DescriptorSet set, uint32_t binding,
+        const vk::WriteDescriptorSetAccelerationStructureKHR& accel);
+
     std::vector<std::vector<vk::DescriptorImageInfo>> imageArrayInfo;
     std::vector<vk::WriteDescriptorSet> writes;
 };

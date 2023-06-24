@@ -24,9 +24,12 @@
 #include "util/Error.h"
 #include "util/Timer.h"
 
+struct Reservoir {
+};
+
 class PathTracePass : public zvk::BaseVkObject {
 public:
-	PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, zvk::QueueIdx queueIdx);
+	PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx);
 
 	~PathTracePass() { destroy(); }
 	void destroy();
@@ -38,19 +41,28 @@ public:
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx);
 	void updateDescriptor();
 	void swap();
+	void recreateFrame(vk::Extent2D extent);
 
 private:
 	void createAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx);
+	void createFrame(vk::Extent2D extent);
 	void createShaderBindingTable();
 	void createDescriptor();
+
+	void destroyFrame();
+
+public:
+	zvk::Image* colorOutput[2] = { nullptr };
+	zvk::Buffer* reservoir[2] = { nullptr };
 
 private:
 	vk::Pipeline mPipeline;
 	vk::PipelineLayout mPipelineLayout;
 
-	zvk::AccelerationStructure* mBLAS;
-	zvk::AccelerationStructure* mTLAS;
+	zvk::AccelerationStructure* mBLAS = nullptr;
+	zvk::AccelerationStructure* mTLAS = nullptr;
 
 	zvk::DescriptorPool* mDescriptorPool = nullptr;
 	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;
+	vk::DescriptorSet mDescriptorSet[2];
 };

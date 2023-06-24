@@ -74,6 +74,13 @@ void DescriptorWrite::add(
     );
 }
 
+void DescriptorWrite::add(
+    const DescriptorSetLayout* layout, vk::DescriptorSet set, uint32_t binding,
+    const vk::WriteDescriptorSetAccelerationStructureKHR& accelInfo
+) {
+    writes.push_back({ set, binding, 0, 1, layout->types.at(binding), nullptr, nullptr, nullptr, &accelInfo });
+}
+
 namespace Descriptor {
     vk::DescriptorSetLayoutBinding makeBinding(
         uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages,

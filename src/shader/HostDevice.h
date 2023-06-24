@@ -29,5 +29,6 @@ const int CameraDescSet = 0;
 const int ResourceDescSet = 1;
 const int GBufferDrawParamDescSet = 2;
 const int SwapchainStorageDescSet = 3;
+const int RayTracingDescSet = 4;
 
 #endif
