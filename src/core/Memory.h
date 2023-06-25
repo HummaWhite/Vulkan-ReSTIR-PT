@@ -181,7 +181,7 @@ namespace Memory {
 		const vk::ArrayProxy<const T>& data, vk::BufferUsageFlags usage,
 		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 }
 	) {
-		return createBufferFromHost(ctx, queuIdx, data.data(), sizeof(T) * data.size(), usage, allocFlags);
+		return createBufferFromHost(ctx, queueIdx, data.data(), sizeof(T) * data.size(), usage, allocFlags);
 	}
 
 	vk::Image createImage2D(

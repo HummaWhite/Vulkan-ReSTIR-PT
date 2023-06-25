@@ -21,7 +21,7 @@
 #include "core/Descriptor.h"
 #include "Scene.h"
 #include "GBufferPass.h"
-#include "PostProcPassComp.h"
+#include "PathTracePass.h"
 #include "PostProcPassFrag.h"
 
 #include "util/Error.h"
@@ -94,5 +94,6 @@ private:
 	DeviceScene* mDeviceScene = nullptr;
 
 	GBufferPass* mGBufferPass = nullptr;
+	PathTracePass* mPathTracePass = nullptr;
 	PostProcPassFrag* mPostProcPass = nullptr;
 };

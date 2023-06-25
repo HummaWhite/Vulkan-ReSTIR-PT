@@ -89,9 +89,11 @@ void Renderer::initVulkan() {
 		initScene();
 		mScene.camera.setFilmSize({ mWidth, mHeight });
 
-		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent(), mScene.resource);
-		mPostProcPass = new PostProcPassFrag(mContext, mSwapchain);
 		mDeviceScene = new DeviceScene(mContext, mScene, zvk::QueueIdx::GeneralUse);
+
+		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent(), mScene.resource);
+		mPathTracePass = new PathTracePass(mContext, mDeviceScene, mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
+		mPostProcPass = new PostProcPassFrag(mContext, mSwapchain);
 
 		createDescriptor();
 
@@ -112,10 +114,10 @@ void Renderer::initVulkan() {
 void Renderer::createPipeline() {
 	std::vector<vk::DescriptorSetLayout> descLayouts = {
 		mDeviceScene->cameraDescLayout->layout, mDeviceScene->resourceDescLayout->layout,
-		mGBufferPass->descSetLayout(), mPostProcPass->descSetLayout()
+		mGBufferPass->descSetLayout(), mPostProcPass->descSetLayout(), mPathTracePass->descSetLayout()
 	};
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager, descLayouts);
-	//mPostProcPass->createPipeline(mShaderManager, descLayouts);
+	mPathTracePass->createPipeline(mShaderManager, 1, descLayouts);
 	mPostProcPass->createPipeline(mShaderManager, mSwapchain->extent(), descLayouts);
 }
 
@@ -155,6 +157,7 @@ void Renderer::initImageLayout() {
 void Renderer::initDescriptor() {
 	mDeviceScene->initDescriptor();
 	mGBufferPass->initDescriptor();
+	mPathTracePass->initDescriptor();
 	mPostProcPass->initDescriptor(mGBufferPass->depthNormal, mGBufferPass->albedoMatIdx);
 }
 
@@ -182,6 +185,9 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			mDeviceScene->cameraDescSet, mDeviceScene->resourceDescSet,
 			mDeviceScene->vertices->buffer, mDeviceScene->indices->buffer, 0, mScene.resource.meshInstances().size()
 		);
+
+		//
+
 		mPostProcPass->render(cmd, mSwapchain->extent(), imageIdx);
 	}
 	cmd.end();
@@ -266,6 +272,7 @@ void Renderer::recreateFrame() {
 	delete mSwapchain;
 	mSwapchain = new zvk::Swapchain(mContext, width, height, SWAPCHAIN_FORMAT, false);
 	mGBufferPass->recreateFrame(mSwapchain->extent());
+	mPathTracePass->recreateFrame(mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
 	mPostProcPass->recreateFrame(mSwapchain);
 }
 
@@ -274,6 +281,7 @@ void Renderer::cleanupVulkan() {
 
 	delete mDeviceScene;
 	delete mGBufferPass;
+	delete mPathTracePass;
 	delete mPostProcPass;
 
 	mContext->device.destroyFence(mInFlightFence);

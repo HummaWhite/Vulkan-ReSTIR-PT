@@ -1,11 +1,12 @@
 #include "PathTracePass.h"
 #include "shader/HostDevice.h"
 
-PathTracePass::PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, uint32_t maxDepth, zvk::QueueIdx queueIdx) :
+PathTracePass::PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :
 	zvk::BaseVkObject(ctx)
 {
 	createAccelerationStructure(scene, queueIdx);
-	createFrame(extent);
+	createFrame(extent, queueIdx);
+	createDescriptor();
 }
 
 void PathTracePass::destroy() {
@@ -25,7 +26,7 @@ void PathTracePass::destroy() {
 void PathTracePass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx) {
 }
 
-void PathTracePass::updateDescriptor() {
+void PathTracePass::initDescriptor() {
 	zvk::DescriptorWrite update;
 
 	for (int i = 0; i < 2; i++) {
@@ -51,9 +52,9 @@ void PathTracePass::swap() {
 	std::swap(mDescriptorSet[0], mDescriptorSet[1]);
 }
 
-void PathTracePass::recreateFrame(vk::Extent2D extent) {
+void PathTracePass::recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 	destroyFrame();
-	createFrame(extent);
+	createFrame(extent, queueIdx);
 }
 
 void PathTracePass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
@@ -101,7 +102,7 @@ void PathTracePass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t m
 		.setGroups(groups)
 		.setMaxPipelineRayRecursionDepth(maxDepth);
 
-	auto result = mCtx->device.createRayTracingPipelineKHR({}, {}, pipelineCreateInfo);
+	auto result = mCtx->instance()->extFunctions().createRayTracingPipelineKHR(mCtx->device, {}, {}, pipelineCreateInfo);
 
 	if (result.result != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to create RayTracingPass pipeline");
@@ -144,7 +145,9 @@ void PathTracePass::createAccelerationStructure(const DeviceScene* scene, zvk::Q
 	);
 }
 
-void PathTracePass::createFrame(vk::Extent2D extent) {
+void PathTracePass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
+	auto cmd = zvk::Command::createOneTimeSubmit(mCtx, queueIdx);
+
 	for (int i = 0; i < 2; i++) {
 		colorOutput[i] = zvk::Memory::createImage2D(
 			mCtx, extent, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal,
@@ -152,13 +155,24 @@ void PathTracePass::createFrame(vk::Extent2D extent) {
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 		colorOutput[i]->createSampler(vk::Filter::eLinear);
-		colorOutput[i]->changeLayout(vk::ImageLayout::eGeneral);
+
+		auto barrier = colorOutput[i]->getBarrier(
+			vk::ImageLayout::eGeneral,
+			vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite
+		);
+
+		cmd->cmd.pipelineBarrier(
+			vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eRayTracingShaderKHR,
+			vk::DependencyFlags{ 0 }, {}, {}, barrier
+		);
 
 		reservoir[i] = zvk::Memory::createBuffer(
 			mCtx, sizeof(Reservoir) * extent.width * extent.height, vk::BufferUsageFlagBits::eStorageBuffer,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 	}
+	cmd->submitAndWait();
+	delete cmd;
 }
 
 void PathTracePass::createShaderBindingTable() {

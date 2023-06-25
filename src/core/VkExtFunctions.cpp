@@ -27,6 +27,7 @@ ExtFunctions::ExtFunctions(vk::Instance instance) :
 	loadFunction(instance, "vkCmdBuildAccelerationStructuresKHR", fpCmdBuildAccelerationStructuresKHR);
 	loadFunction(instance, "vkDestroyAccelerationStructureKHR", fpDestroyAccelerationStructureKHR);
 	loadFunction(instance, "vkGetRayTracingShaderGroupHandlesKHR", fpGetRayTracingShaderGroupHandlesKHR);
+	loadFunction(instance, "vkCreateRayTracingPipelinesKHR", fpCreateRayTracingPipelinesKHR);
 }
 
 vk::DebugUtilsMessengerEXT ExtFunctions::createDebugUtilsMessengerEXT(const vk::DebugUtilsMessengerCreateInfoEXT& createInfo) const {
@@ -53,7 +54,9 @@ vk::AccelerationStructureBuildSizesInfoKHR ExtFunctions::getAccelerationStructur
 	const vk::AccelerationStructureBuildGeometryInfoKHR& buildInfo,
 	vk::ArrayProxy<const uint32_t> const& maxPrimitiveCounts
 ) const {
-	VkAccelerationStructureBuildSizesInfoKHR buildSize;
+	VkAccelerationStructureBuildSizesInfoKHR buildSize {
+		VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR
+	};
 
 	fpGetAccelerationStructureBuildSizesKHR(
 		device,
@@ -128,6 +131,27 @@ std::vector<uint8_t> ExtFunctions::getRayTracingShaderGroupHandlesKHR(
 		vk::throwResultException(vk::Result(result), "zvk::VkExt vkGetRayTracingShaderGroupHandlesKHR failed");
 	}
 	return handles;
+}
+
+vk::ResultValue<vk::Pipeline> ExtFunctions::createRayTracingPipelineKHR(
+	vk::Device device,
+	vk::DeferredOperationKHR deferredOperation,
+	vk::PipelineCache pipelineCache,
+	const vk::RayTracingPipelineCreateInfoKHR& createInfo
+) const {
+	vk::Pipeline pipeline;
+
+	auto result = fpCreateRayTracingPipelinesKHR(
+		device,
+		deferredOperation,
+		pipelineCache,
+		1,
+		reinterpret_cast<const VkRayTracingPipelineCreateInfoKHR*>(&createInfo),
+		nullptr,
+		reinterpret_cast<VkPipeline*>(&pipeline)
+	);
+
+	return { vk::Result(result), pipeline };
 }
 
 void ExtFunctions::destroyAccelerationStructureKHR(

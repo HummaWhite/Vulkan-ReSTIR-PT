@@ -3,7 +3,7 @@
 
 GBufferPass::GBufferPass(
 	const zvk::Context* ctx, vk::Extent2D extent, const Resource& resource, vk::ImageLayout outLayout
-) : zvk::BaseVkObject(ctx), mMultiDrawSupport(ctx->instance()->deviceFeatures().multiDrawIndirect)
+) : zvk::BaseVkObject(ctx), mMultiDrawSupport(ctx->instance()->deviceFeatures.multiDrawIndirect)
 {
 	createDrawBuffer(resource);
 	createResource(extent);

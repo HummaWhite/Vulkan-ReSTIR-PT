@@ -181,14 +181,19 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 	numMaterials = scene.resource.materials().size();
 	numTriangles = numIndices / 3;
 
+	auto RTBuildFlags = vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR |
+		vk::BufferUsageFlagBits::eShaderDeviceAddress;
+
 	vertices = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.resource.vertices().data(), zvk::sizeOf(scene.resource.vertices()),
-		vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer
+		vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer | RTBuildFlags,
+		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
 
 	indices = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.resource.indices().data(), zvk::sizeOf(scene.resource.indices()),
-		vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer
+		vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer | RTBuildFlags,
+		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
 
 	materials = zvk::Memory::createBufferFromHost(

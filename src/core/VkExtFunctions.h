@@ -45,8 +45,13 @@ public:
 		uint32_t groupCount,
 		size_t dataSize) const;
 
-private:
-	vk::Instance mInstance;
+	vk::ResultValue<vk::Pipeline> createRayTracingPipelineKHR(
+		vk::Device device,
+		vk::DeferredOperationKHR deferredOperation,
+		vk::PipelineCache pipelineCache,
+		const vk::RayTracingPipelineCreateInfoKHR& createInfo) const;
+
+public:
 	PFN_vkCreateDebugUtilsMessengerEXT fpCreateDebugUtilsMessengerEXT = nullptr;
 	PFN_vkDestroyDebugUtilsMessengerEXT fpDestroyDebugUtilsMessengerEXT = nullptr;
 
@@ -56,6 +61,10 @@ private:
 	PFN_vkGetAccelerationStructureDeviceAddressKHR fpGetAccelerationStructureDeviceAddressKHR = nullptr;
 	PFN_vkCmdBuildAccelerationStructuresKHR fpCmdBuildAccelerationStructuresKHR = nullptr;
 	PFN_vkGetRayTracingShaderGroupHandlesKHR fpGetRayTracingShaderGroupHandlesKHR = nullptr;
+	PFN_vkCreateRayTracingPipelinesKHR fpCreateRayTracingPipelinesKHR = nullptr;
+
+private:
+	vk::Instance mInstance;
 };
 
 NAMESPACE_END(zvk)
