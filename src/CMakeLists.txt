@@ -27,7 +27,11 @@ file(GLOB_RECURSE SHADER_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/*.rchit
 )
 
-source_group("Shaders" FILES ${SHADER_SOURCES})
+file(GLOB_RECURSE SHADER_INCLUDES
+	${CMAKE_CURRENT_SOURCE_DIR}/*.glsl
+)
+
+source_group("Shaders" FILES ${SHADER_SOURCES} ${SHADER_INCLUDES})
 
 if(MSVC_IDE)
 	# Macro to preserve source files hierarchy in the IDE
@@ -49,7 +53,7 @@ if(MSVC_IDE)
 endif()
 
 if(WIN32)
-    add_executable(Vulkan_ReSTIR_PT ${core_sources} ${SHADER_SOURCES})
+    add_executable(Vulkan_ReSTIR_PT ${core_sources} ${SHADER_SOURCES} ${SHADER_INCLUDES})
     target_link_libraries(Vulkan_ReSTIR_PT ${WINLIBS})
 else(WIN32)
     add_executable(Vulkan_ReSTIR_PT ${core_sources})
