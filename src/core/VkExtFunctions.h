@@ -51,6 +51,16 @@ public:
 		vk::PipelineCache pipelineCache,
 		const vk::RayTracingPipelineCreateInfoKHR& createInfo) const;
 
+	void cmdTraceRaysKHR(
+		vk::CommandBuffer commandBuffer,
+		const vk::StridedDeviceAddressRegionKHR& raygenShaderBindingTable,
+		const vk::StridedDeviceAddressRegionKHR& missShaderBindingTable,
+		const vk::StridedDeviceAddressRegionKHR& hitShaderBindingTable,
+		const vk::StridedDeviceAddressRegionKHR& callableShaderBindingTable,
+		uint32_t width,
+		uint32_t height,
+		uint32_t depth) const;
+
 public:
 	PFN_vkCreateDebugUtilsMessengerEXT fpCreateDebugUtilsMessengerEXT = nullptr;
 	PFN_vkDestroyDebugUtilsMessengerEXT fpDestroyDebugUtilsMessengerEXT = nullptr;
@@ -62,6 +72,7 @@ public:
 	PFN_vkCmdBuildAccelerationStructuresKHR fpCmdBuildAccelerationStructuresKHR = nullptr;
 	PFN_vkGetRayTracingShaderGroupHandlesKHR fpGetRayTracingShaderGroupHandlesKHR = nullptr;
 	PFN_vkCreateRayTracingPipelinesKHR fpCreateRayTracingPipelinesKHR = nullptr;
+	PFN_vkCmdTraceRaysKHR fpCmdTraceRaysKHR = nullptr;
 
 private:
 	vk::Instance mInstance;

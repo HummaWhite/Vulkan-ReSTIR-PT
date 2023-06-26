@@ -17,7 +17,7 @@ void loadFunction(vk::Instance instance, const char* name, FuncPtr& func) {
 ExtFunctions::ExtFunctions(vk::Instance instance) :
 	mInstance(instance)
 {
-	Log::bracketLine<0>("vk::Instance loading Vulkan ext functions");
+	Log::bracketLine<0>("Loading Vulkan functions");
 
 	loadFunction(instance, "vkCreateDebugUtilsMessengerEXT", fpCreateDebugUtilsMessengerEXT);
 	loadFunction(instance, "vkDestroyDebugUtilsMessengerEXT", fpDestroyDebugUtilsMessengerEXT);
@@ -28,6 +28,9 @@ ExtFunctions::ExtFunctions(vk::Instance instance) :
 	loadFunction(instance, "vkDestroyAccelerationStructureKHR", fpDestroyAccelerationStructureKHR);
 	loadFunction(instance, "vkGetRayTracingShaderGroupHandlesKHR", fpGetRayTracingShaderGroupHandlesKHR);
 	loadFunction(instance, "vkCreateRayTracingPipelinesKHR", fpCreateRayTracingPipelinesKHR);
+	loadFunction(instance, "vkCmdTraceRaysKHR", fpCmdTraceRaysKHR);
+
+	Log::newLine();
 }
 
 vk::DebugUtilsMessengerEXT ExtFunctions::createDebugUtilsMessengerEXT(const vk::DebugUtilsMessengerCreateInfoEXT& createInfo) const {
@@ -152,6 +155,28 @@ vk::ResultValue<vk::Pipeline> ExtFunctions::createRayTracingPipelineKHR(
 	);
 
 	return { vk::Result(result), pipeline };
+}
+
+void ExtFunctions::cmdTraceRaysKHR(
+	vk::CommandBuffer commandBuffer,
+	const vk::StridedDeviceAddressRegionKHR& raygenShaderBindingTable,
+	const vk::StridedDeviceAddressRegionKHR& missShaderBindingTable,
+	const vk::StridedDeviceAddressRegionKHR& hitShaderBindingTable,
+	const vk::StridedDeviceAddressRegionKHR& callableShaderBindingTable,
+	uint32_t width,
+	uint32_t height,
+	uint32_t depth
+) const {
+	fpCmdTraceRaysKHR(
+		commandBuffer,
+		reinterpret_cast<const VkStridedDeviceAddressRegionKHR*>(&raygenShaderBindingTable),
+		reinterpret_cast<const VkStridedDeviceAddressRegionKHR*>(&missShaderBindingTable),
+		reinterpret_cast<const VkStridedDeviceAddressRegionKHR*>(&hitShaderBindingTable),
+		reinterpret_cast<const VkStridedDeviceAddressRegionKHR*>(&callableShaderBindingTable),
+		width,
+		height,
+		depth
+	);
 }
 
 void ExtFunctions::destroyAccelerationStructureKHR(

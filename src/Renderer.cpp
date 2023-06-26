@@ -95,6 +95,8 @@ void Renderer::initVulkan() {
 		mPathTracePass = new PathTracePass(mContext, mDeviceScene, mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
 		mPostProcPass = new PostProcPassFrag(mContext, mSwapchain);
 
+		Log::newLine();
+
 		createDescriptor();
 
 		createPipeline();

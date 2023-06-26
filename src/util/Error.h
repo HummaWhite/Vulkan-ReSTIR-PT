@@ -16,24 +16,28 @@ void bracketLine(const T& msg) {
     std::cerr << "[" << msg << "]" << std::endl;
 }
 
-static void line(const std::string& msg) {
+inline void line(const std::string& msg) {
     std::cerr << msg << std::endl;
 }
 
-static void exit(const std::string& msg = "") {
+inline void newLine() {
+    std::cerr << std::endl;
+}
+
+inline void exit(const std::string& msg = "") {
     std::cerr << "[Error exit: " << msg << "]" << std::endl;
     std::abort();
 }
 
-static void exception(const std::string& msg = "") {
+inline void exception(const std::string& msg = "") {
     throw std::runtime_error(msg);
 }
 
-static void impossiblePath() {
+inline void impossiblePath() {
     exit("[Impossible path: this path is impossible to be reached, check the program]");
 }
 
-static void check(bool cond, const std::string& errMsg = "") {
+inline void check(bool cond, const std::string& errMsg = "") {
     if (!cond) {
         std::cerr << "[Check failed " << errMsg << "]" << std::endl;
         std::abort();

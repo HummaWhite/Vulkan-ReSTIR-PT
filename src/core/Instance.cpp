@@ -64,7 +64,8 @@ void Instance::destroy() {
 
 void Instance::queryExtensionsAndLayers() {
 	auto extensionProps = vk::enumerateInstanceExtensionProperties();
-	Log::bracketLine<0>("Vulkan extensions");
+	Log::bracketLine<0>("Instance extensions");
+
 	for (const auto& i : extensionProps) {
 		Log::bracketLine<1>(i.extensionName);
 	}
@@ -72,18 +73,16 @@ void Instance::queryExtensionsAndLayers() {
 	uint32_t nExtensions;
 	auto extensions = glfwGetRequiredInstanceExtensions(&nExtensions);
 	mRequiredVkExtensions.resize(nExtensions);
-	std::memcpy(mRequiredVkExtensions.data(), extensions, sizeof(char*) * nExtensions);
+	memcpy(mRequiredVkExtensions.data(), extensions, sizeof(char*) * nExtensions);
+
 	if (EnableValidationLayer) {
 		mRequiredVkExtensions.push_back((char*)VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 	}
+	Log::newLine();
 
-	Log::bracketLine<0>("Required extensions");
-	for (auto extension : mRequiredVkExtensions) {
-		Log::bracketLine<1>(extension);
-	}
-
+	Log::bracketLine<0>("Instance layers");
 	auto layerProps = vk::enumerateInstanceLayerProperties();
-	Log::bracketLine<0>("Vulkan layers");
+
 	for (const auto& i : layerProps) {
 		Log::bracketLine<1>(i.layerName);
 	}
@@ -103,6 +102,7 @@ void Instance::queryExtensionsAndLayers() {
 			throw std::runtime_error("Required layer: " + std::string(layerName) + " not supported");
 		}
 	}
+	Log::newLine();
 }
 
 void Instance::setupDebugMessenger() {
@@ -117,7 +117,7 @@ void Instance::setupDebugMessenger() {
 void Instance::createSurface(GLFWwindow* window) {
 	if (glfwCreateWindowSurface(mInstance, window, nullptr,
 		reinterpret_cast<VkSurfaceKHR*>(&mSurface)) != VK_SUCCESS) {
-		throw std::runtime_error("Cannot create surface");
+		throw std::runtime_error("Failed to create surface");
 	}
 	/*auto createInfo = vk::Win32SurfaceCreateInfoKHR()
 		.setHwnd(glfwGetWin32Window(mMainWindow))
@@ -175,6 +175,7 @@ bool Instance::hasDeviceExtensions(vk::PhysicalDevice device, const std::vector<
 
 void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) {
 	auto physicalDevices = mInstance.enumeratePhysicalDevices();
+
 	if (physicalDevices.empty()) {
 		throw std::runtime_error("No physical device found");
 	}
@@ -206,6 +207,7 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 
 	memProperties = mPhysicalDevice.getMemoryProperties();
 	deviceProperties = mPhysicalDevice.getProperties();
+	Log::newLine();
 }
 
 NAMESPACE_END(zvk)

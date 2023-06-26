@@ -139,6 +139,7 @@ void Scene::load(const File::path& path) {
 	Log::bracketLine<2>("Mesh instances = " + std::to_string(resource.meshInstances().size()));
 	Log::bracketLine<2>("Model instances = " + std::to_string(resource.modelInstances().size()));
 	Log::bracketLine<2>("Materials = " + std::to_string(resource.materials().size()));
+	Log::newLine();
 }
 
 DeviceScene::DeviceScene(const zvk::Context* ctx, const Scene& scene, zvk::QueueIdx queueIdx) :

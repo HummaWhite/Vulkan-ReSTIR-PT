@@ -23,7 +23,12 @@ void PathTracePass::destroy() {
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void PathTracePass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx) {
+void PathTracePass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t maxDepth) {
+	const auto& ext = mCtx->instance()->extFunctions();
+
+	cmd.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, mPipeline);
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR, mPipelineLayout, RayTracingDescSet, mDescriptorSet[0], {});
+	ext.cmdTraceRaysKHR(cmd, mRayGenRegion, mMissRegion, mHitRegion, mCallRegion, extent.width, extent.height, maxDepth);
 }
 
 void PathTracePass::initDescriptor() {

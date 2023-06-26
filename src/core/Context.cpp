@@ -9,12 +9,19 @@ NAMESPACE_BEGIN(zvk)
 Context::Context(const Instance* instance, const std::vector<const char*>& extensions, void* featureChain) :
 	mInstance(instance)
 {
+	Log::bracketLine<0>("Requested device extensions");
+
+	for (auto extension : extensions) {
+		Log::bracketLine<1>(extension);
+	}
+	Log::newLine();
+
 	std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
 
 	auto [general, compute, transfer] = instance->queueFamilies();
 
 	if (!general) {
-		throw std::runtime_error("no queue family usable");
+		throw std::runtime_error("No queue family usable");
 	}
 	std::map<uint32_t, size_t> maxQueueNums = { { general->index, general->count } };
 
