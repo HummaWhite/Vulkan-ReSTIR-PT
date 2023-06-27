@@ -13,7 +13,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL zvkDebugCallback(
 	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 	void* pUserData
 ) {
-	Log::bracketLine<0>("Validation layer: " + std::string(pCallbackData->pMessage));
+	Log::line<0>("Validation layer: " + std::string(pCallbackData->pMessage));
 	return VK_FALSE;
 }
 
@@ -64,10 +64,10 @@ void Instance::destroy() {
 
 void Instance::queryExtensionsAndLayers() {
 	auto extensionProps = vk::enumerateInstanceExtensionProperties();
-	Log::bracketLine<0>("Instance extensions");
+	Log::line<0>("Instance extensions");
 
 	for (const auto& i : extensionProps) {
-		Log::bracketLine<1>(i.extensionName);
+		Log::line<1>(i.extensionName);
 	}
 
 	uint32_t nExtensions;
@@ -80,11 +80,11 @@ void Instance::queryExtensionsAndLayers() {
 	}
 	Log::newLine();
 
-	Log::bracketLine<0>("Instance layers");
+	Log::line<0>("Instance layers");
 	auto layerProps = vk::enumerateInstanceLayerProperties();
 
 	for (const auto& i : layerProps) {
-		Log::bracketLine<1>(i.layerName);
+		Log::line<1>(i.layerName);
 	}
 
 	if (!EnableValidationLayer) {
@@ -127,7 +127,7 @@ void Instance::createSurface(GLFWwindow* window) {
 
 QueueFamilies Instance::getQueueFamilies(vk::PhysicalDevice device) {
 	auto queueFamilyProps = device.getQueueFamilyProperties();
-	Log::bracketLine<2>("Queue families");
+	Log::line<2>("Queue families");
 
 	QueueFamilies families;
 
@@ -158,7 +158,7 @@ QueueFamilies Instance::getQueueFamilies(vk::PhysicalDevice device) {
 			families.asyncTransfer = QueueFamily{ i, count };
 			queueInfo += " | Async Transfer";
 		}
-		Log::bracketLine<3>(queueInfo);
+		Log::line<3>(queueInfo);
 	};
 	return families;
 }
@@ -179,13 +179,13 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 	if (physicalDevices.empty()) {
 		throw std::runtime_error("No physical device found");
 	}
-	Log::bracketLine<0>(std::to_string(physicalDevices.size()) + " physical device(s) found");
+	Log::line<0>(std::to_string(physicalDevices.size()) + " physical device(s) found");
 
 	for (const auto& device : physicalDevices) {
 		auto props = device.getProperties();
 		auto features = device.getFeatures();
 
-		Log::bracketLine<1>("Device " + std::to_string(props.deviceID) + ", " +
+		Log::line<1>("Device " + std::to_string(props.deviceID) + ", " +
 			props.deviceName.data() + ", driver = " + std::to_string(props.driverVersion) +
 			", API = " + std::to_string(props.apiVersion));
 
@@ -203,7 +203,7 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 	if (!mPhysicalDevice) {
 		throw std::runtime_error("No physical device available");
 	}
-	Log::bracketLine<1>("Selected device: " + std::string(mPhysicalDevice.getProperties().deviceName.data()));
+	Log::line<1>("Selected device: " + std::string(mPhysicalDevice.getProperties().deviceName.data()));
 
 	memProperties = mPhysicalDevice.getMemoryProperties();
 	deviceProperties = mPhysicalDevice.getProperties();

@@ -6,5 +6,5 @@
 #include "rayTraceLayouts.glsl"
 
 void main() {
-    imageStore(uRayColorOutput, ivec2(gl_LaunchIDEXT.xy), vec4(0.5, 0.5, 0.5, 1.0));
+    imageStore(uRayColorOutput, ivec2(gl_LaunchIDEXT.xy), vec4(1.0, 0.5, 0.5, 1.0));
 }

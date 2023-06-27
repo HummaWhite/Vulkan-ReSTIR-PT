@@ -9,7 +9,7 @@ void loadFunction(vk::Instance instance, const char* name, FuncPtr& func) {
 	func = reinterpret_cast<FuncPtr>(vkGetInstanceProcAddr(instance, name));
 #if ZVK_EXT_FUNCTIONS_LOAD_LOG
 	if (func) {
-		Log::bracketLine<1>(name);
+		Log::line<1>(name);
 	}
 #endif
 }
@@ -17,7 +17,7 @@ void loadFunction(vk::Instance instance, const char* name, FuncPtr& func) {
 ExtFunctions::ExtFunctions(vk::Instance instance) :
 	mInstance(instance)
 {
-	Log::bracketLine<0>("Loading Vulkan functions");
+	Log::line<0>("Loading Vulkan functions");
 
 	loadFunction(instance, "vkCreateDebugUtilsMessengerEXT", fpCreateDebugUtilsMessengerEXT);
 	loadFunction(instance, "vkDestroyDebugUtilsMessengerEXT", fpDestroyDebugUtilsMessengerEXT);

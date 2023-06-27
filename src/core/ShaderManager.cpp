@@ -16,7 +16,7 @@ vk::ShaderModule ShaderManager::createShaderModule(const File::path& path, Shade
 		return mLoadedShaders[path];
 	}
 
-	Log::bracketLine<0>("Loading shader: " + File::absolute(path).generic_string());
+	Log::line<0>("Loading shader: " + File::absolute(path).generic_string());
 
 	std::ifstream file(File::absolute(path), std::ios::ate | std::ios::binary);
 

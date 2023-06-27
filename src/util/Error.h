@@ -8,7 +8,7 @@
 NAMESPACE_BEGIN(Log)
 
 template<int NTabs, typename T>
-void bracketLine(const T& msg) {
+void line(const T& msg) {
     static_assert(NTabs >= 0);
     for (int i = 0; i < NTabs; i++) {
         std::cerr << "\t";

@@ -63,9 +63,9 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 		;
 	auto scene = importer.ReadFile(pathStr.c_str(), option);
 
-	Log::bracketLine<1>("ModelInstance loading: " + pathStr + " ...");
+	Log::line<1>("ModelInstance loading: " + pathStr + " ...");
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-		Log::bracketLine<1>("Assimp " + std::string(importer.GetErrorString()));
+		Log::line<1>("Assimp " + std::string(importer.GetErrorString()));
 		return nullptr;
 	}
 
@@ -105,7 +105,7 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 			if (!path.is_absolute()) {
 				imagePath = path.parent_path() / imagePath;
 			}
-			Log::bracketLine<2>("Albedo texture " + imagePath.generic_string());
+			Log::line<2>("Albedo texture " + imagePath.generic_string());
 
 			auto imageIdx = addImage(imagePath, zvk::HostImageType::Int8);
 			material.textureIdx = imageIdx ? *imageIdx : InvalidResourceIdx;
@@ -115,8 +115,8 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 		}
 		mMaterials.push_back(material);
 	}
-	Log::bracketLine<2>(std::to_string(scene->mNumMaterials) + " material(s)");
-	Log::bracketLine<2>(std::to_string(model->numMeshes()) + " mesh(es)");
+	Log::line<2>(std::to_string(scene->mNumMaterials) + " material(s)");
+	Log::line<2>(std::to_string(model->numMeshes()) + " mesh(es)");
 	return model;
 }
 
@@ -150,7 +150,7 @@ void Resource::destroy() {
 }
 
 MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene) {
-	Log::bracketLine<2>("Mesh nVertices = " + std::to_string(mesh->mNumVertices) +
+	Log::line<2>("Mesh nVertices = " + std::to_string(mesh->mNumVertices) +
 		", nFaces = " + std::to_string(mesh->mNumFaces));
 
 	MeshInstance meshInstance;

@@ -60,7 +60,7 @@ std::pair<ModelInstance*, std::optional<glm::vec3>> Scene::loadModelInstance(con
 }
 
 void Scene::load(const File::path& path) {
-	Log::bracketLine<0>("Scene " + path.generic_string());
+	Log::line<0>("Scene " + path.generic_string());
 	//clear();
 
 	pugi::xml_document doc;
@@ -80,7 +80,7 @@ void Scene::load(const File::path& path) {
 
 		auto toneMapping = integrator.child("toneMapping");
 		// TODO: load toneMapping
-		Log::bracketLine<1>("Integrator " + integStr);
+		Log::line<1>("Integrator " + integStr);
 	}
 	{
 		auto samplerNode = scene.child("sampler");
@@ -107,12 +107,12 @@ void Scene::load(const File::path& path) {
 		camera.setFocalDist(cameraNode.child("focalDistance").attribute("value").as_float());
 		// originalCamera = previewCamera = camera;
 
-		Log::bracketLine<1>("Camera " + std::string(cameraNode.attribute("type").as_string()));
-		Log::bracketLine<2>("Position " + posStr);
-		Log::bracketLine<2>("Angle " + angleStr);
-		Log::bracketLine<2>("FOV " + std::to_string(camera.FOV()));
-		Log::bracketLine<2>("LensRadius " + std::to_string(camera.lensRadius()));
-		Log::bracketLine<2>("FocalDistance " + std::to_string(camera.focalDist()));
+		Log::line<1>("Camera " + std::string(cameraNode.attribute("type").as_string()));
+		Log::line<2>("Position " + posStr);
+		Log::line<2>("Angle " + angleStr);
+		Log::line<2>("FOV " + std::to_string(camera.FOV()));
+		Log::line<2>("LensRadius " + std::to_string(camera.lensRadius()));
+		Log::line<2>("FocalDistance " + std::to_string(camera.focalDist()));
 	}
 	{
 		auto modelInstances = scene.child("modelInstances");
@@ -133,12 +133,12 @@ void Scene::load(const File::path& path) {
 	{
 		//envMap = EnvironmentMap::create(scene.child("envMap").attribute("path").as_string());
 	}
-	Log::bracketLine<1>("Statistics");
-	Log::bracketLine<2>("Vertices = " + std::to_string(resource.vertices().size()));
-	Log::bracketLine<2>("Indices = " + std::to_string(resource.indices().size()));
-	Log::bracketLine<2>("Mesh instances = " + std::to_string(resource.meshInstances().size()));
-	Log::bracketLine<2>("Model instances = " + std::to_string(resource.modelInstances().size()));
-	Log::bracketLine<2>("Materials = " + std::to_string(resource.materials().size()));
+	Log::line<1>("Statistics");
+	Log::line<2>("Vertices = " + std::to_string(resource.vertices().size()));
+	Log::line<2>("Indices = " + std::to_string(resource.indices().size()));
+	Log::line<2>("Mesh instances = " + std::to_string(resource.meshInstances().size()));
+	Log::line<2>("Model instances = " + std::to_string(resource.modelInstances().size()));
+	Log::line<2>("Materials = " + std::to_string(resource.materials().size()));
 	Log::newLine();
 }
 

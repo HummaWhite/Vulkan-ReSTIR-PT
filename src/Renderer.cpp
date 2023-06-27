@@ -107,10 +107,11 @@ void Renderer::initVulkan() {
 		initDescriptor();
 	}
 	catch (const std::exception& e) {
-		Log::bracketLine<0>("Error:" + std::string(e.what()));
+		Log::line<0>("Error:" + std::string(e.what()));
 		cleanupVulkan();
 		glfwSetWindowShouldClose(mMainWindow, true);
 	}
+	Log::newLine();
 }
 
 void Renderer::createPipeline() {
@@ -230,7 +231,11 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			mDeviceScene->vertices->buffer, mDeviceScene->indices->buffer, 0, mScene.resource.meshInstances().size()
 		);
 
-		//
+		mPathTracePass->render(
+			cmd,
+			mDeviceScene->cameraDescSet, mDeviceScene->resourceDescSet, mImageOutDescSet[0],
+			mSwapchain->extent(), 1
+		);
 
 		mPostProcPass->render(cmd, mImageOutDescSet[0], mSwapchain->extent(), imageIdx);
 	}
@@ -292,15 +297,19 @@ void Renderer::drawFrame() {
 		.setWaitDstStageMask(waitStage)
 		.setSignalSemaphores(mRenderFinishSemaphore);
 
-	mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
+	try {
+		mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
+	}
+	catch (const std::exception& e) {
+		Log::line<0>(e.what());
+	}
 	presentFrame(imageIdx, mRenderFinishSemaphore);
-
 	swap();
 }
 
 void Renderer::swap() {
 	mGBufferPass->swap();
-	//mPathTracePass->swap();
+	mPathTracePass->swap();
 	std::swap(mImageOutDescSet[0], mImageOutDescSet[1]);
 }
 

@@ -9,10 +9,10 @@ NAMESPACE_BEGIN(zvk)
 Context::Context(const Instance* instance, const std::vector<const char*>& extensions, void* featureChain) :
 	mInstance(instance)
 {
-	Log::bracketLine<0>("Requested device extensions");
+	Log::line<0>("Requested device extensions");
 
 	for (auto extension : extensions) {
-		Log::bracketLine<1>(extension);
+		Log::line<1>(extension);
 	}
 	Log::newLine();
 
