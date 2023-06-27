@@ -58,6 +58,7 @@ private:
 	uint32_t acquireFrame(vk::Semaphore signalFrameReady);
 	void presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish);
 	void drawFrame();
+	void swap();
 
 	void loop();
 
@@ -96,4 +97,8 @@ private:
 	GBufferPass* mGBufferPass = nullptr;
 	PathTracePass* mPathTracePass = nullptr;
 	PostProcPassFrag* mPostProcPass = nullptr;
+
+	zvk::DescriptorPool* mDescriptorPool = nullptr;
+	zvk::DescriptorSetLayout* mImageOutDescLayout = nullptr;
+	vk::DescriptorSet mImageOutDescSet[2];
 };

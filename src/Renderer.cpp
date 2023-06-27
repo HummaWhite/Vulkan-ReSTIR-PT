@@ -115,8 +115,11 @@ void Renderer::initVulkan() {
 
 void Renderer::createPipeline() {
 	std::vector<vk::DescriptorSetLayout> descLayouts = {
-		mDeviceScene->cameraDescLayout->layout, mDeviceScene->resourceDescLayout->layout,
-		mGBufferPass->descSetLayout(), mPostProcPass->descSetLayout(), mPathTracePass->descSetLayout()
+		mDeviceScene->cameraDescLayout->layout,
+		mDeviceScene->resourceDescLayout->layout,
+		mGBufferPass->descSetLayout(),
+		mImageOutDescLayout->layout,
+		mPathTracePass->descSetLayout()
 	};
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager, descLayouts);
 	mPathTracePass->createPipeline(mShaderManager, 1, descLayouts);
@@ -128,6 +131,19 @@ void Renderer::initScene() {
 }
 
 void Renderer::createDescriptor() {
+	auto imageOutFlags = RayTracingShaderStageFlags | vk::ShaderStageFlagBits::eFragment;
+
+	std::vector<vk::DescriptorSetLayoutBinding> imageOutBindings = {
+		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eCombinedImageSampler, imageOutFlags),
+		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eCombinedImageSampler, imageOutFlags),
+		zvk::Descriptor::makeBinding(2, vk::DescriptorType::eStorageImage, imageOutFlags),
+		zvk::Descriptor::makeBinding(3, vk::DescriptorType::eStorageBuffer, imageOutFlags),
+	};
+
+	mImageOutDescLayout = new zvk::DescriptorSetLayout(mContext, imageOutBindings);
+	mDescriptorPool = new zvk::DescriptorPool(mContext, { mImageOutDescLayout }, 2);
+	mImageOutDescSet[0] = mDescriptorPool->allocDescriptorSet(mImageOutDescLayout->layout);
+	mImageOutDescSet[1] = mDescriptorPool->allocDescriptorSet(mImageOutDescLayout->layout);
 }
 
 void Renderer::initImageLayout() {
@@ -160,7 +176,33 @@ void Renderer::initDescriptor() {
 	mDeviceScene->initDescriptor();
 	mGBufferPass->initDescriptor();
 	mPathTracePass->initDescriptor();
-	mPostProcPass->initDescriptor(mGBufferPass->depthNormal, mGBufferPass->albedoMatIdx);
+
+	auto depthNormal = mGBufferPass->depthNormal;
+	auto albedoMatIdx = mGBufferPass->albedoMatIdx;
+	auto colorOutput = mPathTracePass->colorOutput;
+	auto reservoir = mPathTracePass->reservoir;
+
+	zvk::DescriptorWrite update;
+
+	for (int i = 0; i < 2; i++) {
+		update.add(
+			mImageOutDescLayout, mImageOutDescSet[i], 0,
+			vk::DescriptorImageInfo(depthNormal[i]->sampler, depthNormal[i]->view, depthNormal[i]->layout)
+		);
+		update.add(
+			mImageOutDescLayout, mImageOutDescSet[i], 1,
+			vk::DescriptorImageInfo(albedoMatIdx[i]->sampler, albedoMatIdx[i]->view, albedoMatIdx[i]->layout)
+		);
+		update.add(
+			mImageOutDescLayout, mImageOutDescSet[i], 2,
+			vk::DescriptorImageInfo(colorOutput[i]->sampler, colorOutput[i]->view, colorOutput[i]->layout)
+		);
+		update.add(
+			mImageOutDescLayout, mImageOutDescSet[i], 3,
+			vk::DescriptorBufferInfo(reservoir[i]->buffer, 0, reservoir[i]->size)
+		);
+	}
+	mContext->device.updateDescriptorSets(update.writes, {});
 }
 
 void Renderer::createRenderCmdBuffer() {
@@ -190,7 +232,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 
 		//
 
-		mPostProcPass->render(cmd, mSwapchain->extent(), imageIdx);
+		mPostProcPass->render(cmd, mImageOutDescSet[0], mSwapchain->extent(), imageIdx);
 	}
 	cmd.end();
 }
@@ -252,8 +294,14 @@ void Renderer::drawFrame() {
 
 	mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
 	presentFrame(imageIdx, mRenderFinishSemaphore);
+
+	swap();
+}
+
+void Renderer::swap() {
 	mGBufferPass->swap();
-	mPostProcPass->swap();
+	//mPathTracePass->swap();
+	std::swap(mImageOutDescSet[0], mImageOutDescSet[1]);
 }
 
 void Renderer::loop() {
@@ -285,6 +333,9 @@ void Renderer::cleanupVulkan() {
 	delete mGBufferPass;
 	delete mPathTracePass;
 	delete mPostProcPass;
+
+	delete mImageOutDescLayout;
+	delete mDescriptorPool;
 
 	mContext->device.destroyFence(mInFlightFence);
 	mContext->device.destroySemaphore(mFrameReadySemaphore);

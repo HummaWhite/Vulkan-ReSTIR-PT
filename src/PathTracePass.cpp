@@ -23,38 +23,37 @@ void PathTracePass::destroy() {
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void PathTracePass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t maxDepth) {
+void PathTracePass::render(
+	vk::CommandBuffer cmd,
+	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet,
+	vk::Extent2D extent, uint32_t maxDepth
+) {
 	const auto& ext = mCtx->instance()->extFunctions();
+	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
 
-	cmd.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, mPipeline);
-	cmd.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR, mPipelineLayout, RayTracingDescSet, mDescriptorSet[0], {});
+	cmd.bindPipeline(bindPoint, mPipeline);
+
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, cameraDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ImageOutputDescSet, imageOutDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, mDescriptorSet, {});
+
 	ext.cmdTraceRaysKHR(cmd, mRayGenRegion, mMissRegion, mHitRegion, mCallRegion, extent.width, extent.height, maxDepth);
 }
 
 void PathTracePass::initDescriptor() {
 	zvk::DescriptorWrite update;
 
-	for (int i = 0; i < 2; i++) {
-		update.add(
-			mDescriptorSetLayout, mDescriptorSet[i], 0,
-			vk::DescriptorImageInfo(colorOutput[i]->sampler, colorOutput[i]->view, colorOutput[i]->layout)
-		);
-		update.add(
-			mDescriptorSetLayout, mDescriptorSet[i], 1,
-			vk::DescriptorBufferInfo(reservoir[i]->buffer, 0, reservoir[i]->size)
-		);
-		update.add(
-			mDescriptorSetLayout, mDescriptorSet[i], 2,
-			vk::WriteDescriptorSetAccelerationStructureKHR(mTLAS->structure)
-		);
-	}
+	update.add(
+		mDescriptorSetLayout, mDescriptorSet, 0,
+		vk::WriteDescriptorSetAccelerationStructureKHR(mTLAS->structure)
+	);
 	mCtx->device.updateDescriptorSets(update.writes, {});
 }
 
 void PathTracePass::swap() {
 	std::swap(colorOutput[0], colorOutput[1]);
 	std::swap(reservoir[0], reservoir[1]);
-	std::swap(mDescriptorSet[0], mDescriptorSet[1]);
 }
 
 void PathTracePass::recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
@@ -84,16 +83,22 @@ void PathTracePass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t m
 	);
 
 	groups.push_back(
-		vk::RayTracingShaderGroupCreateInfoKHR(vk::RayTracingShaderGroupTypeKHR::eGeneral)
-			.setGeneralShader(RayGen)
+		vk::RayTracingShaderGroupCreateInfoKHR(
+			vk::RayTracingShaderGroupTypeKHR::eGeneral,
+			RayGen, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR
+		)
 	);
 	groups.push_back(
-		vk::RayTracingShaderGroupCreateInfoKHR(vk::RayTracingShaderGroupTypeKHR::eGeneral)
-			.setGeneralShader(Miss)
+		vk::RayTracingShaderGroupCreateInfoKHR(
+			vk::RayTracingShaderGroupTypeKHR::eGeneral,
+			Miss, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR
+		)
 	);
 	groups.push_back(
-		vk::RayTracingShaderGroupCreateInfoKHR(vk::RayTracingShaderGroupTypeKHR::eTrianglesHitGroup)
-			.setClosestHitShader(ClosestHit)
+		vk::RayTracingShaderGroupCreateInfoKHR(
+			vk::RayTracingShaderGroupTypeKHR::eTrianglesHitGroup,
+			VK_SHADER_UNUSED_KHR, ClosestHit, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR
+		)
 	);
 
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
@@ -159,6 +164,7 @@ void PathTracePass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 			vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
+		colorOutput[i]->createImageView();
 		colorOutput[i]->createSampler(vk::Filter::eLinear);
 
 		auto barrier = colorOutput[i]->getBarrier(
@@ -244,18 +250,13 @@ void PathTracePass::createShaderBindingTable() {
 }
 
 void PathTracePass::createDescriptor() {
-	auto stages = vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eClosestHitKHR;
-
 	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
-		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eStorageImage, stages),
-		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eStorageBuffer, stages),
-		zvk::Descriptor::makeBinding(2, vk::DescriptorType::eAccelerationStructureKHR, stages),
+		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eAccelerationStructureKHR, RayTracingShaderStageFlags)
 	};
 
 	mDescriptorSetLayout = new zvk::DescriptorSetLayout(mCtx, bindings);
-	mDescriptorPool = new zvk::DescriptorPool(mCtx, { mDescriptorSetLayout }, 2);
-	mDescriptorSet[0] = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
-	mDescriptorSet[1] = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
+	mDescriptorPool = new zvk::DescriptorPool(mCtx, { mDescriptorSetLayout }, 1);
+	mDescriptorSet = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
 }
 
 void PathTracePass::destroyFrame() {

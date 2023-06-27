@@ -31,7 +31,7 @@ file(GLOB_RECURSE SHADER_INCLUDES
 	${CMAKE_CURRENT_SOURCE_DIR}/*.glsl
 )
 
-source_group("Shaders" FILES ${SHADER_SOURCES} ${SHADER_INCLUDES})
+source_group("Shaders" FILES ${SHADER_SOURCES})
 
 if(MSVC_IDE)
 	# Macro to preserve source files hierarchy in the IDE
@@ -67,7 +67,7 @@ foreach(SHADER_SOURCE ${SHADER_SOURCES})
         get_filename_component(fname ${SHADER_SOURCE} NAME)
         add_custom_target(${fname}.spv
             COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_DIR} && 
-            $ENV{VK_SDK_PATH}/Bin/glslangValidator.exe -V ${SHADER_SOURCE} -o ${SHADER_DIR}/${fname}.spv
+            $ENV{VK_SDK_PATH}/Bin/glslc.exe ${SHADER_SOURCE} -o ${SHADER_DIR}/${fname}.spv --target-env=vulkan1.2
             SOURCES ${SHADER_SOURCE}
         )
         ExternalTarget("Shaders" ${fname}.spv)

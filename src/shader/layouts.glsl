@@ -48,13 +48,20 @@ struct GBufferDrawParam {
 	int pad2;
 };
 
+struct Reservoir {
+	uint pad;
+};
+
+
 layout(push_constant) uniform _PushConstant {
 	GBufferDrawParam uGBufferDrawParam;
 };
 
+
 layout(set = CameraDescSet, binding = 0, std140) uniform _Camera {
 	Camera uCamera;
 };
+
 
 layout(set = ResourceDescSet, binding = 0) uniform sampler2D uTextures[];
 
@@ -66,11 +73,22 @@ layout(set = ResourceDescSet, binding = 2, std140) readonly buffer _MaterialIndi
 	int uMaterialIndices[];
 };
 
+
 layout(set = GBufferDrawParamDescSet, binding = 0, std140) readonly buffer _GBufferDrawParam {
 	GBufferDrawParam uGBufferDrawParams[];
 };
 
-layout(set = SwapchainStorageDescSet, binding = 0) uniform sampler2D uDepthNormal;
-layout(set = SwapchainStorageDescSet, binding = 1) uniform sampler2D uAlbedoMatIdx;
+
+layout(set = ImageOutputDescSet, binding = 0) uniform sampler2D uDepthNormal;
+layout(set = ImageOutputDescSet, binding = 1) uniform sampler2D uAlbedoMatIdx;
+layout(set = ImageOutputDescSet, binding = 2, rgba32f) uniform image2D uRayColorOutput;
+
+layout(set = ImageOutputDescSet, binding = 3) buffer _Reservoir {
+	Reservoir uReservoirs[];
+};
+
+
+// in ratTraceLayouts.glsl
+// layout(set = RayTracingDescSet, binding = 0) uniform accelerationStructureEXT uTLAS;
 
 #endif

@@ -29,22 +29,15 @@ PostProcPassFrag::PostProcPassFrag(const zvk::Context* ctx, const zvk::Swapchain
 	createResource();
 	createRenderPass();
 	createFramebuffer(swapchain);
-	createDescriptor();
 }
 
 void PostProcPassFrag::destroy() {
-	delete mDescriptorSetLayout;
-	delete mDescriptorPool;
 	delete mQuadVertexBuffer;
 
 	mCtx->device.destroyRenderPass(mRenderPass);
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 	destroyFrame();
-}
-
-void PostProcPassFrag::swap() {
-	std::swap(mDescriptorSet[0], mDescriptorSet[1]);
 }
 
 void PostProcPassFrag::recreateFrame(const zvk::Swapchain* swapchain) {
@@ -158,7 +151,7 @@ void PostProcPassFrag::createPipeline(
 	mPipeline = result.value;
 }
 
-void PostProcPassFrag::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx) {
+void PostProcPassFrag::render(vk::CommandBuffer cmd, vk::DescriptorSet imageOutDescSet, vk::Extent2D extent, uint32_t imageIdx) {
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f)
 	};
@@ -172,31 +165,15 @@ void PostProcPassFrag::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32
 	cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
 	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, ImageOutputDescSet, imageOutDescSet, {});
 
 	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
 
 	cmd.bindVertexBuffers(0, mQuadVertexBuffer->buffer, vk::DeviceSize(0));
-	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, SwapchainStorageDescSet, mDescriptorSet[0], {});
 	cmd.draw(6, 1, 0, 0);
 
 	cmd.endRenderPass();
-}
-
-void PostProcPassFrag::initDescriptor(zvk::Image* depthNormal[2], zvk::Image* albedoMatIdx[2]) {
-	zvk::DescriptorWrite update;
-
-	for (int i = 0; i < 2; i++) {
-		update.add(
-			mDescriptorSetLayout, mDescriptorSet[i], 0,
-			vk::DescriptorImageInfo(depthNormal[i]->sampler, depthNormal[i]->view, depthNormal[i]->layout)
-		);
-		update.add(
-			mDescriptorSetLayout, mDescriptorSet[i], 1,
-			vk::DescriptorImageInfo(albedoMatIdx[i]->sampler, albedoMatIdx[i]->view, albedoMatIdx[i]->layout)
-		);
-	}
-	mCtx->device.updateDescriptorSets(update.writes, {});
 }
 
 void PostProcPassFrag::createResource() {
@@ -255,18 +232,6 @@ void PostProcPassFrag::createFramebuffer(const zvk::Swapchain* swapchain) {
 
 		framebuffers[i] = mCtx->device.createFramebuffer(createInfo);
 	}
-}
-
-void PostProcPassFrag::createDescriptor() {
-	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
-		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment),
-		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment),
-	};
-	mDescriptorSetLayout = new zvk::DescriptorSetLayout(mCtx, bindings);
-
-	mDescriptorPool = new zvk::DescriptorPool(mCtx, { mDescriptorSetLayout }, 2);
-	mDescriptorSet[0] = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
-	mDescriptorSet[1] = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
 }
 
 void PostProcPassFrag::destroyFrame() {

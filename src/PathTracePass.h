@@ -25,6 +25,7 @@
 #include "util/Timer.h"
 
 struct Reservoir {
+	uint32_t pad;
 };
 
 class PathTracePass : public zvk::BaseVkObject {
@@ -38,7 +39,11 @@ public:
 
 	void createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
-	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t maxDepth);
+	void render(
+		vk::CommandBuffer cmd,
+		vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet,
+		vk::Extent2D extent, uint32_t maxDepth);
+
 	void initDescriptor();
 	void swap();
 	void recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx);
@@ -70,5 +75,5 @@ private:
 
 	zvk::DescriptorPool* mDescriptorPool = nullptr;
 	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;
-	vk::DescriptorSet mDescriptorSet[2];
+	vk::DescriptorSet mDescriptorSet;
 };

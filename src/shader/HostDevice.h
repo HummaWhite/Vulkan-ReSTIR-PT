@@ -8,6 +8,10 @@
   #define ENUM_END(x) }
   #define SWAPCHAIN_FORMAT vk::Format::eB8G8R8A8Unorm
 
+const vk::ShaderStageFlags RayTracingShaderStageFlags =
+    vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eAnyHitKHR |
+    vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR;
+
 namespace zvk {
     inline uint32_t ceilDiv(uint32_t x, uint32_t y) {
         return (x + y - 1) / y;
@@ -34,7 +38,8 @@ const int PostProcBlockSizeY = 32;
 const int CameraDescSet = 0;
 const int ResourceDescSet = 1;
 const int GBufferDrawParamDescSet = 2;
-const int SwapchainStorageDescSet = 3;
+const int ImageOutputDescSet = 3;
 const int RayTracingDescSet = 4;
+const int SwapchainStorageDescSet = 5;
 
 #endif

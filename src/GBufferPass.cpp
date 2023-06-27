@@ -44,12 +44,13 @@ void GBufferPass::render(
 		.setClearValues(clearValues);
 
 	cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+	auto bindPoint = vk::PipelineBindPoint::eGraphics;
 
-	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
+	cmd.bindPipeline(bindPoint, mPipeline);
 
-	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, CameraDescSet, cameraDescSet, {});
-	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
-	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, GBufferDrawParamDescSet, mDrawParamDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, cameraDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, GBufferDrawParamDescSet, mDrawParamDescSet, {});
 
 	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
@@ -335,11 +336,11 @@ void GBufferPass::createPipeline(
 }
 
 void GBufferPass::createDescriptor() {
-	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
+	std::vector<vk::DescriptorSetLayoutBinding> drawBindings = {
 		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
 	};
 
-	mDrawParamDescLayout = new zvk::DescriptorSetLayout(mCtx, bindings);
+	mDrawParamDescLayout = new zvk::DescriptorSetLayout(mCtx, drawBindings);
 	mDescriptorPool = new zvk::DescriptorPool(mCtx, { mDrawParamDescLayout }, 1);
 	mDrawParamDescSet = mDescriptorPool->allocDescriptorSet(mDrawParamDescLayout->layout);
 }

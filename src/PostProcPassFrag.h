@@ -34,22 +34,17 @@ public:
 	~PostProcPassFrag() { destroy(); }
 	void destroy();
 
-	vk::DescriptorSetLayout descSetLayout() const { return mDescriptorSetLayout->layout; }
-
 	void createPipeline(
 		zvk::ShaderManager* shaderManager, vk::Extent2D extent,
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
-	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx);
-	void initDescriptor(zvk::Image* depthNormal[2], zvk::Image* albedoMatIdx[2]);
-	void swap();
+	void render(vk::CommandBuffer cmd, vk::DescriptorSet imageOutDescSet, vk::Extent2D extent, uint32_t imageIdx);
 	void recreateFrame(const zvk::Swapchain* swapchain);
 
 private:
 	void createResource();
 	void createRenderPass();
 	void createFramebuffer(const zvk::Swapchain* swapchain);
-	void createDescriptor();
 
 	void destroyFrame();
 
@@ -63,8 +58,4 @@ private:
 	vk::RenderPass mRenderPass;
 
 	zvk::Buffer* mQuadVertexBuffer = nullptr;
-
-	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;
-	zvk::DescriptorPool* mDescriptorPool = nullptr;
-	vk::DescriptorSet mDescriptorSet[2];
 };
