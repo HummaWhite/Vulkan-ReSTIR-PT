@@ -90,6 +90,39 @@ vk::ImageMemoryBarrier Image::getBarrier(
 	return barrier;
 }
 
+vk::ImageMemoryBarrier2 Image::getBarrier2(
+	vk::ImageLayout newLayout,
+	vk::AccessFlags2 srcAccessMask, vk::AccessFlags2 dstAccessMask,
+	vk::PipelineStageFlags2 srcStageMask, vk::PipelineStageFlags2 dstStageMask,
+	QueueIdx srcQueueFamily, QueueIdx dstQueueFamily
+) {
+	uint32_t srcFamily = (srcQueueFamily == QueueIdx::Ignored) ?
+		VK_QUEUE_FAMILY_IGNORED : mCtx->queues[srcQueueFamily].familyIdx;
+
+	uint32_t dstFamily = (dstQueueFamily == QueueIdx::Ignored) ?
+		VK_QUEUE_FAMILY_IGNORED : mCtx->queues[dstQueueFamily].familyIdx;
+
+	auto barrier = vk::ImageMemoryBarrier2()
+		.setOldLayout(layout)
+		.setNewLayout(newLayout)
+		.setSrcQueueFamilyIndex(srcFamily)
+		.setDstQueueFamilyIndex(dstFamily)
+		.setImage(image)
+		.setSubresourceRange(vk::ImageSubresourceRange()
+			.setAspectMask(vk::ImageAspectFlagBits::eColor)
+			.setBaseMipLevel(0)
+			.setLevelCount(numMipLevels)
+			.setBaseArrayLayer(0)
+			.setLayerCount(numArrayLayers))
+		.setSrcAccessMask(srcAccessMask)
+		.setDstAccessMask(dstAccessMask)
+		.setSrcStageMask(srcStageMask)
+		.setDstStageMask(dstStageMask);
+
+	layout = newLayout;
+	return barrier;
+}
+
 void Image::changeLayoutCmd(
 	vk::CommandBuffer cmd, vk::ImageLayout newLayout,
 	vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,

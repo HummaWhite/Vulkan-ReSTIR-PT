@@ -89,6 +89,12 @@ public:
 		vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask,
 		QueueIdx srcQueueFamily = QueueIdx::Ignored, QueueIdx dstQueueFamily = QueueIdx::Ignored);
 
+	vk::ImageMemoryBarrier2 getBarrier2(
+		vk::ImageLayout newLayout,
+		vk::AccessFlags2 srcAccessMask, vk::AccessFlags2 dstAccessMask,
+		vk::PipelineStageFlags2 srcStageMask, vk::PipelineStageFlags2 dstStageMask,
+		QueueIdx srcQueueFamily = QueueIdx::Ignored, QueueIdx dstQueueFamily = QueueIdx::Ignored);
+
 	void changeLayoutCmd(
 		vk::CommandBuffer cmd, vk::ImageLayout newLayout,
 		vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,

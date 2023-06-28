@@ -52,6 +52,11 @@ struct Reservoir {
 	uint pad;
 };
 
+struct Ray {
+	vec3 ori;
+	vec3 dir;
+};
+
 
 layout(push_constant) uniform _PushConstant {
 	GBufferDrawParam uGBufferDrawParam;

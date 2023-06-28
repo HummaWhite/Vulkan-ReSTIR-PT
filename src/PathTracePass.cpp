@@ -189,6 +189,9 @@ void PathTracePass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 }
 
 void PathTracePass::createShaderBindingTable() {
+	// TODO:
+	// write a wrapper class for Shader Binding Table
+
 	const auto& ext = mCtx->instance()->extFunctions();
 	const auto& pipelineProps = mCtx->instance()->rayTracingPipelineProperties;
 

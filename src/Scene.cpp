@@ -1,5 +1,6 @@
 #include "Scene.h"
 #include "util/Error.h"
+#include "shader/HostDevice.h"
 
 #include <sstream>
 #include <pugixml.hpp>
@@ -235,19 +236,23 @@ void DeviceScene::createDescriptor() {
 	std::vector<vk::DescriptorSetLayoutBinding> cameraBindings = {
 		zvk::Descriptor::makeBinding(
 			0, vk::DescriptorType::eUniformBuffer,
-			vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute
+			vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute | RayTracingShaderStageFlags
 		)
 	};
 
 	std::vector<vk::DescriptorSetLayoutBinding> resourceBindings = {
 		zvk::Descriptor::makeBinding(
-			0, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, textures.size()
+			0, vk::DescriptorType::eCombinedImageSampler,
+			vk::ShaderStageFlagBits::eFragment | RayTracingShaderStageFlags,
+			textures.size()
 		),
 		zvk::Descriptor::makeBinding(
-			1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment
+			1, vk::DescriptorType::eStorageBuffer,
+			vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | RayTracingShaderStageFlags
 		),
 		zvk::Descriptor::makeBinding(
-			2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex
+			2, vk::DescriptorType::eStorageBuffer,
+			vk::ShaderStageFlagBits::eVertex | RayTracingShaderStageFlags
 		),
 	};
 

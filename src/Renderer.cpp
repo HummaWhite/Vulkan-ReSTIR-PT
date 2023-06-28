@@ -224,6 +224,10 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.setFlags(vk::CommandBufferUsageFlagBits{})
 		.setPInheritanceInfo(nullptr);
 
+	auto depthNormal = mGBufferPass->depthNormal[0];
+	auto albedoMatIdx = mGBufferPass->albedoMatIdx[0];
+	auto rayOutput = mPathTracePass->colorOutput[0];
+
 	cmd.begin(beginInfo); {
 		mGBufferPass->render(
 			cmd, mSwapchain->extent(),
@@ -231,10 +235,49 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			mDeviceScene->vertices->buffer, mDeviceScene->indices->buffer, 0, mScene.resource.meshInstances().size()
 		);
 
+		auto GBufferImageBarriers = {
+			depthNormal->getBarrier(depthNormal->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
+			albedoMatIdx->getBarrier(albedoMatIdx->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
+		};
+
+		cmd.pipelineBarrier(
+			vk::PipelineStageFlagBits::eColorAttachmentOutput,
+			vk::PipelineStageFlagBits::eRayTracingShaderKHR,
+			vk::DependencyFlags{ 0 },
+			{}, {}, GBufferImageBarriers
+		);
+
+		/*
+		vk::ImageMemoryBarrier2 GBufferImageBarriers[] = {
+			depthNormal->getBarrier2(
+				depthNormal->layout,
+				vk::AccessFlagBits2::eColorAttachmentWrite, vk::AccessFlagBits2::eShaderSampledRead,
+				vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eRayTracingShaderKHR
+			),
+			albedoMatIdx->getBarrier2(
+				albedoMatIdx->layout,
+				vk::AccessFlagBits2::eColorAttachmentWrite, vk::AccessFlagBits2::eShaderSampledRead,
+				vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eRayTracingShaderKHR
+			),
+		};
+		cmd.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(GBufferImageBarriers));
+		*/
+
 		mPathTracePass->render(
 			cmd,
 			mDeviceScene->cameraDescSet, mDeviceScene->resourceDescSet, mImageOutDescSet[0],
 			mSwapchain->extent(), 1
+		);
+
+		auto rayImageBarriers = {
+			rayOutput->getBarrier(rayOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
+		};
+
+		cmd.pipelineBarrier(
+			vk::PipelineStageFlagBits::eRayTracingShaderKHR,
+			vk::PipelineStageFlagBits::eFragmentShader,
+			vk::DependencyFlags{ 0 },
+			{}, {}, rayImageBarriers
 		);
 
 		mPostProcPass->render(cmd, mImageOutDescSet[0], mSwapchain->extent(), imageIdx);
