@@ -118,6 +118,8 @@ void PathTracePass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t m
 		throw std::runtime_error("Failed to create RayTracingPass pipeline");
 	}
 	mPipeline = result.value;
+
+	createShaderBindingTable();
 }
 
 void PathTracePass::createAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx) {
@@ -214,7 +216,7 @@ void PathTracePass::createShaderBindingTable() {
 
 	mShaderBindingTable = zvk::Memory::createBuffer(
 		mCtx, SBTSize,
-		vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eShaderBindingTableKHR,
+		vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
@@ -245,7 +247,6 @@ void PathTracePass::createShaderBindingTable() {
 		memcpy(pData, getHandle(handleIdx++), handleSize);
 		pData += mHitRegion.stride;
 	}
-
 	mShaderBindingTable->unmapMemory();
 }
 

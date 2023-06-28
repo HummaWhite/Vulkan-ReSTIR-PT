@@ -45,11 +45,14 @@ private:
 	bool hasDeviceExtensions(vk::PhysicalDevice device, const std::vector<const char*>& extensions);
 	void selectPhysicalDevice(const std::vector<const char*>& extensions);
 
+	void queryPhysicalDeviceProperties();
+
 public:
 	vk::PhysicalDeviceFeatures deviceFeatures;
 	vk::PhysicalDeviceProperties deviceProperties;
 	vk::PhysicalDeviceMemoryProperties memProperties;
 	vk::PhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties;
+	vk::PhysicalDeviceAccelerationStructurePropertiesKHR accelerationStructureProperties;
 
 private:
 	vk::Instance mInstance;

@@ -51,6 +51,7 @@ Instance::Instance(
 	setupDebugMessenger();
 	createSurface(window);
 	selectPhysicalDevice(extensions);
+	queryPhysicalDeviceProperties();
 }
 
 void Instance::destroy() {
@@ -204,10 +205,22 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 		throw std::runtime_error("No physical device available");
 	}
 	Log::line<1>("Selected device: " + std::string(mPhysicalDevice.getProperties().deviceName.data()));
+	Log::newLine();
+}
+
+void Instance::queryPhysicalDeviceProperties() {
+	using RTPipelineProperties = vk::PhysicalDeviceRayTracingPipelinePropertiesKHR;
+	using ASProperties = vk::PhysicalDeviceAccelerationStructurePropertiesKHR;
 
 	memProperties = mPhysicalDevice.getMemoryProperties();
 	deviceProperties = mPhysicalDevice.getProperties();
-	Log::newLine();
+
+	vk::PhysicalDeviceProperties2 props2;
+	props2.pNext = &rayTracingPipelineProperties;
+	rayTracingPipelineProperties.pNext = &accelerationStructureProperties;
+
+	mPhysicalDevice.getProperties2(&props2);
+	deviceProperties = props2.properties;
 }
 
 NAMESPACE_END(zvk)
