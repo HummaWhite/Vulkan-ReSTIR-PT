@@ -3,9 +3,10 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 
 #include "layouts.glsl"
+#include "GBufferUtil.glsl"
 
-layout(location = 0) out vec4 GBufferA;
-layout(location = 1) out vec4 GBufferB;
+layout(location = 0) out uvec4 GBufferA;
+layout(location = 1) out uvec4 GBufferB;
 
 layout(location = 0) in VSOut {
 	vec3 pos;
@@ -16,7 +17,6 @@ layout(location = 0) in VSOut {
 
 void main() {
 	GBufferDrawParam param = uGBufferDrawParam;
-
 	vec3 albedo;
 
 	if (param.matIdx == InvalidResourceIdx) {
@@ -32,8 +32,15 @@ void main() {
 			albedo = texture(uTextures[texIdx], fsIn.uv).rgb;
 		}
 	}
+	albedo = albedo * vec3(-dot(fsIn.norm, uCamera.front) * 0.5 + 0.55);
 
-	albedo = albedo * vec3(abs(dot(fsIn.norm, uCamera.front)) + 0.05);
-    GBufferA = vec4(fsIn.depth, fsIn.norm);
-    GBufferB = vec4(albedo, fsIn.uv.x);
+	vec4 lastCoord = uCamera.lastProjView * vec4(fsIn.pos, 1.0);
+	lastCoord /= lastCoord.w;
+	lastCoord = lastCoord * 0.5 + 0.5;
+
+	packGBuffer(
+		GBufferA, GBufferB,
+		albedo, fsIn.norm, fsIn.depth,
+		lastCoord.xy - gl_FragCoord.xy, param.matIdx
+	);
 }

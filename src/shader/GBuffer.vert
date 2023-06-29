@@ -19,7 +19,7 @@ void main() {
 	GBufferDrawParam param = uGBufferDrawParam;
 	vec4 pos = param.model * vec4(aPos, 1.0);
 	vsOut.pos = pos.xyz;
-	gl_Position = uCamera.proj * uCamera.view * pos;
+	gl_Position = uCamera.projView * pos;
 	gl_Position.y = -gl_Position.y;
 
 	vsOut.norm = normalize(mat3(param.modelInvT) * aNorm);

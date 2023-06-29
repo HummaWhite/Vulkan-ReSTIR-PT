@@ -33,8 +33,8 @@ struct GBufferDrawParam {
 };
 
 class GBufferPass : public zvk::BaseVkObject {
-	constexpr static vk::Format DepthNormalFormat = vk::Format::eR32G32B32A32Sfloat;
-	constexpr static vk::Format AlbedoMatIdxFormat = vk::Format::eR32G32B32A32Sfloat;
+	constexpr static vk::Format GBufferAFormat = vk::Format::eR32G32B32A32Uint;
+	constexpr static vk::Format GBufferBFormat = vk::Format::eR32G32B32A32Uint;
 	constexpr static vk::Format DepthStencilFormat = vk::Format::eD32Sfloat;
 
 public:

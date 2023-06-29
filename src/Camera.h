@@ -39,12 +39,16 @@ public:
 	glm::mat4 viewMatrix() const { return mViewMatrix; }
 	glm::mat4 projMatrix() const { return mProjMatrix; }
 
+	void nextFrame() { mLastProjView = mProjView; }
+
 private:
 	void update();
 
 private:
 	std140(glm::mat4, mViewMatrix);
 	std140(glm::mat4, mProjMatrix);
+	std140(glm::mat4, mProjView);
+	std140(glm::mat4, mLastProjView);
 	std140(glm::vec3, mPos);
 	std140(glm::vec3, mAngle);
 	std140(glm::vec3, mFront);

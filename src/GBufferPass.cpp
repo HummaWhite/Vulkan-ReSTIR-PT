@@ -120,20 +120,20 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 void GBufferPass::createResource(vk::Extent2D extent) {
 	for (int i = 0; i < 2; i++) {
 		GBufferA[i] = zvk::Memory::createImage2D(
-			mCtx, extent, DepthNormalFormat, vk::ImageTiling::eOptimal,
+			mCtx, extent, GBufferAFormat, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 		GBufferA[i]->createImageView();
-		GBufferA[i]->createSampler(vk::Filter::eLinear);
+		GBufferA[i]->createSampler(vk::Filter::eNearest);
 
 		GBufferB[i] = zvk::Memory::createImage2D(
-			mCtx, extent, AlbedoMatIdxFormat, vk::ImageTiling::eOptimal,
+			mCtx, extent, GBufferBFormat, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 		GBufferB[i]->createImageView();
-		GBufferB[i]->createSampler(vk::Filter::eLinear);
+		GBufferB[i]->createSampler(vk::Filter::eNearest);
 
 		mDepthStencil[i] = zvk::Memory::createImage2D(
 			mCtx, extent, DepthStencilFormat, vk::ImageTiling::eOptimal,
@@ -145,7 +145,7 @@ void GBufferPass::createResource(vk::Extent2D extent) {
 
 void GBufferPass::createRenderPass(vk::ImageLayout outLayout) {
 	auto depthNormalDesc = vk::AttachmentDescription()
-		.setFormat(DepthNormalFormat)
+		.setFormat(GBufferAFormat)
 		.setSamples(vk::SampleCountFlagBits::e1)
 		.setLoadOp(vk::AttachmentLoadOp::eClear)
 		.setStoreOp(vk::AttachmentStoreOp::eStore)
@@ -155,7 +155,7 @@ void GBufferPass::createRenderPass(vk::ImageLayout outLayout) {
 		.setFinalLayout(outLayout);
 
 	auto albedoMatIdxDesc = vk::AttachmentDescription()
-		.setFormat(AlbedoMatIdxFormat)
+		.setFormat(GBufferBFormat)
 		.setSamples(vk::SampleCountFlagBits::e1)
 		.setLoadOp(vk::AttachmentLoadOp::eClear)
 		.setStoreOp(vk::AttachmentStoreOp::eStore)

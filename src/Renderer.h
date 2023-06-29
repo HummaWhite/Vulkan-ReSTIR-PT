@@ -95,7 +95,7 @@ private:
 	DeviceScene* mDeviceScene = nullptr;
 
 	GBufferPass* mGBufferPass = nullptr;
-	PathTracePass* mPathTracingPass = nullptr;
+	PathTracingPass* mPathTracingPass = nullptr;
 	PostProcPassFrag* mPostProcPass = nullptr;
 
 	zvk::DescriptorPool* mDescriptorPool = nullptr;

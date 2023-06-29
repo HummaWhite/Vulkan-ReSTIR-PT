@@ -180,7 +180,7 @@ vk::SamplerCreateInfo Image::samplerCreateInfo(vk::Filter filter, bool anisotrop
 		.setAnisotropyEnable(mCtx->instance()->deviceFeatures.samplerAnisotropy & anisotropyIfPossible)
 		.setMaxAnisotropy(mCtx->instance()->deviceProperties.limits.maxSamplerAnisotropy)
 		.setCompareEnable(false)
-		.setMipmapMode(vk::SamplerMipmapMode::eLinear)
+		.setMipmapMode((filter == vk::Filter::eLinear) ? vk::SamplerMipmapMode::eLinear : vk::SamplerMipmapMode::eNearest)
 		.setMipLodBias(0)
 		.setMinLod(0)
 		.setMaxLod(numMipLevels);

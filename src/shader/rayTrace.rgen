@@ -5,10 +5,15 @@
 
 #include "rayTracingLayouts.glsl"
 #include "camera.glsl"
+#include "GBufferUtil.glsl"
 
 void main() {
+    uvec4 GBufferA = texelFetch(uGBufferA, ivec2(gl_LaunchIDEXT.xy), 0);
+    uvec4 GBufferB = texelFetch(uGBufferB, ivec2(gl_LaunchIDEXT.xy), 0);
+
     vec2 uv = (vec2(gl_LaunchIDEXT.xy) + 0.5) / vec2(uCamera.filmSize);
     // vec3 color = vec3(uv, 0.5);
-    vec3 color = texture(uGBufferB, uv).rgb;
+     vec3 color = unpackAlbedo(GBufferA.x);
+    //vec3 color = vec3(uintBitsToFloat(GBufferB.xy), 0.0);
     imageStore(uRayColorOutput, ivec2(gl_LaunchIDEXT.xy), vec4(color, 1.0));
 }

@@ -82,4 +82,5 @@ void Camera::update() {
 
 	mViewMatrix = glm::lookAt(mPos, lookingAt, mUp);
 	mProjMatrix = glm::perspective(glm::radians(mFOV), aspect(), mNear, mFar);
+	mProjView = mProjMatrix * mViewMatrix;
 }

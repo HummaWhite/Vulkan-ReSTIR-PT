@@ -1,5 +1,5 @@
-#ifndef RAYTRACE_LAYOUTS_GLSL
-#define RAYTRACE_LAYOUTS_GLSL
+#ifndef RAYTRACING_LAYOUTS_GLSL
+#define RAYTRACING_LAYOUTS_GLSL
 
 #include "layouts.glsl"
 

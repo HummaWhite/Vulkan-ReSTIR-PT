@@ -26,6 +26,8 @@ struct Material {
 struct Camera{
 	mat4 view;
 	mat4 proj;
+	mat4 projView;
+	mat4 lastProjView;
 	vec3 pos;
 	vec3 angle;
 	vec3 front;
@@ -84,8 +86,8 @@ layout(set = GBufferDrawParamDescSet, binding = 0, std140) readonly buffer _GBuf
 };
 
 
-layout(set = ImageOutputDescSet, binding = 0) uniform sampler2D uGBufferA;
-layout(set = ImageOutputDescSet, binding = 1) uniform sampler2D uGBufferB;
+layout(set = ImageOutputDescSet, binding = 0) uniform usampler2D uGBufferA;
+layout(set = ImageOutputDescSet, binding = 1) uniform usampler2D uGBufferB;
 layout(set = ImageOutputDescSet, binding = 2, rgba32f) uniform image2D uRayColorOutput;
 
 layout(set = ImageOutputDescSet, binding = 3) buffer _Reservoir {

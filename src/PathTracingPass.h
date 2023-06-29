@@ -28,11 +28,11 @@ struct Reservoir {
 	uint32_t pad;
 };
 
-class PathTracePass : public zvk::BaseVkObject {
+class PathTracingPass : public zvk::BaseVkObject {
 public:
-	PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx);
+	PathTracingPass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx);
 
-	~PathTracePass() { destroy(); }
+	~PathTracingPass() { destroy(); }
 	void destroy();
 
 	vk::DescriptorSetLayout descSetLayout() const { return mDescriptorSetLayout->layout; }

@@ -88,11 +88,12 @@ void Renderer::initVulkan() {
 
 		initScene();
 		mScene.camera.setFilmSize({ mWidth, mHeight });
+		mScene.camera.nextFrame();
 
 		mDeviceScene = new DeviceScene(mContext, mScene, zvk::QueueIdx::GeneralUse);
 
 		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent(), mScene.resource);
-		mPathTracingPass = new PathTracePass(mContext, mDeviceScene, mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
+		mPathTracingPass = new PathTracingPass(mContext, mDeviceScene, mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
 		mPostProcPass = new PostProcPassFrag(mContext, mSwapchain);
 
 		Log::newLine();
@@ -359,6 +360,7 @@ void Renderer::swap() {
 void Renderer::loop() {
 	updateCameraUniform();
 	drawFrame();
+	mScene.camera.nextFrame();
 }
 
 void Renderer::recreateFrame() {

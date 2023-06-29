@@ -1,7 +1,7 @@
 #include "PathTracingPass.h"
 #include "shader/HostDevice.h"
 
-PathTracePass::PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :
+PathTracingPass::PathTracingPass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :
 	zvk::BaseVkObject(ctx)
 {
 	createAccelerationStructure(scene, queueIdx);
@@ -9,7 +9,7 @@ PathTracePass::PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, 
 	createDescriptor();
 }
 
-void PathTracePass::destroy() {
+void PathTracingPass::destroy() {
 	destroyFrame();
 
 	delete mShaderBindingTable;
@@ -23,7 +23,7 @@ void PathTracePass::destroy() {
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void PathTracePass::render(
+void PathTracingPass::render(
 	vk::CommandBuffer cmd,
 	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet,
 	vk::Extent2D extent, uint32_t maxDepth
@@ -41,7 +41,7 @@ void PathTracePass::render(
 	ext.cmdTraceRaysKHR(cmd, mRayGenRegion, mMissRegion, mHitRegion, mCallRegion, extent.width, extent.height, maxDepth);
 }
 
-void PathTracePass::initDescriptor() {
+void PathTracingPass::initDescriptor() {
 	zvk::DescriptorWrite update;
 
 	update.add(
@@ -51,17 +51,17 @@ void PathTracePass::initDescriptor() {
 	mCtx->device.updateDescriptorSets(update.writes, {});
 }
 
-void PathTracePass::swap() {
+void PathTracingPass::swap() {
 	std::swap(colorOutput[0], colorOutput[1]);
 	std::swap(reservoir[0], reservoir[1]);
 }
 
-void PathTracePass::recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
+void PathTracingPass::recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 	destroyFrame();
 	createFrame(extent, queueIdx);
 }
 
-void PathTracePass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+void PathTracingPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
 	enum Stages : uint32_t {
 		RayGen,
 		Miss,
@@ -122,7 +122,7 @@ void PathTracePass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t m
 	createShaderBindingTable();
 }
 
-void PathTracePass::createAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx) {
+void PathTracingPass::createAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx) {
 	zvk::AccelerationStructureTriangleMesh triangleData {
 		.vertexAddress = scene->vertices->address(),
 		.indexAddress = scene->indices->address(),
@@ -157,7 +157,7 @@ void PathTracePass::createAccelerationStructure(const DeviceScene* scene, zvk::Q
 	);
 }
 
-void PathTracePass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
+void PathTracingPass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 	auto cmd = zvk::Command::createOneTimeSubmit(mCtx, queueIdx);
 
 	for (int i = 0; i < 2; i++) {
@@ -188,7 +188,7 @@ void PathTracePass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 	delete cmd;
 }
 
-void PathTracePass::createShaderBindingTable() {
+void PathTracingPass::createShaderBindingTable() {
 	// TODO:
 	// write a wrapper class for Shader Binding Table
 
@@ -253,7 +253,7 @@ void PathTracePass::createShaderBindingTable() {
 	mShaderBindingTable->unmapMemory();
 }
 
-void PathTracePass::createDescriptor() {
+void PathTracingPass::createDescriptor() {
 	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
 		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eAccelerationStructureKHR, RayTracingShaderStageFlags)
 	};
@@ -263,7 +263,7 @@ void PathTracePass::createDescriptor() {
 	mDescriptorSet = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
 }
 
-void PathTracePass::destroyFrame() {
+void PathTracingPass::destroyFrame() {
 	for (int i = 0; i < 2; i++) {
 		delete colorOutput[i];
 		delete reservoir[i];
