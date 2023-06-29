@@ -4,8 +4,8 @@
 
 #include "layouts.glsl"
 
-layout(location = 0) out vec4 DepthNormal;
-layout(location = 1) out vec4 AlbedoMatIdx;
+layout(location = 0) out vec4 GBufferA;
+layout(location = 1) out vec4 GBufferB;
 
 layout(location = 0) in VSOut {
 	vec3 pos;
@@ -34,6 +34,6 @@ void main() {
 	}
 
 	albedo = albedo * vec3(abs(dot(fsIn.norm, uCamera.front)) + 0.05);
-    DepthNormal = vec4(fsIn.depth, fsIn.norm);
-    AlbedoMatIdx = vec4(albedo, fsIn.uv.x);
+    GBufferA = vec4(fsIn.depth, fsIn.norm);
+    GBufferB = vec4(albedo, fsIn.uv.x);
 }

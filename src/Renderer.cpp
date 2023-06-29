@@ -92,7 +92,7 @@ void Renderer::initVulkan() {
 		mDeviceScene = new DeviceScene(mContext, mScene, zvk::QueueIdx::GeneralUse);
 
 		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent(), mScene.resource);
-		mPathTracePass = new PathTracePass(mContext, mDeviceScene, mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
+		mPathTracingPass = new PathTracePass(mContext, mDeviceScene, mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
 		mPostProcPass = new PostProcPassFrag(mContext, mSwapchain);
 
 		Log::newLine();
@@ -120,10 +120,10 @@ void Renderer::createPipeline() {
 		mDeviceScene->resourceDescLayout->layout,
 		mGBufferPass->descSetLayout(),
 		mImageOutDescLayout->layout,
-		mPathTracePass->descSetLayout()
+		mPathTracingPass->descSetLayout()
 	};
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager, descLayouts);
-	mPathTracePass->createPipeline(mShaderManager, 1, descLayouts);
+	mPathTracingPass->createPipeline(mShaderManager, 1, descLayouts);
 	mPostProcPass->createPipeline(mShaderManager, mSwapchain->extent(), descLayouts);
 }
 
@@ -153,13 +153,13 @@ void Renderer::initImageLayout() {
 
 	for (int i = 0; i < 2; i++) {
 		barriers.push_back(
-			mGBufferPass->depthNormal[i]->getBarrier(
+			mGBufferPass->GBufferA[i]->getBarrier(
 				vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderWrite
 			)
 		);
 
 		barriers.push_back(
-			mGBufferPass->albedoMatIdx[i]->getBarrier(
+			mGBufferPass->GBufferB[i]->getBarrier(
 				vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderWrite
 			)
 		);
@@ -176,12 +176,12 @@ void Renderer::initImageLayout() {
 void Renderer::initDescriptor() {
 	mDeviceScene->initDescriptor();
 	mGBufferPass->initDescriptor();
-	mPathTracePass->initDescriptor();
+	mPathTracingPass->initDescriptor();
 
-	auto depthNormal = mGBufferPass->depthNormal;
-	auto albedoMatIdx = mGBufferPass->albedoMatIdx;
-	auto colorOutput = mPathTracePass->colorOutput;
-	auto reservoir = mPathTracePass->reservoir;
+	auto depthNormal = mGBufferPass->GBufferA;
+	auto albedoMatIdx = mGBufferPass->GBufferB;
+	auto colorOutput = mPathTracingPass->colorOutput;
+	auto reservoir = mPathTracingPass->reservoir;
 
 	zvk::DescriptorWrite update;
 
@@ -224,9 +224,9 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.setFlags(vk::CommandBufferUsageFlagBits{})
 		.setPInheritanceInfo(nullptr);
 
-	auto depthNormal = mGBufferPass->depthNormal[0];
-	auto albedoMatIdx = mGBufferPass->albedoMatIdx[0];
-	auto rayOutput = mPathTracePass->colorOutput[0];
+	auto GBufferA = mGBufferPass->GBufferA[0];
+	auto GBufferB = mGBufferPass->GBufferB[0];
+	auto rayOutput = mPathTracingPass->colorOutput[0];
 
 	cmd.begin(beginInfo); {
 		mGBufferPass->render(
@@ -236,8 +236,8 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		);
 
 		auto GBufferImageBarriers = {
-			depthNormal->getBarrier(depthNormal->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
-			albedoMatIdx->getBarrier(albedoMatIdx->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
+			GBufferA->getBarrier(GBufferA->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
+			GBufferB->getBarrier(GBufferB->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
 		};
 
 		cmd.pipelineBarrier(
@@ -263,7 +263,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		cmd.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(GBufferImageBarriers));
 		*/
 
-		mPathTracePass->render(
+		mPathTracingPass->render(
 			cmd,
 			mDeviceScene->cameraDescSet, mDeviceScene->resourceDescSet, mImageOutDescSet[0],
 			mSwapchain->extent(), 1
@@ -352,7 +352,7 @@ void Renderer::drawFrame() {
 
 void Renderer::swap() {
 	mGBufferPass->swap();
-	mPathTracePass->swap();
+	mPathTracingPass->swap();
 	std::swap(mImageOutDescSet[0], mImageOutDescSet[1]);
 }
 
@@ -374,7 +374,7 @@ void Renderer::recreateFrame() {
 	delete mSwapchain;
 	mSwapchain = new zvk::Swapchain(mContext, width, height, SWAPCHAIN_FORMAT, false);
 	mGBufferPass->recreateFrame(mSwapchain->extent());
-	mPathTracePass->recreateFrame(mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
+	mPathTracingPass->recreateFrame(mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
 	mPostProcPass->recreateFrame(mSwapchain);
 }
 
@@ -383,7 +383,7 @@ void Renderer::cleanupVulkan() {
 
 	delete mDeviceScene;
 	delete mGBufferPass;
-	delete mPathTracePass;
+	delete mPathTracingPass;
 	delete mPostProcPass;
 
 	delete mImageOutDescLayout;

@@ -1,4 +1,4 @@
-#include "PathTracePass.h"
+#include "PathTracingPass.h"
 #include "shader/HostDevice.h"
 
 PathTracePass::PathTracePass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :

@@ -3,12 +3,12 @@
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 
-#include "rayTraceLayouts.glsl"
+#include "rayTracingLayouts.glsl"
 #include "camera.glsl"
 
 void main() {
     vec2 uv = (vec2(gl_LaunchIDEXT.xy) + 0.5) / vec2(uCamera.filmSize);
     // vec3 color = vec3(uv, 0.5);
-    vec3 color = texture(uAlbedoMatIdx, uv).rgb;
+    vec3 color = texture(uGBufferB, uv).rgb;
     imageStore(uRayColorOutput, ivec2(gl_LaunchIDEXT.xy), vec4(color, 1.0));
 }

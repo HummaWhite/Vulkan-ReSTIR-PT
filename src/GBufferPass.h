@@ -71,8 +71,8 @@ private:
 	void destroyFrame();
 
 public:
-	zvk::Image* depthNormal[2] = { nullptr };
-	zvk::Image* albedoMatIdx[2] = { nullptr };
+	zvk::Image* GBufferA[2] = { nullptr };
+	zvk::Image* GBufferB[2] = { nullptr };
 	vk::Framebuffer framebuffer[2];
 
 private:

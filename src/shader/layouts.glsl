@@ -84,8 +84,8 @@ layout(set = GBufferDrawParamDescSet, binding = 0, std140) readonly buffer _GBuf
 };
 
 
-layout(set = ImageOutputDescSet, binding = 0) uniform sampler2D uDepthNormal;
-layout(set = ImageOutputDescSet, binding = 1) uniform sampler2D uAlbedoMatIdx;
+layout(set = ImageOutputDescSet, binding = 0) uniform sampler2D uGBufferA;
+layout(set = ImageOutputDescSet, binding = 1) uniform sampler2D uGBufferB;
 layout(set = ImageOutputDescSet, binding = 2, rgba32f) uniform image2D uRayColorOutput;
 
 layout(set = ImageOutputDescSet, binding = 3) buffer _Reservoir {

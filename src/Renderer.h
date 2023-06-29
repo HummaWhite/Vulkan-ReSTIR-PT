@@ -21,7 +21,7 @@
 #include "core/Descriptor.h"
 #include "Scene.h"
 #include "GBufferPass.h"
-#include "PathTracePass.h"
+#include "PathTracingPass.h"
 #include "PostProcPassFrag.h"
 
 #include "util/Error.h"
@@ -95,7 +95,7 @@ private:
 	DeviceScene* mDeviceScene = nullptr;
 
 	GBufferPass* mGBufferPass = nullptr;
-	PathTracePass* mPathTracePass = nullptr;
+	PathTracePass* mPathTracingPass = nullptr;
 	PostProcPassFrag* mPostProcPass = nullptr;
 
 	zvk::DescriptorPool* mDescriptorPool = nullptr;

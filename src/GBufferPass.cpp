@@ -81,8 +81,8 @@ void GBufferPass::initDescriptor() {
 }
 
 void GBufferPass::swap() {
-	std::swap(depthNormal[0], depthNormal[1]);
-	std::swap(albedoMatIdx[0], albedoMatIdx[1]);
+	std::swap(GBufferA[0], GBufferA[1]);
+	std::swap(GBufferB[0], GBufferB[1]);
 	std::swap(mDepthStencil[0], mDepthStencil[1]);
 	std::swap(framebuffer[0], framebuffer[1]);
 }
@@ -119,21 +119,21 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 
 void GBufferPass::createResource(vk::Extent2D extent) {
 	for (int i = 0; i < 2; i++) {
-		depthNormal[i] = zvk::Memory::createImage2D(
+		GBufferA[i] = zvk::Memory::createImage2D(
 			mCtx, extent, DepthNormalFormat, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
-		depthNormal[i]->createImageView();
-		depthNormal[i]->createSampler(vk::Filter::eLinear);
+		GBufferA[i]->createImageView();
+		GBufferA[i]->createSampler(vk::Filter::eLinear);
 
-		albedoMatIdx[i] = zvk::Memory::createImage2D(
+		GBufferB[i] = zvk::Memory::createImage2D(
 			mCtx, extent, AlbedoMatIdxFormat, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
-		albedoMatIdx[i]->createImageView();
-		albedoMatIdx[i]->createSampler(vk::Filter::eLinear);
+		GBufferB[i]->createImageView();
+		GBufferB[i]->createSampler(vk::Filter::eLinear);
 
 		mDepthStencil[i] = zvk::Memory::createImage2D(
 			mCtx, extent, DepthStencilFormat, vk::ImageTiling::eOptimal,
@@ -211,7 +211,7 @@ void GBufferPass::createRenderPass(vk::ImageLayout outLayout) {
 
 void GBufferPass::createFramebuffer(vk::Extent2D extent) {
 	for (int i = 0; i < 2; i++) {
-		auto attachments = { depthNormal[i]->view, albedoMatIdx[i]->view, mDepthStencil[i]->view };
+		auto attachments = { GBufferA[i]->view, GBufferB[i]->view, mDepthStencil[i]->view };
 
 		auto createInfo = vk::FramebufferCreateInfo()
 			.setRenderPass(mRenderPass)
@@ -349,7 +349,7 @@ void GBufferPass::destroyFrame() {
 	for (int i = 0; i < 2; i++) {
 		mCtx->device.destroyFramebuffer(framebuffer[i]);
 		delete mDepthStencil[i];
-		delete depthNormal[i];
-		delete albedoMatIdx[i];
+		delete GBufferA[i];
+		delete GBufferB[i];
 	}
 }
