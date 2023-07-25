@@ -17,8 +17,8 @@ namespace zvk {
         return (x + y - 1) / y;
     }
 
-    inline uint32_t ceil(uint32_t x, uint32_t y) {
-        return ceilDiv(x, y) * y;
+    inline uint32_t align(uint32_t size, uint32_t alignment) {
+        return ceilDiv(size, alignment) * alignment;
     }
 }
 

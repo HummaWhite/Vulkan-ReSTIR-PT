@@ -200,17 +200,17 @@ void PathTracingPass::createShaderBindingTable() {
 	uint32_t numHandles = 1 + numMiss + numHit;
 	uint32_t handleSize = pipelineProps.shaderGroupHandleSize;
 
-	uint32_t alignedHandleSize = zvk::ceil(pipelineProps.shaderGroupHandleSize, pipelineProps.shaderGroupHandleAlignment);
+	uint32_t alignedHandleSize = zvk::align(pipelineProps.shaderGroupHandleSize, pipelineProps.shaderGroupHandleAlignment);
 	uint32_t baseAlignment = pipelineProps.shaderGroupBaseAlignment;
 
-	mRayGenRegion.stride = zvk::ceil(alignedHandleSize, baseAlignment);
+	mRayGenRegion.stride = zvk::align(alignedHandleSize, baseAlignment);
 	mRayGenRegion.size = mRayGenRegion.stride;
 
 	mMissRegion.stride = alignedHandleSize;
-	mMissRegion.size = zvk::ceil(numMiss * alignedHandleSize, baseAlignment);
+	mMissRegion.size = zvk::align(numMiss * alignedHandleSize, baseAlignment);
 
 	mHitRegion.stride = alignedHandleSize;
-	mHitRegion.size = zvk::ceil(numHit * alignedHandleSize, baseAlignment);
+	mHitRegion.size = zvk::align(numHit * alignedHandleSize, baseAlignment);
 
 	uint32_t dataSize = numHandles * handleSize;
 	auto handles = ext.getRayTracingShaderGroupHandlesKHR(mCtx->device, mPipeline, 0, numHandles, dataSize);

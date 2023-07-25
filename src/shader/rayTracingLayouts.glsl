@@ -3,6 +3,11 @@
 
 #include "layouts.glsl"
 
+struct RTPayload {
+	vec3 radiance;
+	vec3 throughput;
+};
+
 layout(set = RayTracingDescSet, binding = 0) uniform accelerationStructureEXT uTLAS;
 
 #endif

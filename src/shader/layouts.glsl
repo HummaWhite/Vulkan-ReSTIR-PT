@@ -59,6 +59,13 @@ struct Ray {
 	vec3 dir;
 };
 
+struct MeshVertex {
+	vec3 pos;
+	float uvx;
+	vec3 norm;
+	float uvy;
+};
+
 
 layout(push_constant) uniform _PushConstant {
 	GBufferDrawParam uGBufferDrawParam;
@@ -78,6 +85,14 @@ layout(set = ResourceDescSet, binding = 1, std140) readonly buffer _Materials {
 
 layout(set = ResourceDescSet, binding = 2, std140) readonly buffer _MaterialIndices {
 	int uMaterialIndices[];
+};
+
+layout(set = ResourceDescSet, binding = 3, std140) readonly buffer _Vertices {
+	MeshVertex uVertices[];
+};
+
+layout(set = ResourceDescSet, binding = 4, std140) readonly buffer _Indices {
+	uint uIndices[];
 };
 
 

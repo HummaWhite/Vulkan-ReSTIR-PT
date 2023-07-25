@@ -173,6 +173,8 @@ void DeviceScene::initDescriptor() {
 	update.add(resourceDescLayout, resourceDescSet, 0, zvk::Descriptor::makeImageDescriptorArray(textures));
 	update.add(resourceDescLayout, resourceDescSet, 1, vk::DescriptorBufferInfo(materials->buffer, 0, materials->size));
 	update.add(resourceDescLayout, resourceDescSet, 2, vk::DescriptorBufferInfo(materialIds->buffer, 0, materialIds->size));
+	update.add(resourceDescLayout, resourceDescSet, 3, vk::DescriptorBufferInfo(vertices->buffer, 0, vertices->size));
+	update.add(resourceDescLayout, resourceDescSet, 4, vk::DescriptorBufferInfo(indices->buffer, 0, indices->size));
 
 	mCtx->device.updateDescriptorSets(update.writes, {});
 }
@@ -200,12 +202,14 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 
 	materials = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.resource.materials().data(), zvk::sizeOf(scene.resource.materials()),
-		vk::BufferUsageFlagBits::eStorageBuffer
+		vk::BufferUsageFlagBits::eStorageBuffer,
+		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
 
 	materialIds = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.resource.materialIndices().data(), zvk::sizeOf(scene.resource.materialIndices()),
-		vk::BufferUsageFlagBits::eStorageBuffer
+		vk::BufferUsageFlagBits::eStorageBuffer,
+		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
 
 	camera = zvk::Memory::createBuffer(
@@ -253,6 +257,14 @@ void DeviceScene::createDescriptor() {
 		zvk::Descriptor::makeBinding(
 			2, vk::DescriptorType::eStorageBuffer,
 			vk::ShaderStageFlagBits::eVertex | RayTracingShaderStageFlags
+		),
+		zvk::Descriptor::makeBinding(
+			3, vk::DescriptorType::eStorageBuffer,
+			RayTracingShaderStageFlags
+		),
+		zvk::Descriptor::makeBinding(
+			4, vk::DescriptorType::eStorageBuffer,
+			RayTracingShaderStageFlags
 		),
 	};
 

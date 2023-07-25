@@ -1,6 +1,7 @@
 #version 460
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_buffer_reference : enable
 
 #include "layouts.glsl"
 #include "GBufferUtil.glsl"
@@ -33,6 +34,7 @@ void main() {
 		}
 	}
 	albedo = albedo * vec3(-dot(fsIn.norm, uCamera.front) * 0.5 + 0.55);
+	albedo = fsIn.pos;
 
 	vec4 lastCoord = uCamera.lastProjView * vec4(fsIn.pos, 1.0);
 	lastCoord /= lastCoord.w;

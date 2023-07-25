@@ -27,11 +27,16 @@ Ray thinLensCameraSampleRay(Camera cam, vec2 uv, vec4 r) {
 	float tanFOV = tan(radians(cam.FOV * 0.5));
 
 	vec3 pLens = vec3(toConcentricDisk(r.zw) * cam.lensRadius, 0.0);
-	vec3 pFocusPlane = vec3(ndc * vec2(aspect, 1.0) * tanFOV, 1.) * cam.focalDist;
+	vec3 pFocusPlane = vec3(ndc * vec2(aspect, 1.0) * tanFOV, 1.0) * cam.focalDist;
+
+	vec3 ori = cam.pos + cam.right * pLens.x + cam.up * pLens.y;
 	vec3 dir = pFocusPlane - pLens;
 	dir = normalize(cam.right * dir.x + cam.up * dir.y + cam.front * dir.z);
 
-	return makeRay(cam.pos + cam.right * pLens.x + cam.up * pLens.y, dir);
+	ori = vec3(-ori.x, -ori.z, ori.y);
+	dir = vec3(-dir.x, -dir.z, dir.y);
+
+	return Ray(ori, dir);
 }
 
 /*
