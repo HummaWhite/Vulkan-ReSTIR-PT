@@ -101,8 +101,8 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 		glm::mat4 modelInvT(glm::transpose(glm::inverse(modelMatrix)));
 
 		for (uint32_t i = 0; i < model->numMeshes(); i++) {
-			const auto& mesh = resource.meshInstances()[model->offset() + i];
-			commands.push_back({ mesh.numIndices, 1, mesh.offset, 0, 0 });
+			const auto& mesh = resource.meshInstances()[model->meshOffset() + i];
+			commands.push_back({ mesh.numIndices, 1, mesh.indexOffset, 0, 0 });
 			mDrawParams.push_back({ modelMatrix, modelInvT, mesh.materialIdx });
 		}
 	}
@@ -111,6 +111,7 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 		mCtx, zvk::QueueIdx::GeneralUse, commands.data(), zvk::sizeOf(commands),
 		vk::BufferUsageFlagBits::eIndirectBuffer
 	);
+
 	mDrawParamBuffer = zvk::Memory::createBufferFromHost(
 		mCtx, zvk::QueueIdx::GeneralUse, mDrawParams.data(), zvk::sizeOf(mDrawParams),
 		vk::BufferUsageFlagBits::eStorageBuffer

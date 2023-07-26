@@ -71,7 +71,7 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 
 	std::stack<aiNode*> stack;
 	stack.push(scene->mRootNode);
-	model->mOffset = mMeshInstances.size();
+	model->mMeshOffset = mMeshInstances.size();
 
 	while (!stack.empty()) {
 		auto node = stack.top();
@@ -79,7 +79,10 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 
 		for (int i = 0; i < node->mNumMeshes; i++) {
 			auto mesh = scene->mMeshes[node->mMeshes[i]];
-			mMeshInstances.push_back(createNewMeshInstance(mesh, scene));
+			auto meshInstance = createNewMeshInstance(mesh, scene);
+			mMeshInstances.push_back(meshInstance);
+			model->mNumIndices += meshInstance.numIndices;
+			model->mNumVertices += meshInstance.numVertices;
 		}
 		for (int i = 0; i < node->mNumChildren; i++) {
 			stack.push(node->mChildren[i]);
@@ -169,7 +172,9 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 	if (scene->mNumMaterials > 0 && mesh->mMaterialIndex >= 0) {
 		meshInstance.materialIdx = mesh->mMaterialIndex + materialOffset;
 	}
-	meshInstance.offset = mIndices.size();
+	meshInstance.vertexOffset = mVertices.size();
+	meshInstance.numVertices = mesh->mNumVertices;
+	meshInstance.indexOffset = mIndices.size();
 
 	for (int i = 0; i < mesh->mNumFaces; i++) {
 		aiFace face = mesh->mFaces[i];

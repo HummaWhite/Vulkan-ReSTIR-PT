@@ -34,8 +34,10 @@ struct MeshVertex {
 };
 
 struct MeshInstance {
-	uint32_t offset = 0;
+	uint32_t indexOffset = 0;
 	uint32_t numIndices = 0;
+	uint32_t vertexOffset = 0;
+	uint32_t numVertices = 0;
 	int materialIdx = InvalidResourceIdx;
 };
 
@@ -60,8 +62,10 @@ public:
 	void setName(const std::string& name) { mName = name; }
 	void setPath(const File::path& path) { mPath = path; }
 
-	uint32_t offset() const { return mOffset; }
+	uint32_t meshOffset() const { return mMeshOffset; }
 	uint32_t numMeshes() const { return mNumMeshes; }
+	uint32_t numIndices() const { return mNumIndices; }
+	uint32_t numVertices() const { return mNumVertices; }
 	glm::vec3 pos() const { return mPos; }
 	glm::vec3 scale() const { return mScale; }
 	glm::vec3 rotation() const { return mRotation; }
@@ -73,8 +77,10 @@ private:
 	ModelInstance* copy() const;
 
 private:
-	uint32_t mOffset = 0;
+	uint32_t mMeshOffset = 0;
 	uint32_t mNumMeshes = 0;
+	uint32_t mNumIndices = 0;
+	uint32_t mNumVertices = 0;
 
 	glm::vec3 mPos = glm::vec3(0.0f);
 	glm::vec3 mScale = glm::vec3(1.0f);

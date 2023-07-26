@@ -50,7 +50,7 @@ std::pair<ModelInstance*, std::optional<glm::vec3>> Scene::loadModelInstance(con
 	}
 
 	for (uint32_t i = 0; i < model->numMeshes(); i++) {
-		uint32_t materialIdx = resource.mMeshInstances[i + model->offset()].materialIdx;
+		uint32_t materialIdx = resource.mMeshInstances[i + model->meshOffset()].materialIdx;
 
 		auto textureIdx = resource.mMaterials[materialIdx].textureIdx;
 		resource.mMaterials[materialIdx] = *material;

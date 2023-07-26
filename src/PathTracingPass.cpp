@@ -1,10 +1,10 @@
 #include "PathTracingPass.h"
 #include "shader/HostDevice.h"
 
-PathTracingPass::PathTracingPass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :
+PathTracingPass::PathTracingPass(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :
 	zvk::BaseVkObject(ctx)
 {
-	createAccelerationStructure(scene, queueIdx);
+	createAccelerationStructure(resource, scene, queueIdx);
 	createFrame(extent, queueIdx);
 	createDescriptor();
 }
@@ -13,9 +13,11 @@ void PathTracingPass::destroy() {
 	destroyFrame();
 
 	delete mShaderBindingTable;
-	delete mBLAS;
 	delete mTLAS;
 
+	for (auto& blas : mObjectBLAS) {
+		delete blas;
+	}
 	delete mDescriptorSetLayout;
 	delete mDescriptorPool;
 
@@ -122,38 +124,52 @@ void PathTracingPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t
 	createShaderBindingTable();
 }
 
-void PathTracingPass::createAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx) {
-	zvk::AccelerationStructureTriangleMesh triangleData {
-		.vertexAddress = scene->vertices->address(),
-		.indexAddress = scene->indices->address(),
-		.vertexStride = sizeof(MeshVertex),
-		.vertexFormat = vk::Format::eR32G32B32Sfloat,
-		.indexType = vk::IndexType::eUint32,
-		.numVertices = scene->numVertices,
-		.numIndices = scene->numIndices
-	};
+void PathTracingPass::createAccelerationStructure(const Resource& resource, const DeviceScene* scene, zvk::QueueIdx queueIdx) {
+	for (const auto& model : resource.modelInstances()) {
+		auto firstMesh = resource.meshInstances()[model->meshOffset()];
+		uint64_t vertexOffset = firstMesh.vertexOffset * sizeof(MeshVertex);
+		uint64_t indexOffset = firstMesh.indexOffset * sizeof(uint32_t);
 
-	mBLAS = new zvk::AccelerationStructure(
-		mCtx, zvk::QueueIdx::GeneralUse, triangleData, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
-	);
+		zvk::AccelerationStructureTriangleMesh meshData {
+			.vertexAddress = scene->vertices->address(),
+			.indexAddress = scene->indices->address(),
+			.vertexStride = sizeof(MeshVertex),
+			.vertexFormat = vk::Format::eR32G32B32Sfloat,
+			.indexType = vk::IndexType::eUint32,
+			.maxVertex = scene->numVertices,
+			.numIndices = model->numIndices(),
+			.indexOffset = resource.meshInstances()[model->meshOffset()].indexOffset
+		};
 
-	vk::TransformMatrixKHR transform;
-	auto& m = transform.matrix;
+		auto blas = new zvk::AccelerationStructure(
+			mCtx, zvk::QueueIdx::GeneralUse, meshData, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
+		);
+		mObjectBLAS.push_back(blas);
+	}
 
-	m[0][0] = 1.f, m[0][1] = 0.f, m[0][2] = 0.f, m[0][3] = 0.f;
-	m[1][0] = 0.f, m[1][1] = 1.f, m[1][2] = 0.f, m[1][3] = 0.f;
-	m[2][0] = 0.f, m[2][1] = 0.f, m[2][2] = 1.f, m[2][3] = 0.f;
+	std::vector<vk::AccelerationStructureInstanceKHR> instances;
 
-	auto instance = vk::AccelerationStructureInstanceKHR()
-		.setTransform(transform)
-		.setInstanceCustomIndex(0)
-		.setMask(0xff)
-		.setInstanceShaderBindingTableRecordOffset(0)
-		.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)
-		.setAccelerationStructureReference(mBLAS->address);
+	for (uint32_t i = 0; i < resource.modelInstances().size(); i++) {
+		vk::TransformMatrixKHR transform;
+		auto& m = transform.matrix;
+
+		m[0][0] = 1.f, m[0][1] = 0.f, m[0][2] = 0.f, m[0][3] = 0.f;
+		m[1][0] = 0.f, m[1][1] = 1.f, m[1][2] = 0.f, m[1][3] = 0.f;
+		m[2][0] = 0.f, m[2][1] = 0.f, m[2][2] = 1.f, m[2][3] = 0.f;
+
+		instances.push_back(
+			vk::AccelerationStructureInstanceKHR()
+				.setTransform(transform)
+				.setInstanceCustomIndex(0)
+				.setMask(0xff)
+				.setInstanceShaderBindingTableRecordOffset(0)
+				.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)
+				.setAccelerationStructureReference(mObjectBLAS[i]->address)
+		);
+	}
 
 	mTLAS = new zvk::AccelerationStructure(
-		mCtx, zvk::QueueIdx::GeneralUse, instance, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
+		mCtx, zvk::QueueIdx::GeneralUse, instances, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
 	);
 }
 

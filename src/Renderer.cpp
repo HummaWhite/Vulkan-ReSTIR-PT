@@ -93,7 +93,7 @@ void Renderer::initVulkan() {
 		mDeviceScene = new DeviceScene(mContext, mScene, zvk::QueueIdx::GeneralUse);
 
 		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent(), mScene.resource);
-		mPathTracingPass = new PathTracingPass(mContext, mDeviceScene, mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
+		mPathTracingPass = new PathTracingPass(mContext, mScene.resource, mDeviceScene, mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
 		mPostProcPass = new PostProcPassFrag(mContext, mSwapchain);
 
 		Log::newLine();
@@ -129,7 +129,7 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::initScene() {
-	mScene.load("res/sponza.xml");
+	mScene.load("res/zbidir.xml");
 }
 
 void Renderer::createDescriptor() {

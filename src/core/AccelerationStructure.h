@@ -16,8 +16,9 @@ struct AccelerationStructureTriangleMesh {
     vk::DeviceSize vertexStride;
     vk::Format vertexFormat;
     vk::IndexType indexType;
-    uint32_t numVertices;
+    uint32_t maxVertex;
     uint32_t numIndices;
+    uint32_t indexOffset;
 };
 
 class AccelerationStructure : public BaseVkObject {

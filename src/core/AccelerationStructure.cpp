@@ -14,14 +14,14 @@ AccelerationStructure::AccelerationStructure(
     std::vector<vk::AccelerationStructureGeometryKHR> geometries;
     std::vector<vk::AccelerationStructureBuildRangeInfoKHR> buildRangeInfos;
 
-    for (const auto& triangle : triangleMeshes) {
+    for (const auto& mesh : triangleMeshes) {
         auto triangleData = vk::AccelerationStructureGeometryTrianglesDataKHR()
-            .setVertexData(triangle.vertexAddress)
-            .setMaxVertex(triangle.numVertices)
-            .setVertexFormat(triangle.vertexFormat)
-            .setVertexStride(triangle.vertexStride)
-            .setIndexData(triangle.indexAddress)
-            .setIndexType(triangle.indexType);
+            .setVertexData(mesh.vertexAddress)
+            .setMaxVertex(mesh.maxVertex)
+            .setVertexFormat(mesh.vertexFormat)
+            .setVertexStride(mesh.vertexStride)
+            .setIndexData(mesh.indexAddress)
+            .setIndexType(mesh.indexType);
 
         auto geometryData = vk::AccelerationStructureGeometryDataKHR()
             .setTriangles(triangleData);
@@ -31,9 +31,9 @@ AccelerationStructure::AccelerationStructure(
             .setGeometryType(vk::GeometryTypeKHR::eTriangles);
 
         auto buildRange = vk::AccelerationStructureBuildRangeInfoKHR()
-            .setPrimitiveCount(triangle.numIndices / 3)
+            .setPrimitiveCount(mesh.numIndices / 3)
             .setPrimitiveOffset(0)
-            .setFirstVertex(0)
+            .setFirstVertex(mesh.indexOffset)
             .setTransformOffset(0);
 
         geometries.push_back(geometry);

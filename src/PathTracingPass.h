@@ -30,7 +30,7 @@ struct Reservoir {
 
 class PathTracingPass : public zvk::BaseVkObject {
 public:
-	PathTracingPass(const zvk::Context* ctx, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx);
+	PathTracingPass(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx);
 
 	~PathTracingPass() { destroy(); }
 	void destroy();
@@ -49,7 +49,7 @@ public:
 	void recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx);
 
 private:
-	void createAccelerationStructure(const DeviceScene* scene, zvk::QueueIdx queueIdx);
+	void createAccelerationStructure(const Resource& resource, const DeviceScene* scene, zvk::QueueIdx queueIdx);
 	void createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx);
 	void createShaderBindingTable();
 	void createDescriptor();
@@ -64,7 +64,7 @@ private:
 	vk::Pipeline mPipeline;
 	vk::PipelineLayout mPipelineLayout;
 
-	zvk::AccelerationStructure* mBLAS = nullptr;
+	std::vector<zvk::AccelerationStructure*> mObjectBLAS;
 	zvk::AccelerationStructure* mTLAS = nullptr;
 	zvk::Buffer* mShaderBindingTable = nullptr;
 
