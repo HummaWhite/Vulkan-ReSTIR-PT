@@ -17,9 +17,9 @@ AccelerationStructure::AccelerationStructure(
     for (const auto& mesh : triangleMeshes) {
         auto triangleData = vk::AccelerationStructureGeometryTrianglesDataKHR()
             .setVertexData(mesh.vertexAddress)
-            .setMaxVertex(mesh.maxVertex)
             .setVertexFormat(mesh.vertexFormat)
             .setVertexStride(mesh.vertexStride)
+            .setMaxVertex(mesh.maxVertex)
             .setIndexData(mesh.indexAddress)
             .setIndexType(mesh.indexType);
 
@@ -33,7 +33,7 @@ AccelerationStructure::AccelerationStructure(
         auto buildRange = vk::AccelerationStructureBuildRangeInfoKHR()
             .setPrimitiveCount(mesh.numIndices / 3)
             .setPrimitiveOffset(0)
-            .setFirstVertex(mesh.indexOffset)
+            .setFirstVertex(0)
             .setTransformOffset(0);
 
         geometries.push_back(geometry);
@@ -70,7 +70,7 @@ AccelerationStructure::AccelerationStructure(
         .setGeometry(geometryData);
 
     auto buildRangeInfo = vk::AccelerationStructureBuildRangeInfoKHR()
-        .setPrimitiveCount(1)
+        .setPrimitiveCount(instances.size())
         .setPrimitiveOffset(0)
         .setFirstVertex(0)
         .setTransformOffset(0);

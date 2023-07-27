@@ -125,46 +125,43 @@ void PathTracingPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t
 }
 
 void PathTracingPass::createAccelerationStructure(const Resource& resource, const DeviceScene* scene, zvk::QueueIdx queueIdx) {
-	for (const auto& model : resource.modelInstances()) {
+	for (auto model : resource.uniqueModelInstances()) {
 		auto firstMesh = resource.meshInstances()[model->meshOffset()];
-		uint64_t vertexOffset = firstMesh.vertexOffset * sizeof(MeshVertex);
+
 		uint64_t indexOffset = firstMesh.indexOffset * sizeof(uint32_t);
 
 		zvk::AccelerationStructureTriangleMesh meshData {
 			.vertexAddress = scene->vertices->address(),
-			.indexAddress = scene->indices->address(),
+			.indexAddress = scene->indices->address() + indexOffset,
 			.vertexStride = sizeof(MeshVertex),
 			.vertexFormat = vk::Format::eR32G32B32Sfloat,
 			.indexType = vk::IndexType::eUint32,
-			.maxVertex = scene->numVertices,
+			.maxVertex = model->numVertices(),
 			.numIndices = model->numIndices(),
-			.indexOffset = resource.meshInstances()[model->meshOffset()].indexOffset
+			.indexOffset = firstMesh.indexOffset
 		};
 
-		auto blas = new zvk::AccelerationStructure(
+		auto BLAS = new zvk::AccelerationStructure(
 			mCtx, zvk::QueueIdx::GeneralUse, meshData, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
 		);
-		mObjectBLAS.push_back(blas);
+		mObjectBLAS.push_back(BLAS);
 	}
-
 	std::vector<vk::AccelerationStructureInstanceKHR> instances;
+	uint32_t instanceCustomIdx = 0;
 
-	for (uint32_t i = 0; i < resource.modelInstances().size(); i++) {
+	for (auto modelInstance : resource.modelInstances()) {
 		vk::TransformMatrixKHR transform;
-		auto& m = transform.matrix;
-
-		m[0][0] = 1.f, m[0][1] = 0.f, m[0][2] = 0.f, m[0][3] = 0.f;
-		m[1][0] = 0.f, m[1][1] = 1.f, m[1][2] = 0.f, m[1][3] = 0.f;
-		m[2][0] = 0.f, m[2][1] = 0.f, m[2][2] = 1.f, m[2][3] = 0.f;
+		glm::mat4 matrix = glm::transpose(modelInstance->modelMatrix());
+		memcpy(&transform, &matrix, 12 * sizeof(float));
 
 		instances.push_back(
 			vk::AccelerationStructureInstanceKHR()
 				.setTransform(transform)
-				.setInstanceCustomIndex(0)
+				.setInstanceCustomIndex(instanceCustomIdx++)
 				.setMask(0xff)
 				.setInstanceShaderBindingTableRecordOffset(0)
 				.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)
-				.setAccelerationStructureReference(mObjectBLAS[i]->address)
+				.setAccelerationStructureReference(mObjectBLAS[modelInstance->refId()]->address)
 		);
 	}
 

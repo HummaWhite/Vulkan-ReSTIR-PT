@@ -66,6 +66,7 @@ public:
 	uint32_t numMeshes() const { return mNumMeshes; }
 	uint32_t numIndices() const { return mNumIndices; }
 	uint32_t numVertices() const { return mNumVertices; }
+	uint32_t refId() const { return mRefId; }
 	glm::vec3 pos() const { return mPos; }
 	glm::vec3 scale() const { return mScale; }
 	glm::vec3 rotation() const { return mRotation; }
@@ -81,6 +82,7 @@ private:
 	uint32_t mNumMeshes = 0;
 	uint32_t mNumIndices = 0;
 	uint32_t mNumVertices = 0;
+	uint32_t mRefId = 0;
 
 	glm::vec3 mPos = glm::vec3(0.0f);
 	glm::vec3 mScale = glm::vec3(1.0f);

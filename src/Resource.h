@@ -30,6 +30,7 @@ public:
 	std::optional<uint32_t> addImage(const File::path& path, zvk::HostImageType type);
 	std::vector<zvk::HostImage*>& imagePool() { return mImagePool; }
 	const std::vector<zvk::HostImage*>& imagePool() const { return mImagePool; }
+	const std::vector<ModelInstance*>& uniqueModelInstances() const { return mUniqueModelInstances; }
 
 	ModelInstance* openModelInstance(
 		const File::path& path,
@@ -48,6 +49,7 @@ private:
 	std::vector<uint32_t> mIndices;
 	std::vector<MeshInstance> mMeshInstances;
 	std::vector<ModelInstance*> mModelInstances;
+	std::vector<ModelInstance*> mUniqueModelInstances;
 	std::vector<Material> mMaterials;
 	std::vector<int32_t> mMaterialIndices;
 

@@ -32,9 +32,12 @@ std::optional<uint32_t> Resource::addImage(const File::path& path, zvk::HostImag
 
 ModelInstance* Resource::openModelInstance(const File::path& path, glm::vec3 pos, glm::vec3 scale, glm::vec3 rotation) {
 	auto model = getModelInstanceByPath(path);
+
 	if (model == nullptr) {
 		model = createNewModelInstance(path);
+		model->mRefId = mUniqueModelInstances.size();
 		mMapPathToModelInstance[path] = model;
+		mUniqueModelInstances.push_back(model);
 	}
 	auto newCopy = model->copy();
 	newCopy->setPos(pos);
@@ -172,7 +175,7 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 	if (scene->mNumMaterials > 0 && mesh->mMaterialIndex >= 0) {
 		meshInstance.materialIdx = mesh->mMaterialIndex + materialOffset;
 	}
-	meshInstance.vertexOffset = mVertices.size();
+	meshInstance.vertexOffset = vertexOffset;
 	meshInstance.numVertices = mesh->mNumVertices;
 	meshInstance.indexOffset = mIndices.size();
 
