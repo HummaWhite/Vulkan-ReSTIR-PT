@@ -23,7 +23,7 @@ Ray thinLensCameraSampleRay(Camera cam, vec2 uv, vec4 r) {
 	vec2 texelSize = 1.0 / vec2(cam.filmSize);
 	vec2 biasedCoord = uv + texelSize * r.xy;
 	vec2 ndc = biasedCoord * 2.0 - 1.0;
-	float aspect = float(cam.filmSize.y) / float(cam.filmSize.x);
+	float aspect = float(cam.filmSize.x) / float(cam.filmSize.y);
 	float tanFOV = tan(radians(cam.FOV * 0.5));
 
 	vec3 pLens = vec3(toConcentricDisk(r.zw) * cam.lensRadius, 0.0);
@@ -32,9 +32,6 @@ Ray thinLensCameraSampleRay(Camera cam, vec2 uv, vec4 r) {
 	vec3 ori = cam.pos + cam.right * pLens.x + cam.up * pLens.y;
 	vec3 dir = pFocusPlane - pLens;
 	dir = normalize(cam.right * dir.x + cam.up * dir.y + cam.front * dir.z);
-
-	ori = vec3(-ori.x, -ori.z, ori.y);
-	dir = vec3(-dir.x, -dir.z, dir.y);
 
 	return Ray(ori, dir);
 }

@@ -15,7 +15,7 @@ void main() {
 
     vec2 uv = (vec2(gl_LaunchIDEXT.xy) + 0.5) / vec2(gl_LaunchSizeEXT.xy);
 
-    Ray ray = thinLensCameraSampleRay(uCamera, uv, vec4(0));
+    Ray ray = thinLensCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec4(0));
 
     uint rayFlags = gl_RayFlagsOpaqueEXT;
     float tMin = 0.001;
