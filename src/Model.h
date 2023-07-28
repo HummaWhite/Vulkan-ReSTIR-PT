@@ -92,3 +92,13 @@ private:
 	std::string mName;
 	File::path mPath;
 };
+
+struct ObjectInstance {
+	std140(glm::mat4, transform);
+	std140(glm::mat4, transformInv);
+	std140(glm::mat4, transformInvT);
+	std140(uint32_t, indexOffset);
+	std140(float, pad0);
+	std140(float, pad1);
+	std140(float, pad2);
+};

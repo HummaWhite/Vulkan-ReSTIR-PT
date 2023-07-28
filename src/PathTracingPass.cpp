@@ -147,9 +147,10 @@ void PathTracingPass::createAccelerationStructure(const Resource& resource, cons
 		mObjectBLAS.push_back(BLAS);
 	}
 	std::vector<vk::AccelerationStructureInstanceKHR> instances;
-	uint32_t instanceCustomIdx = 0;
 
-	for (auto modelInstance : resource.modelInstances()) {
+	for (uint32_t i = 0; i < resource.modelInstances().size(); i++) {
+		auto modelInstance = resource.modelInstances()[i];
+
 		vk::TransformMatrixKHR transform;
 		glm::mat4 matrix = glm::transpose(modelInstance->modelMatrix());
 		memcpy(&transform, &matrix, 12 * sizeof(float));
@@ -157,7 +158,7 @@ void PathTracingPass::createAccelerationStructure(const Resource& resource, cons
 		instances.push_back(
 			vk::AccelerationStructureInstanceKHR()
 				.setTransform(transform)
-				.setInstanceCustomIndex(instanceCustomIdx++)
+				.setInstanceCustomIndex(i)
 				.setMask(0xff)
 				.setInstanceShaderBindingTableRecordOffset(0)
 				.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)

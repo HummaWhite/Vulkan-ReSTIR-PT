@@ -129,7 +129,7 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::initScene() {
-	mScene.load("res/zbidir.xml");
+	mScene.load("res/box2.xml");
 }
 
 void Renderer::createDescriptor() {

@@ -48,6 +48,7 @@ public:
 	zvk::Buffer* indices = nullptr;
 	zvk::Buffer* materials = nullptr;
 	zvk::Buffer* materialIds = nullptr;
+	zvk::Buffer* instances = nullptr;
 	zvk::Buffer* camera = nullptr;
 	std::vector<zvk::Image*> textures;
 

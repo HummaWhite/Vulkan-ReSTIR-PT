@@ -31,6 +31,7 @@ public:
 	std::vector<zvk::HostImage*>& imagePool() { return mImagePool; }
 	const std::vector<zvk::HostImage*>& imagePool() const { return mImagePool; }
 	const std::vector<ModelInstance*>& uniqueModelInstances() const { return mUniqueModelInstances; }
+	std::vector<ObjectInstance> objectInstances() const;
 
 	ModelInstance* openModelInstance(
 		const File::path& path,

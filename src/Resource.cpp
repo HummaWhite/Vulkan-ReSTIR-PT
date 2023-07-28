@@ -30,6 +30,22 @@ std::optional<uint32_t> Resource::addImage(const File::path& path, zvk::HostImag
 	return mImagePool.size() - 1;
 }
 
+std::vector<ObjectInstance> Resource::objectInstances() const {
+	std::vector<ObjectInstance> instances;
+
+	for (auto instance : mModelInstances) {
+		glm::mat4 transform = instance->modelMatrix();
+		glm::mat4 transformInv = glm::inverse(transform);
+		glm::mat4 transformInvT = glm::transpose(transformInv);
+
+		instances.push_back(
+			{ transform, transformInv, transformInvT, mMeshInstances[instance->meshOffset()].indexOffset,
+				float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX }
+		);
+	}
+	return instances;
+}
+
 ModelInstance* Resource::openModelInstance(const File::path& path, glm::vec3 pos, glm::vec3 scale, glm::vec3 rotation) {
 	auto model = getModelInstanceByPath(path);
 
@@ -43,6 +59,8 @@ ModelInstance* Resource::openModelInstance(const File::path& path, glm::vec3 pos
 	newCopy->setPos(pos);
 	newCopy->setScale(scale);
 	newCopy->setRotation(rotation);
+
+	mModelInstances.push_back(newCopy);
 	return newCopy;
 }
 
@@ -83,9 +101,9 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 		for (int i = 0; i < node->mNumMeshes; i++) {
 			auto mesh = scene->mMeshes[node->mMeshes[i]];
 			auto meshInstance = createNewMeshInstance(mesh, scene);
-			mMeshInstances.push_back(meshInstance);
 			model->mNumIndices += meshInstance.numIndices;
 			model->mNumVertices += meshInstance.numVertices;
+			mMeshInstances.push_back(meshInstance);
 		}
 		for (int i = 0; i < node->mNumChildren; i++) {
 			stack.push(node->mChildren[i]);

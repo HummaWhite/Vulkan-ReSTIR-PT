@@ -51,10 +51,8 @@ std::pair<ModelInstance*, std::optional<glm::vec3>> Scene::loadModelInstance(con
 
 	for (uint32_t i = 0; i < model->numMeshes(); i++) {
 		uint32_t materialIdx = resource.mMeshInstances[i + model->meshOffset()].materialIdx;
-
-		auto textureIdx = resource.mMaterials[materialIdx].textureIdx;
+		material->textureIdx = resource.mMaterials[materialIdx].textureIdx;
 		resource.mMaterials[materialIdx] = *material;
-		resource.mMaterials[materialIdx].textureIdx = textureIdx;
 	}
 
 	return { model, std::nullopt };
@@ -119,8 +117,6 @@ void Scene::load(const File::path& path) {
 		auto modelInstances = scene.child("modelInstances");
 		for (auto instance = modelInstances.first_child(); instance; instance = instance.next_sibling()) {
 			auto [model, radiance] = loadModelInstance(instance);
-
-			resource.mModelInstances.push_back(model);
 			/*
 			if (radiance) {
 				addLight(model, radiance.value());
@@ -160,6 +156,7 @@ void DeviceScene::destroy() {
 	delete indices;
 	delete materials;
 	delete materialIds;
+	delete instances;
 
 	for (auto& image : textures) {
 		delete image;
@@ -175,11 +172,14 @@ void DeviceScene::initDescriptor() {
 	update.add(resourceDescLayout, resourceDescSet, 2, vk::DescriptorBufferInfo(materialIds->buffer, 0, materialIds->size));
 	update.add(resourceDescLayout, resourceDescSet, 3, vk::DescriptorBufferInfo(vertices->buffer, 0, vertices->size));
 	update.add(resourceDescLayout, resourceDescSet, 4, vk::DescriptorBufferInfo(indices->buffer, 0, indices->size));
+	update.add(resourceDescLayout, resourceDescSet, 5, vk::DescriptorBufferInfo(instances->buffer, 0, instances->size));
 
 	mCtx->device.updateDescriptorSets(update.writes, {});
 }
 
 void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueIdx) {
+	auto objectInstances = scene.resource.objectInstances();
+
 	numVertices = scene.resource.vertices().size();
 	numIndices = scene.resource.indices().size();
 	numMaterials = scene.resource.materials().size();
@@ -208,6 +208,12 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 
 	materialIds = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.resource.materialIndices().data(), zvk::sizeOf(scene.resource.materialIndices()),
+		vk::BufferUsageFlagBits::eStorageBuffer,
+		vk::MemoryAllocateFlagBits::eDeviceAddress
+	);
+
+	instances = zvk::Memory::createBufferFromHost(
+		mCtx, queueIdx, objectInstances.data(), zvk::sizeOf(objectInstances),
 		vk::BufferUsageFlagBits::eStorageBuffer,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
@@ -264,6 +270,10 @@ void DeviceScene::createDescriptor() {
 		),
 		zvk::Descriptor::makeBinding(
 			4, vk::DescriptorType::eStorageBuffer,
+			RayTracingShaderStageFlags
+		),
+		zvk::Descriptor::makeBinding(
+			5, vk::DescriptorType::eStorageBuffer,
 			RayTracingShaderStageFlags
 		),
 	};

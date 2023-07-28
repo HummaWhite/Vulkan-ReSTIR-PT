@@ -66,6 +66,16 @@ struct MeshVertex {
 	float uvy;
 };
 
+struct ObjectInstance {
+	mat4 transform;
+	mat4 transformInv;
+	mat4 transformInvT;
+	uint indexOffset;
+	float pad0;
+	float pad1;
+	float pad2;
+};
+
 
 layout(push_constant) uniform _PushConstant {
 	GBufferDrawParam uGBufferDrawParam;
@@ -93,6 +103,10 @@ layout(set = ResourceDescSet, binding = 3, std140) readonly buffer _Vertices {
 
 layout(set = ResourceDescSet, binding = 4, std140) readonly buffer _Indices {
 	uint uIndices[];
+};
+
+layout(set = ResourceDescSet, binding = 5, std140) readonly buffer _ObjectInstances {
+	ObjectInstance uObjectInstances[];
 };
 
 
