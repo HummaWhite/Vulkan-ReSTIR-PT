@@ -93,15 +93,15 @@ layout(set = ResourceDescSet, binding = 1, std140) readonly buffer _Materials {
 	Material uMaterials[];
 };
 
-layout(set = ResourceDescSet, binding = 2, std140) readonly buffer _MaterialIndices {
+layout(set = ResourceDescSet, binding = 2) readonly buffer _MaterialIndices {
 	int uMaterialIndices[];
 };
 
-layout(set = ResourceDescSet, binding = 3, std140) readonly buffer _Vertices {
+layout(set = ResourceDescSet, binding = 3) readonly buffer _Vertices {
 	MeshVertex uVertices[];
 };
 
-layout(set = ResourceDescSet, binding = 4, std140) readonly buffer _Indices {
+layout(set = ResourceDescSet, binding = 4) readonly buffer _Indices {
 	uint uIndices[];
 };
 
