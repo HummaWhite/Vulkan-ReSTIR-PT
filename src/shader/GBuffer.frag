@@ -34,7 +34,6 @@ void main() {
 		}
 	}
 	albedo = albedo * vec3(-dot(fsIn.norm, uCamera.front) * 0.5 + 0.55);
-	albedo = fsIn.pos;
 
 	vec4 lastCoord = uCamera.lastProjView * vec4(fsIn.pos, 1.0);
 	lastCoord /= lastCoord.w;

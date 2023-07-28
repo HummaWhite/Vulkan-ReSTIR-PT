@@ -129,7 +129,7 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::initScene() {
-	mScene.load("res/zbidir.xml");
+	mScene.load("res/sponza.xml");
 }
 
 void Renderer::createDescriptor() {

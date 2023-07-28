@@ -18,6 +18,8 @@ void main() {
     uint i1 = uIndices[instance.indexOffset + gl_PrimitiveID * 3 + 1];
     uint i2 = uIndices[instance.indexOffset + gl_PrimitiveID * 3 + 2];
 
+    int matIdx = uMaterialIndices[instance.indexOffset / 3 + gl_PrimitiveID];
+
     MeshVertex v0 = uVertices[i0];
     MeshVertex v1 = uVertices[i1];
     MeshVertex v2 = uVertices[i2];
@@ -26,11 +28,28 @@ void main() {
     vec3 norm = v0.norm * bary.x + v1.norm * bary.y + v2.norm * bary.z;
     float uvx = v0.uvx * bary.x + v1.uvx * bary.y + v2.uvx * bary.z;
     float uvy = v0.uvy * bary.x + v1.uvy * bary.y + v2.uvy * bary.z;
+    vec3 albedo;
 
     pos = vec3(instance.transform * vec4(pos, 1.0));
     norm = normalize(vec3(instance.transformInvT * vec4(norm, 1.0)));
 
+    if (matIdx == InvalidResourceIdx) {
+		albedo = norm * 0.5 + 0.5;
+	}
+	else {
+		int texIdx = uMaterials[matIdx].textureIdx;
+
+		if (texIdx == InvalidResourceIdx) {
+			albedo = uMaterials[matIdx].baseColor;
+		}
+		else {
+			albedo = texture(uTextures[texIdx], vec2(uvx, uvy)).rgb;
+		}
+	}
+	albedo = albedo * vec3(-dot(norm, uCamera.front) * 0.5 + 0.55);
+
     prd.radiance = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
     prd.radiance = pos;
     prd.radiance = norm * 0.5 + 0.5;
+    prd.radiance = albedo;
 }
