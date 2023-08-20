@@ -14,7 +14,7 @@
 constexpr int InvalidResourceIdx = -1;
 
 struct Material {
-	enum { Lambertian = 0, Principled, MetalWorkflow, Dielectric, ThinDielectric };
+	enum { Lambertian = 0, Principled, MetalWorkflow, Dielectric, ThinDielectric, Light };
 
 	std140(glm::vec3, baseColor) = glm::vec3(1.0f);
 	std140(uint32_t, type) = Lambertian;
@@ -32,7 +32,7 @@ struct Material {
 	std140(float, clearcoat) = 0.0f;
 	std140(float, clearcoatGloss) = 0.0f;
 	std140(float, subsurface) = 0.0f;
-	std140(int32_t, pad0);
+	std140(uint32_t, lightIdx) = 0;
 };
 
 std::optional<Material> loadMaterial(const pugi::xml_node& node);

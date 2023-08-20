@@ -10,8 +10,14 @@
 
 #include "util/NamespaceDecl.h"
 #include "util/File.h"
+#include "util/AliasTable.h"
 #include "core/HostImage.h"
 #include "Model.h"
+
+struct Light {
+	glm::vec3 power;
+	uint32_t instanceIdx;
+};
 
 class Resource {
 public:
