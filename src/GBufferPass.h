@@ -71,8 +71,8 @@ private:
 	void destroyFrame();
 
 public:
-	zvk::Image* GBufferA[2] = { nullptr };
-	zvk::Image* GBufferB[2] = { nullptr };
+	std::unique_ptr<zvk::Image> GBufferA[2];
+	std::unique_ptr<zvk::Image> GBufferB[2];
 	vk::Framebuffer framebuffer[2];
 
 private:
@@ -81,13 +81,13 @@ private:
 	vk::PipelineLayout mPipelineLayout;
 
 	std::vector<GBufferDrawParam> mDrawParams;
-	zvk::Buffer* mDrawCommandBuffer;
-	zvk::Buffer* mDrawParamBuffer;
+	std::unique_ptr<zvk::Buffer> mDrawCommandBuffer;
+	std::unique_ptr<zvk::Buffer> mDrawParamBuffer;
 
-	zvk::Image* mDepthStencil[2] = { nullptr };
+	std::unique_ptr<zvk::Image> mDepthStencil[2];
 
-	zvk::DescriptorPool* mDescriptorPool = nullptr;
-	zvk::DescriptorSetLayout* mDrawParamDescLayout = nullptr;
+	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
+	std::unique_ptr<zvk::DescriptorSetLayout> mDrawParamDescLayout;
 	vk::DescriptorSet mDrawParamDescSet;
 
 	const bool mMultiDrawSupport;

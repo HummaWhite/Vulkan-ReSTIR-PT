@@ -44,24 +44,24 @@ private:
 	void createDescriptor();
 
 public:
-	zvk::Buffer* vertices = nullptr;
-	zvk::Buffer* indices = nullptr;
-	zvk::Buffer* materials = nullptr;
-	zvk::Buffer* materialIds = nullptr;
-	zvk::Buffer* instances = nullptr;
-	zvk::Buffer* camera = nullptr;
-	std::vector<zvk::Image*> textures;
+	std::unique_ptr<zvk::Buffer> vertices;
+	std::unique_ptr<zvk::Buffer> indices;
+	std::unique_ptr<zvk::Buffer> materials;
+	std::unique_ptr<zvk::Buffer> materialIds;
+	std::unique_ptr<zvk::Buffer> instances;
+	std::unique_ptr<zvk::Buffer> camera;
+	std::vector<std::unique_ptr<zvk::Image>> textures;
 
 	uint32_t numVertices = 0;
 	uint32_t numIndices = 0;
 	uint32_t numMaterials = 0;
 	uint32_t numTriangles = 0;
 
-	zvk::DescriptorSetLayout* cameraDescLayout = nullptr;
-	zvk::DescriptorSetLayout* resourceDescLayout = nullptr;
+	std::unique_ptr<zvk::DescriptorSetLayout> cameraDescLayout;
+	std::unique_ptr<zvk::DescriptorSetLayout> resourceDescLayout;
 	vk::DescriptorSet cameraDescSet;
 	vk::DescriptorSet resourceDescSet;
 
 private:
-	zvk::DescriptorPool* mDescriptorPool = nullptr;
+	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
 };

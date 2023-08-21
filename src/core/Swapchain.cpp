@@ -52,7 +52,6 @@ void Swapchain::changeImageLayout(
 	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
 	changeImageLayoutCmd(cmd->cmd, imageIdx, newLayout, srcStage, srcAccessMask, dstStage, dstAccessMask);
 	cmd->submitAndWait();
-	delete cmd;
 }
 
 void Swapchain::initImageLayoutAllCmd(
@@ -88,7 +87,6 @@ void Swapchain::initImageLayoutAll(
 	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
 	initImageLayoutAllCmd(cmd->cmd, layout, srcStage, srcAccessMask, dstStage, dstAccessMask);
 	cmd->submitAndWait();
-	delete cmd;
 }
 
 void Swapchain::createSwapchain(const Instance* instance, uint32_t width, uint32_t height, bool computeTarget) {

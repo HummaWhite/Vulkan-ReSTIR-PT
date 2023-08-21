@@ -26,10 +26,12 @@ public:
     std::vector<vk::DescriptorSetLayoutBinding> bindings;
 };
 
+using DescriptorLayoutArray = vk::ArrayProxy<DescriptorSetLayout*>;
+
 class DescriptorPool : public BaseVkObject {
 public:
     DescriptorPool(
-        const Context* ctx, const std::vector<DescriptorSetLayout*>& layouts, uint32_t numCopies,
+        const Context* ctx, const vk::ArrayProxy<DescriptorSetLayout*>& layouts, uint32_t numCopies,
         vk::DescriptorPoolCreateFlags flags = vk::DescriptorPoolCreateFlags{ 0 });
 
     ~DescriptorPool() { destroy(); }
@@ -78,6 +80,7 @@ namespace Descriptor {
         uint32_t count = 1, const vk::Sampler* immutableSamplers = nullptr);
 
     std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<Image*>& images);
+    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<std::unique_ptr<Image>>& images);
 }
 
 NAMESPACE_END(zvk)

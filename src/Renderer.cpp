@@ -81,20 +81,20 @@ void Renderer::initVulkan() {
 	void* featureChain = &accelStructure;
 
 	try {
-		mInstance = new zvk::Instance(mAppInfo, mMainWindow, DeviceExtensions);
-		mContext = new zvk::Context(mInstance, DeviceExtensions, featureChain);
-		mSwapchain = new zvk::Swapchain(mContext, mWidth, mHeight, SWAPCHAIN_FORMAT, false);
-		mShaderManager = new zvk::ShaderManager(mContext->device);
+		mInstance = std::make_unique<zvk::Instance>(mAppInfo, mMainWindow, DeviceExtensions);
+		mContext = std::make_unique<zvk::Context>(mInstance.get(), DeviceExtensions, featureChain);
+		mSwapchain = std::make_unique<zvk::Swapchain>(mContext.get(), mWidth, mHeight, SWAPCHAIN_FORMAT, false);
+		mShaderManager = std::make_unique<zvk::ShaderManager>(mContext->device);
 
 		initScene();
 		mScene.camera.setFilmSize({ mWidth, mHeight });
 		mScene.camera.nextFrame();
 
-		mDeviceScene = new DeviceScene(mContext, mScene, zvk::QueueIdx::GeneralUse);
+		mDeviceScene = std::make_unique<DeviceScene>(mContext.get(), mScene, zvk::QueueIdx::GeneralUse);
 
-		mGBufferPass = new GBufferPass(mContext, mSwapchain->extent(), mScene.resource);
-		mPathTracingPass = new PathTracingPass(mContext, mScene.resource, mDeviceScene, mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
-		mPostProcPass = new PostProcPassFrag(mContext, mSwapchain);
+		mGBufferPass = std::make_unique<GBufferPass>(mContext.get(), mSwapchain->extent(), mScene.resource);
+		mPathTracingPass = std::make_unique<PathTracingPass>(mContext.get(), mScene.resource, mDeviceScene.get(), mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
+		mPostProcPass = std::make_unique<PostProcPassFrag>(mContext.get(), mSwapchain.get());
 
 		Log::newLine();
 
@@ -123,9 +123,9 @@ void Renderer::createPipeline() {
 		mImageOutDescLayout->layout,
 		mPathTracingPass->descSetLayout()
 	};
-	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager, descLayouts);
-	mPathTracingPass->createPipeline(mShaderManager, 1, descLayouts);
-	mPostProcPass->createPipeline(mShaderManager, mSwapchain->extent(), descLayouts);
+	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager.get(), descLayouts);
+	mPathTracingPass->createPipeline(mShaderManager.get(), 1, descLayouts);
+	mPostProcPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
 
 void Renderer::initScene() {
@@ -142,14 +142,14 @@ void Renderer::createDescriptor() {
 		zvk::Descriptor::makeBinding(3, vk::DescriptorType::eStorageBuffer, imageOutFlags),
 	};
 
-	mImageOutDescLayout = new zvk::DescriptorSetLayout(mContext, imageOutBindings);
-	mDescriptorPool = new zvk::DescriptorPool(mContext, { mImageOutDescLayout }, 2);
+	mImageOutDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), imageOutBindings);
+	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(mContext.get(), mImageOutDescLayout.get(), 2);
 	mImageOutDescSet[0] = mDescriptorPool->allocDescriptorSet(mImageOutDescLayout->layout);
 	mImageOutDescSet[1] = mDescriptorPool->allocDescriptorSet(mImageOutDescLayout->layout);
 }
 
 void Renderer::initImageLayout() {
-	auto cmd = zvk::Command::createOneTimeSubmit(mContext, zvk::QueueIdx::GeneralUse);
+	auto cmd = zvk::Command::createOneTimeSubmit(mContext.get(), zvk::QueueIdx::GeneralUse);
 	std::vector<vk::ImageMemoryBarrier> barriers;
 
 	for (int i = 0; i < 2; i++) {
@@ -171,7 +171,6 @@ void Renderer::initImageLayout() {
 	);
 
 	cmd->submitAndWait();
-	delete cmd;
 }
 
 void Renderer::initDescriptor() {
@@ -188,19 +187,19 @@ void Renderer::initDescriptor() {
 
 	for (int i = 0; i < 2; i++) {
 		update.add(
-			mImageOutDescLayout, mImageOutDescSet[i], 0,
+			mImageOutDescLayout.get(), mImageOutDescSet[i], 0,
 			vk::DescriptorImageInfo(depthNormal[i]->sampler, depthNormal[i]->view, depthNormal[i]->layout)
 		);
 		update.add(
-			mImageOutDescLayout, mImageOutDescSet[i], 1,
+			mImageOutDescLayout.get(), mImageOutDescSet[i], 1,
 			vk::DescriptorImageInfo(albedoMatIdx[i]->sampler, albedoMatIdx[i]->view, albedoMatIdx[i]->layout)
 		);
 		update.add(
-			mImageOutDescLayout, mImageOutDescSet[i], 2,
+			mImageOutDescLayout.get(), mImageOutDescSet[i], 2,
 			vk::DescriptorImageInfo(colorOutput[i]->sampler, colorOutput[i]->view, colorOutput[i]->layout)
 		);
 		update.add(
-			mImageOutDescLayout, mImageOutDescSet[i], 3,
+			mImageOutDescLayout.get(), mImageOutDescSet[i], 3,
 			vk::DescriptorBufferInfo(reservoir[i]->buffer, 0, reservoir[i]->size)
 		);
 	}
@@ -208,7 +207,7 @@ void Renderer::initDescriptor() {
 }
 
 void Renderer::createRenderCmdBuffer() {
-	mGCTCmdBuffers = zvk::Command::createPrimary(mContext, zvk::QueueIdx::GeneralUse, mSwapchain->numImages());
+	mGCTCmdBuffers = zvk::Command::createPrimary(mContext.get(), zvk::QueueIdx::GeneralUse, mSwapchain->numImages());
 }
 
 void Renderer::createSyncObject() {
@@ -225,9 +224,9 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.setFlags(vk::CommandBufferUsageFlagBits{})
 		.setPInheritanceInfo(nullptr);
 
-	auto GBufferA = mGBufferPass->GBufferA[0];
-	auto GBufferB = mGBufferPass->GBufferB[0];
-	auto rayOutput = mPathTracingPass->colorOutput[0];
+	const auto& GBufferA = mGBufferPass->GBufferA[0];
+	const auto& GBufferB = mGBufferPass->GBufferB[0];
+	const auto& rayOutput = mPathTracingPass->colorOutput[0];
 
 	cmd.begin(beginInfo); {
 		mGBufferPass->render(
@@ -373,35 +372,34 @@ void Renderer::recreateFrame() {
 	}
 	mContext->device.waitIdle();
 
-	delete mSwapchain;
-	mSwapchain = new zvk::Swapchain(mContext, width, height, SWAPCHAIN_FORMAT, false);
+	mSwapchain = std::make_unique<zvk::Swapchain>(mContext.get(), width, height, SWAPCHAIN_FORMAT, false);
 	mGBufferPass->recreateFrame(mSwapchain->extent());
 	mPathTracingPass->recreateFrame(mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
-	mPostProcPass->recreateFrame(mSwapchain);
+	mPostProcPass->recreateFrame(mSwapchain.get());
 }
 
 void Renderer::cleanupVulkan() {
-	delete mSwapchain;
+	mSwapchain.reset();
 
-	delete mDeviceScene;
-	delete mGBufferPass;
-	delete mPathTracingPass;
-	delete mPostProcPass;
+	mDeviceScene.reset();
+	mGBufferPass.reset();
+	mPathTracingPass.reset();
+	mPostProcPass.reset();
 
-	delete mImageOutDescLayout;
-	delete mDescriptorPool;
+	mImageOutDescLayout.reset();
+	mDescriptorPool.reset();
 
 	mContext->device.destroyFence(mInFlightFence);
 	mContext->device.destroySemaphore(mFrameReadySemaphore);
 	mContext->device.destroySemaphore(mRenderFinishSemaphore);
 
-	for (auto cmd : mGCTCmdBuffers) {
-		delete cmd;
+	for (auto& cmd : mGCTCmdBuffers) {
+		cmd.reset();
 	}
 
-	delete mShaderManager;
-	delete mContext;
-	delete mInstance;
+	mShaderManager.reset();
+	mContext.reset();
+	mInstance.reset();
 }
 
 void Renderer::exec() {

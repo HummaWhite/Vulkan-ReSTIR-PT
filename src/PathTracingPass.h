@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <iostream>
 #include <optional>
+#include <memory>
 #include <limits>
 #include <set>
 
@@ -57,23 +58,23 @@ private:
 	void destroyFrame();
 
 public:
-	zvk::Image* colorOutput[2] = { nullptr };
-	zvk::Buffer* reservoir[2] = { nullptr };
+	std::unique_ptr<zvk::Image> colorOutput[2];
+	std::unique_ptr<zvk::Buffer> reservoir[2];
 
 private:
 	vk::Pipeline mPipeline;
 	vk::PipelineLayout mPipelineLayout;
 
-	std::vector<zvk::AccelerationStructure*> mObjectBLAS;
-	zvk::AccelerationStructure* mTLAS = nullptr;
-	zvk::Buffer* mShaderBindingTable = nullptr;
+	std::vector<std::unique_ptr<zvk::AccelerationStructure>> mObjectBLAS;
+	std::unique_ptr<zvk::AccelerationStructure> mTLAS;
+	std::unique_ptr<zvk::Buffer> mShaderBindingTable;
 
 	vk::StridedDeviceAddressRegionKHR mRayGenRegion;
 	vk::StridedDeviceAddressRegionKHR mMissRegion;
 	vk::StridedDeviceAddressRegionKHR mHitRegion;
 	vk::StridedDeviceAddressRegionKHR mCallRegion;
 
-	zvk::DescriptorPool* mDescriptorPool = nullptr;
-	zvk::DescriptorSetLayout* mDescriptorSetLayout = nullptr;
+	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
+	std::unique_ptr<zvk::DescriptorSetLayout> mDescriptorSetLayout;
 	vk::DescriptorSet mDescriptorSet;
 };

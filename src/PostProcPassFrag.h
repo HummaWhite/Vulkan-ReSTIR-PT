@@ -57,5 +57,5 @@ private:
 	vk::PipelineLayout mPipelineLayout;
 	vk::RenderPass mRenderPass;
 
-	zvk::Buffer* mQuadVertexBuffer = nullptr;
+	std::unique_ptr<zvk::Buffer> mQuadVertexBuffer;
 };

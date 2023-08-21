@@ -13,11 +13,13 @@ GBufferPass::GBufferPass(
 }
 
 void GBufferPass::destroy() {
-	delete mDrawParamDescLayout;
-	delete mDescriptorPool;
+	/*
+	mDrawParamDescLayout.reset();
+	mDescriptorPool.reset();
 
-	delete mDrawCommandBuffer;
-	delete mDrawParamBuffer;
+	mDrawCommandBuffer.reset();
+	mDrawParamBuffer.reset();
+	*/
 
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
@@ -74,7 +76,7 @@ void GBufferPass::initDescriptor() {
 	zvk::DescriptorWrite update;
 
 	update.add(
-		mDrawParamDescLayout, mDrawParamDescSet, 0,
+		mDrawParamDescLayout.get(), mDrawParamDescSet, 0,
 		vk::DescriptorBufferInfo(mDrawParamBuffer->buffer, 0, mDrawParamBuffer->size)
 	);
 	mCtx->device.updateDescriptorSets(update.writes, {});
@@ -341,16 +343,13 @@ void GBufferPass::createDescriptor() {
 		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
 	};
 
-	mDrawParamDescLayout = new zvk::DescriptorSetLayout(mCtx, drawBindings);
-	mDescriptorPool = new zvk::DescriptorPool(mCtx, { mDrawParamDescLayout }, 1);
+	mDrawParamDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, drawBindings);
+	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(mCtx, mDrawParamDescLayout.get(), 1);
 	mDrawParamDescSet = mDescriptorPool->allocDescriptorSet(mDrawParamDescLayout->layout);
 }
 
 void GBufferPass::destroyFrame() {
 	for (int i = 0; i < 2; i++) {
 		mCtx->device.destroyFramebuffer(framebuffer[i]);
-		delete mDepthStencil[i];
-		delete GBufferA[i];
-		delete GBufferB[i];
 	}
 }

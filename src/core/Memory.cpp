@@ -142,7 +142,6 @@ void Image::changeLayout(
 	auto cmd = Command::createOneTimeSubmit(mCtx, QueueIdx::GeneralUse);
 	changeLayoutCmd(cmd->cmd, newLayout, srcStage, srcAccessMask, dstStage, dstAccessMask);
 	cmd->submitAndWait();
-	delete cmd;
 }
 
 void Image::changeLayoutCmd(vk::CommandBuffer cmd, vk::ImageLayout newLayout) {
@@ -306,11 +305,11 @@ namespace Memory {
 		return buffer;
 	}
 
-	Buffer* createBuffer(
+	std::unique_ptr<Buffer> createBuffer(
 		const Context* ctx, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
 		vk::MemoryAllocateFlags allocFlags
 	) {
-		auto buffer = new Buffer(ctx);
+		auto buffer = std::make_unique<Buffer>(ctx);
 
 		auto bufferCreateInfo = vk::BufferCreateInfo()
 			.setSize(size)
@@ -384,7 +383,7 @@ namespace Memory {
 		);
 	}
 
-	Buffer* createTransferBuffer(const Context* ctx, vk::DeviceSize size) {
+	std::unique_ptr<Buffer> createTransferBuffer(const Context* ctx, vk::DeviceSize size) {
 		return createBuffer(
 			ctx, size, vk::BufferUsageFlagBits::eTransferSrc,
 			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
@@ -415,7 +414,7 @@ namespace Memory {
 		return localBuf;
 	}
 
-	Buffer* createBufferFromHostCmd(
+	std::unique_ptr<Buffer> createBufferFromHostCmd(
 		vk::CommandBuffer cmd, const Context* ctx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage,
 		vk::MemoryAllocateFlags allocFlags
@@ -437,12 +436,10 @@ namespace Memory {
 			vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTopOfPipe, vk::DependencyFlags{ 0 },
 			barrier, {}, {}
 		);
-
-		delete transferBuf;
 		return localBuf;
 	}
 
-	Buffer* createBufferFromHost(
+	std::unique_ptr<Buffer> createBufferFromHost(
 		const Context* ctx, QueueIdx queueIdx,
 		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryAllocateFlags allocFlags
 	) {
@@ -460,7 +457,6 @@ namespace Memory {
 			ctx->device, ctx->cmdPools[queueIdx], ctx->queues[queueIdx].queue,
 			localBuf->buffer, transferBuf->buffer, size
 		);
-		delete transferBuf;
 		return localBuf;
 	}
 
@@ -502,11 +498,11 @@ namespace Memory {
 		return image;
 	}
 
-	Image* createImage2D(
+	std::unique_ptr<Image> createImage2D(
 		const Context* ctx, vk::Extent2D extent, vk::Format format,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, uint32_t nMipLevels
 	) {
-		auto image = new Image(ctx);
+		auto image = std::make_unique<Image>(ctx);
 		nMipLevels = std::min(nMipLevels, Image::mipLevels(extent));
 
 		if (nMipLevels > 1) {
@@ -549,7 +545,7 @@ namespace Memory {
 		return image;
 	}
 
-	Image* createTexture2DCmd(
+	std::unique_ptr<Image> createTexture2DCmd(
 		vk::CommandBuffer cmd, const Context* ctx, const HostImage* hostImg,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels
@@ -566,8 +562,7 @@ namespace Memory {
 		transferBuf->unmapMemory();
 
 		image->changeLayoutCmd(cmd, vk::ImageLayout::eTransferDstOptimal);
-		copyBufferToImageCmd(cmd, transferBuf, image);
-		delete transferBuf;
+		copyBufferToImageCmd(cmd, transferBuf.get(), image.get());
 
 		image->changeLayoutCmd(cmd, layout);
 		image->createMipmap();
@@ -575,7 +570,7 @@ namespace Memory {
 		return image;
 	}
 
-	Image* createTexture2D(
+	std::unique_ptr<Image> createTexture2D(
 		const Context* ctx, QueueIdx queueIdx, const HostImage* hostImg,
 		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels
@@ -592,8 +587,7 @@ namespace Memory {
 		transferBuf->unmapMemory();
 
 		image->changeLayout(vk::ImageLayout::eTransferDstOptimal);
-		copyBufferToImage(ctx, queueIdx, transferBuf, image);
-		delete transferBuf;
+		copyBufferToImage(ctx, queueIdx, transferBuf.get(), image.get());
 
 		image->changeLayout(layout);
 		image->createMipmap();

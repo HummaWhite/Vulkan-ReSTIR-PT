@@ -77,28 +77,28 @@ private:
 	double mLastTime = 0;
 
 	vk::ApplicationInfo mAppInfo;
-	zvk::Instance* mInstance = nullptr;
-	zvk::Context* mContext = nullptr;
-	zvk::ShaderManager* mShaderManager = nullptr;
-	zvk::Swapchain* mSwapchain = nullptr;
+	std::unique_ptr<zvk::Instance> mInstance;
+	std::unique_ptr<zvk::Context> mContext;
+	std::unique_ptr<zvk::ShaderManager> mShaderManager;
+	std::unique_ptr<zvk::Swapchain> mSwapchain;
 
 	vk::Pipeline mPipeline;
 	vk::PipelineLayout mPipelineLayout;
 
-	std::vector<zvk::CommandBuffer*> mGCTCmdBuffers;
+	std::vector<std::unique_ptr<zvk::CommandBuffer>> mGCTCmdBuffers;
 
 	vk::Semaphore mFrameReadySemaphore;
 	vk::Semaphore mRenderFinishSemaphore;
 	vk::Fence mInFlightFence;
 
 	Scene mScene;
-	DeviceScene* mDeviceScene = nullptr;
+	std::unique_ptr<DeviceScene> mDeviceScene;
 
-	GBufferPass* mGBufferPass = nullptr;
-	PathTracingPass* mPathTracingPass = nullptr;
-	PostProcPassFrag* mPostProcPass = nullptr;
+	std::unique_ptr<GBufferPass> mGBufferPass;
+	std::unique_ptr<PathTracingPass> mPathTracingPass;
+	std::unique_ptr<PostProcPassFrag> mPostProcPass;
 
-	zvk::DescriptorPool* mDescriptorPool = nullptr;
-	zvk::DescriptorSetLayout* mImageOutDescLayout = nullptr;
+	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
+	std::unique_ptr<zvk::DescriptorSetLayout> mImageOutDescLayout;
 	vk::DescriptorSet mImageOutDescSet[2];
 };

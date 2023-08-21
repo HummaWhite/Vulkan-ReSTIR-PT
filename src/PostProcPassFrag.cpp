@@ -32,7 +32,9 @@ PostProcPassFrag::PostProcPassFrag(const zvk::Context* ctx, const zvk::Swapchain
 }
 
 void PostProcPassFrag::destroy() {
-	delete mQuadVertexBuffer;
+	/*
+	mQuadVertexBuffer.reset();
+	*/
 
 	mCtx->device.destroyRenderPass(mRenderPass);
 	mCtx->device.destroyPipeline(mPipeline);

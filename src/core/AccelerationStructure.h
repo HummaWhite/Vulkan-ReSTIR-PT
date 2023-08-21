@@ -37,7 +37,7 @@ public:
 
     void destroy() {
         mCtx->instance()->extFunctions().destroyAccelerationStructureKHR(mCtx->device, structure);
-        delete mBuffer;
+        mBuffer.reset();
     }
 
 private:
@@ -53,7 +53,7 @@ public:
     vk::DeviceAddress address;
 
 private:
-    Buffer* mBuffer = nullptr;
+    std::unique_ptr<Buffer> mBuffer;
 };
 
 NAMESPACE_END(zvk)

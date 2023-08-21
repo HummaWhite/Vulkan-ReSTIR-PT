@@ -12,14 +12,17 @@ PathTracingPass::PathTracingPass(const zvk::Context* ctx, const Resource& resour
 void PathTracingPass::destroy() {
 	destroyFrame();
 
+	/*
 	delete mShaderBindingTable;
 	delete mTLAS;
 
 	for (auto& blas : mObjectBLAS) {
 		delete blas;
 	}
+	
 	delete mDescriptorSetLayout;
 	delete mDescriptorPool;
+	*/
 
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
@@ -47,7 +50,7 @@ void PathTracingPass::initDescriptor() {
 	zvk::DescriptorWrite update;
 
 	update.add(
-		mDescriptorSetLayout, mDescriptorSet, 0,
+		mDescriptorSetLayout.get(), mDescriptorSet, 0,
 		vk::WriteDescriptorSetAccelerationStructureKHR(mTLAS->structure)
 	);
 	mCtx->device.updateDescriptorSets(update.writes, {});
@@ -141,10 +144,10 @@ void PathTracingPass::createAccelerationStructure(const Resource& resource, cons
 			.indexOffset = firstMesh.indexOffset
 		};
 
-		auto BLAS = new zvk::AccelerationStructure(
+		auto BLAS = std::make_unique<zvk::AccelerationStructure>(
 			mCtx, zvk::QueueIdx::GeneralUse, meshData, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
 		);
-		mObjectBLAS.push_back(BLAS);
+		mObjectBLAS.push_back(std::move(BLAS));
 	}
 	std::vector<vk::AccelerationStructureInstanceKHR> instances;
 
@@ -166,7 +169,7 @@ void PathTracingPass::createAccelerationStructure(const Resource& resource, cons
 		);
 	}
 
-	mTLAS = new zvk::AccelerationStructure(
+	mTLAS = std::make_unique<zvk::AccelerationStructure>(
 		mCtx, zvk::QueueIdx::GeneralUse, instances, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
 	);
 }
@@ -199,7 +202,6 @@ void PathTracingPass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 		);
 	}
 	cmd->submitAndWait();
-	delete cmd;
 }
 
 void PathTracingPass::createShaderBindingTable() {
@@ -272,14 +274,10 @@ void PathTracingPass::createDescriptor() {
 		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eAccelerationStructureKHR, RayTracingShaderStageFlags)
 	};
 
-	mDescriptorSetLayout = new zvk::DescriptorSetLayout(mCtx, bindings);
-	mDescriptorPool = new zvk::DescriptorPool(mCtx, { mDescriptorSetLayout }, 1);
+	mDescriptorSetLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, bindings);
+	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(mCtx, mDescriptorSetLayout.get(), 1);
 	mDescriptorSet = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
 }
 
 void PathTracingPass::destroyFrame() {
-	for (int i = 0; i < 2; i++) {
-		delete colorOutput[i];
-		delete reservoir[i];
-	}
 }

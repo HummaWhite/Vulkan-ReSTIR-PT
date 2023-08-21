@@ -17,7 +17,7 @@ DescriptorSetLayout::DescriptorSetLayout(
 }
 
 DescriptorPool::DescriptorPool(
-    const Context* ctx, const std::vector<DescriptorSetLayout*>& layouts, uint32_t numCopies,
+    const Context* ctx, const vk::ArrayProxy<DescriptorSetLayout*>& layouts, uint32_t numCopies,
     vk::DescriptorPoolCreateFlags flags
 ) : BaseVkObject(ctx)
 {
@@ -93,6 +93,15 @@ namespace Descriptor {
         std::vector<vk::DescriptorImageInfo> info;
 
         for (auto image : images) {
+            info.push_back({ image->sampler, image->view, image->layout });
+        }
+        return info;
+    }
+
+    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<std::unique_ptr<Image>>& images) {
+        std::vector<vk::DescriptorImageInfo> info;
+
+        for (const auto& image : images) {
             info.push_back({ image->sampler, image->view, image->layout });
         }
         return info;

@@ -76,7 +76,6 @@ AccelerationStructure::AccelerationStructure(
         .setTransformOffset(0);
 
     buildAccelerationStructure(queueIdx, geometry, buildRangeInfo, flags);
-    delete instanceBuffer;
 }
 
 void AccelerationStructure::buildAccelerationStructure(
@@ -134,9 +133,6 @@ void AccelerationStructure::buildAccelerationStructure(
     auto cmd = Command::createOneTimeSubmit(mCtx, queueIdx);
     ext.cmdBuildAccelerationStructuresKHR(cmd->cmd, buildGeometryInfo, buildRangeInfos.data());
     cmd->submitAndWait();
-
-    delete cmd;
-    delete scratchBuffer;
 }
 
 NAMESPACE_END(zvk)
