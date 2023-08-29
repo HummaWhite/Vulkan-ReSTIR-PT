@@ -71,9 +71,9 @@ struct ObjectInstance {
 	mat4 transformInv;
 	mat4 transformInvT;
 	uint indexOffset;
+	uint indexCount;
 	float pad0;
 	float pad1;
-	float pad2;
 };
 
 

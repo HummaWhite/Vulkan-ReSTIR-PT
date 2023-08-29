@@ -13,6 +13,11 @@
 #include "Camera.h"
 #include "Resource.h"
 
+struct LightInstance {
+	std140(glm::vec3, radiance);
+	std140(uint32_t, instanceIdx);
+};
+
 class Scene
 {
 public:
@@ -29,6 +34,8 @@ private:
 public:
 	Camera camera;
 	Resource resource;
+	std::vector<LightInstance> lightInstances;
+	DiscreteSampler1D<float> lightSamplerTable;
 };
 
 class DeviceScene : public zvk::BaseVkObject {

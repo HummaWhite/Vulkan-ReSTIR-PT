@@ -35,9 +35,9 @@ struct MeshVertex {
 
 struct MeshInstance {
 	uint32_t indexOffset = 0;
-	uint32_t numIndices = 0;
+	uint32_t indexCount = 0;
 	uint32_t vertexOffset = 0;
-	uint32_t numVertices = 0;
+	uint32_t vertexCount = 0;
 	int materialIdx = InvalidResourceIdx;
 };
 
@@ -98,7 +98,7 @@ struct ObjectInstance {
 	std140(glm::mat4, transformInv);
 	std140(glm::mat4, transformInvT);
 	std140(uint32_t, indexOffset);
+	std140(uint32_t, indexCount);
 	std140(float, pad0);
 	std140(float, pad1);
-	std140(float, pad2);
 };

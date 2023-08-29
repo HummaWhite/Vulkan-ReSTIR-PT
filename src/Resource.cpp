@@ -38,10 +38,12 @@ std::vector<ObjectInstance> Resource::objectInstances() const {
 		glm::mat4 transformInv = glm::inverse(transform);
 		glm::mat4 transformInvT = glm::transpose(transformInv);
 
-		instances.push_back(
-			{ transform, transformInv, transformInvT, mMeshInstances[instance->meshOffset()].indexOffset,
-				float(rand()) / RAND_MAX, float(rand()) / RAND_MAX, float(rand()) / RAND_MAX }
-		);
+		instances.push_back({
+			transform, transformInv, transformInvT,
+			mMeshInstances[instance->meshOffset()].indexOffset,
+			instance->mNumIndices,
+			float(rand()) / RAND_MAX, float(rand()) / RAND_MAX
+		});
 	}
 	return instances;
 }
@@ -101,8 +103,8 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 		for (int i = 0; i < node->mNumMeshes; i++) {
 			auto mesh = scene->mMeshes[node->mMeshes[i]];
 			auto meshInstance = createNewMeshInstance(mesh, scene);
-			model->mNumIndices += meshInstance.numIndices;
-			model->mNumVertices += meshInstance.numVertices;
+			model->mNumIndices += meshInstance.indexCount;
+			model->mNumVertices += meshInstance.vertexCount;
 			mMeshInstances.push_back(meshInstance);
 		}
 		for (int i = 0; i < node->mNumChildren; i++) {
@@ -194,7 +196,7 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 		meshInstance.materialIdx = mesh->mMaterialIndex + materialOffset;
 	}
 	meshInstance.vertexOffset = vertexOffset;
-	meshInstance.numVertices = mesh->mNumVertices;
+	meshInstance.vertexCount = mesh->mNumVertices;
 	meshInstance.indexOffset = mIndices.size();
 
 	for (int i = 0; i < mesh->mNumFaces; i++) {
@@ -202,7 +204,7 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 		for (int j = 0; j < face.mNumIndices; j++) {
 			mIndices.push_back(face.mIndices[j] + vertexOffset);
 		}
-		meshInstance.numIndices += face.mNumIndices;
+		meshInstance.indexCount += face.mNumIndices;
 		mMaterialIndices.push_back(meshInstance.materialIdx);
 	}
 	return meshInstance;

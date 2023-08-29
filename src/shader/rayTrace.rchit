@@ -30,8 +30,10 @@ void main() {
     float uvy = v0.uvy * bary.x + v1.uvy * bary.y + v2.uvy * bary.z;
     vec3 albedo;
 
-    pos = vec3(instance.transform * vec4(pos, 1.0));
-    norm = normalize(vec3(instance.transformInvT * vec4(norm, 1.0)));
+    // pos = vec3(instance.transform * vec4(pos, 1.0));
+    // norm = normalize(vec3(instance.transformInvT * vec4(norm, 1.0)));
+    pos = vec3(gl_ObjectToWorldEXT * vec4(pos, 1.0));
+    norm = normalize(transpose(mat3(gl_WorldToObjectEXT)) * norm);
 
     if (matIdx == InvalidResourceIdx) {
 		albedo = norm * 0.5 + 0.5;

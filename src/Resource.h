@@ -14,11 +14,6 @@
 #include "core/HostImage.h"
 #include "Model.h"
 
-struct Light {
-	glm::vec3 power;
-	uint32_t instanceIdx;
-};
-
 class Resource {
 public:
 	friend class Scene;

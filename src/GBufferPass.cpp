@@ -104,7 +104,7 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 
 		for (uint32_t i = 0; i < model->numMeshes(); i++) {
 			const auto& mesh = resource.meshInstances()[model->meshOffset() + i];
-			commands.push_back({ mesh.numIndices, 1, mesh.indexOffset, 0, 0 });
+			commands.push_back({ mesh.indexCount, 1, mesh.indexOffset, 0, 0 });
 			mDrawParams.push_back({ modelMatrix, modelInvT, mesh.materialIdx });
 		}
 	}

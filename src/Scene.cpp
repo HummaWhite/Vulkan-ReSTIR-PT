@@ -117,14 +117,10 @@ void Scene::load(const File::path& path) {
 		auto modelInstances = scene.child("modelInstances");
 		for (auto instance = modelInstances.first_child(); instance; instance = instance.next_sibling()) {
 			auto [model, radiance] = loadModelInstance(instance);
-			/*
+
 			if (radiance) {
-				addLight(model, radiance.value());
+				lightInstances.push_back({ *radiance, static_cast<uint32_t>(resource.modelInstances().size() - 1) });
 			}
-			else {
-				addObject(model);
-			}
-			*/
 		}
 	}
 	{
