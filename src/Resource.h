@@ -25,14 +25,16 @@ public:
 	const std::vector<ModelInstance*>& modelInstances() const { return mModelInstances; }
 	const std::vector<Material>& materials() const { return mMaterials; }
 	const std::vector<int32_t>& materialIndices() const { return mMaterialIndices; }
+	const std::vector<ModelInstance*>& uniqueModelInstances() const { return mUniqueModelInstances; }
+	std::vector<ObjectInstance> objectInstances() const;
+
+	float getModelTransformedSurfaceArea(const ModelInstance* modelInstance) const;
 
 	zvk::HostImage* getImageByIndex(uint32_t index);
 	zvk::HostImage* getImageByPath(const File::path& path);
 	std::optional<uint32_t> addImage(const File::path& path, zvk::HostImageType type);
 	std::vector<zvk::HostImage*>& imagePool() { return mImagePool; }
 	const std::vector<zvk::HostImage*>& imagePool() const { return mImagePool; }
-	const std::vector<ModelInstance*>& uniqueModelInstances() const { return mUniqueModelInstances; }
-	std::vector<ObjectInstance> objectInstances() const;
 
 	ModelInstance* openModelInstance(
 		const File::path& path,

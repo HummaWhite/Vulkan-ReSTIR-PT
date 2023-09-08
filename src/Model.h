@@ -99,6 +99,6 @@ struct ObjectInstance {
 	std140(glm::mat4, transformInvT);
 	std140(uint32_t, indexOffset);
 	std140(uint32_t, indexCount);
-	std140(float, pad0);
-	std140(float, pad1);
+	std140(float, transformedSurfaceArea);
+	std140(float, debugVal);
 };

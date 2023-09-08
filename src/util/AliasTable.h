@@ -19,26 +19,30 @@ struct DiscreteSampler1D {
 
 	DiscreteSampler1D() = default;
 
-	DiscreteSampler1D(std::vector<T> values) {
-		binomDistribs.resize(values.size() + 1);
+	DiscreteSampler1D(std::vector<T> distribution) {
+		build(distribution);
+	}
+
+	void build(std::vector<T> distribution) {
+		binomDistribs.resize(distribution.size() + 1);
 		T sumAll = static_cast<T>(0);
 
-		for (const auto& val : values) {
+		for (const auto& val : distribution) {
 			sumAll += val;
 		}
-		T sumInv = static_cast<T>(values.size()) / sumAll;
+		T sumInv = static_cast<T>(distribution.size()) / sumAll;
 
-		for (auto& val : values) {
+		for (auto& val : distribution) {
 			val *= sumInv;
 		}
 
-		std::vector<DistribT> stackGtOne(values.size() * 2);
-		std::vector<DistribT> stackLsOne(values.size() * 2);
+		std::vector<DistribT> stackGtOne(distribution.size() * 2);
+		std::vector<DistribT> stackLsOne(distribution.size() * 2);
 		int topGtOne = 0;
 		int topLsOne = 0;
 
-		for (int i = 0; i < values.size(); i++) {
-			auto& val = values[i];
+		for (uint32_t i = 0; i < distribution.size(); i++) {
+			auto& val = distribution[i];
 			(val > static_cast<T>(1) ? stackGtOne[topGtOne++] : stackLsOne[topLsOne++]) = DistribT{ val, i + 1 };
 		}
 
@@ -63,7 +67,7 @@ struct DiscreteSampler1D {
 			DistribT ls = stackLsOne[i];
 			binomDistribs[ls.failId] = ls;
 		}
-		binomDistribs[0] = { sumAll, values.size() };
+		binomDistribs[0] = { sumAll, static_cast<uint32_t>(distribution.size()) };
 	}
 
 	void clear() {

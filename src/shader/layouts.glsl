@@ -76,6 +76,16 @@ struct ObjectInstance {
 	float pad1;
 };
 
+struct LightInstance {
+	vec3 radiance;
+	uint instanceIdx;
+};
+
+struct LightSampleTableElement {
+	float prob;
+	uint failId;
+};
+
 
 layout(push_constant) uniform _PushConstant {
 	GBufferDrawParam uGBufferDrawParam;
@@ -107,6 +117,14 @@ layout(set = ResourceDescSet, binding = 4) readonly buffer _Indices {
 
 layout(set = ResourceDescSet, binding = 5, std140) readonly buffer _ObjectInstances {
 	ObjectInstance uObjectInstances[];
+};
+
+layout(set = ResourceDescSet, binding = 6, std430) readonly buffer _LightInstances {
+	LightInstance uLightInstances[];
+};
+
+layout(set = ResourceDescSet, binding = 7, std430) readonly buffer _LightSampleTable {
+	LightSampleTableElement uLightSampleTable[];
 };
 
 

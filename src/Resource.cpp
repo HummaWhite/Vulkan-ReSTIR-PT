@@ -1,6 +1,9 @@
 #include "Resource.h"
 #include "util/Error.h"
 
+#include <thread>
+#include <atomic>
+
 zvk::HostImage* Resource::getImageByIndex(uint32_t index) {
 	Log::check(index < mImagePool.size(), "Image index out of bound");
 	return mImagePool[index];
@@ -42,10 +45,31 @@ std::vector<ObjectInstance> Resource::objectInstances() const {
 			transform, transformInv, transformInvT,
 			mMeshInstances[instance->meshOffset()].indexOffset,
 			instance->mNumIndices,
-			float(rand()) / RAND_MAX, float(rand()) / RAND_MAX
+			getModelTransformedSurfaceArea(instance),
+			static_cast<float>(rand()) / RAND_MAX
 		});
 	}
 	return instances;
+}
+
+float Resource::getModelTransformedSurfaceArea(const ModelInstance* modelInstance) const {
+	float area = 0.f;
+
+	const auto& beginMeshInstance = mMeshInstances[modelInstance->meshOffset()];
+	uint32_t indexOffset = beginMeshInstance.indexOffset;
+	uint32_t indexCount = modelInstance->numIndices();
+
+	auto transform = [&](const glm::vec3& pos) {
+		return glm::vec3(modelInstance->modelMatrix() * glm::vec4(pos, 1.f));
+	};
+
+	for (uint32_t i = 0; i < indexCount / 3; i++) {
+		glm::vec3 va = transform(mVertices[mIndices[indexOffset + i * 3 + 0]].pos);
+		glm::vec3 vb = transform(mVertices[mIndices[indexOffset + i * 3 + 1]].pos);
+		glm::vec3 vc = transform(mVertices[mIndices[indexOffset + i * 3 + 2]].pos);
+		area += .5f * glm::length(glm::cross(vb - va, vc - va));
+	}
+	return area;
 }
 
 ModelInstance* Resource::openModelInstance(const File::path& path, glm::vec3 pos, glm::vec3 scale, glm::vec3 rotation) {
