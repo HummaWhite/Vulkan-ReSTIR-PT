@@ -45,7 +45,7 @@ std::vector<ObjectInstance> Resource::objectInstances() const {
 			transform, transformInv, transformInvT,
 			mMeshInstances[instance->meshOffset()].indexOffset,
 			instance->mNumIndices,
-			getModelTransformedSurfaceArea(instance),
+			0.0f, //getModelTransformedSurfaceArea(instance),
 			static_cast<float>(rand()) / RAND_MAX
 		});
 	}
@@ -53,21 +53,37 @@ std::vector<ObjectInstance> Resource::objectInstances() const {
 }
 
 float Resource::getModelTransformedSurfaceArea(const ModelInstance* modelInstance) const {
-	float area = 0.f;
+	std::atomic<float> area = 0.f;
 
 	const auto& beginMeshInstance = mMeshInstances[modelInstance->meshOffset()];
 	uint32_t indexOffset = beginMeshInstance.indexOffset;
 	uint32_t indexCount = modelInstance->numIndices();
+	uint32_t triangleCount = indexCount / 3;
 
 	auto transform = [&](const glm::vec3& pos) {
 		return glm::vec3(modelInstance->modelMatrix() * glm::vec4(pos, 1.f));
 	};
 
-	for (uint32_t i = 0; i < indexCount / 3; i++) {
-		glm::vec3 va = transform(mVertices[mIndices[indexOffset + i * 3 + 0]].pos);
-		glm::vec3 vb = transform(mVertices[mIndices[indexOffset + i * 3 + 1]].pos);
-		glm::vec3 vc = transform(mVertices[mIndices[indexOffset + i * 3 + 2]].pos);
-		area += .5f * glm::length(glm::cross(vb - va, vc - va));
+	auto areaReduction = [&](uint32_t begin, uint32_t end) {
+		for (uint32_t i = begin; i < end; i++) {
+			glm::vec3 va = transform(mVertices[mIndices[indexOffset + i * 3 + 0]].pos);
+			glm::vec3 vb = transform(mVertices[mIndices[indexOffset + i * 3 + 1]].pos);
+			glm::vec3 vc = transform(mVertices[mIndices[indexOffset + i * 3 + 2]].pos);
+			area += .5f * glm::length(glm::cross(vb - va, vc - va));
+		}
+	};
+
+	uint32_t maxThreads = std::min(triangleCount, std::thread::hardware_concurrency());
+	std::vector<std::thread> threads(maxThreads);
+
+	for (uint32_t i = 0; i < maxThreads; i++) {
+		uint32_t begin = i * (triangleCount / maxThreads);
+		uint32_t end = std::min((i + 1) * (triangleCount / maxThreads), triangleCount);
+		threads[i] = std::thread(areaReduction, begin, end);
+	}
+
+	for (auto& thread : threads) {
+		thread.join();
 	}
 	return area;
 }

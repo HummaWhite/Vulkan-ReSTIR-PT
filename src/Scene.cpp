@@ -152,9 +152,13 @@ void Scene::buildLightSampler() {
 	std::vector<float> powerDistrib;
 
 	for (const auto light : lightInstances) {
-		powerDistrib.push_back(luminance(light.radiance) * objectInstances[light.instanceIdx].transformedSurfaceArea);
+		auto modelInstance = resource.modelInstances()[light.instanceIdx];
+		float transformedSurfaceArea = resource.getModelTransformedSurfaceArea(modelInstance);
+		objectInstances[light.instanceIdx].transformedSurfaceArea = transformedSurfaceArea;
+		powerDistrib.push_back(luminance(light.radiance) * transformedSurfaceArea);
 	}
 	lightSampleTable.build(powerDistrib);
+
 	Log::line<2>("Num = " + std::to_string(lightSampleTable.binomDistribs[0].prob));
 	Log::line<2>("Sum = " + std::to_string(lightSampleTable.binomDistribs[0].failId));
 }
