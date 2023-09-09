@@ -193,14 +193,15 @@ void DeviceScene::initDescriptor() {
 	zvk::DescriptorWrite update;
 
 	update.add(cameraDescLayout.get(), cameraDescSet, 0, vk::DescriptorBufferInfo(camera->buffer, 0, camera->size));
+
 	update.add(resourceDescLayout.get(), resourceDescSet, 0, zvk::Descriptor::makeImageDescriptorArray(textures));
-	update.add(resourceDescLayout.get(), resourceDescSet, 1, vk::DescriptorBufferInfo(materials->buffer, 0, materials->size));
-	update.add(resourceDescLayout.get(), resourceDescSet, 2, vk::DescriptorBufferInfo(materialIds->buffer, 0, materialIds->size));
-	update.add(resourceDescLayout.get(), resourceDescSet, 3, vk::DescriptorBufferInfo(vertices->buffer, 0, vertices->size));
-	update.add(resourceDescLayout.get(), resourceDescSet, 4, vk::DescriptorBufferInfo(indices->buffer, 0, indices->size));
-	update.add(resourceDescLayout.get(), resourceDescSet, 5, vk::DescriptorBufferInfo(instances->buffer, 0, instances->size));
-	update.add(resourceDescLayout.get(), resourceDescSet, 6, vk::DescriptorBufferInfo(lightInstances->buffer, 0, lightInstances->size));
-	update.add(resourceDescLayout.get(), resourceDescSet, 7, vk::DescriptorBufferInfo(lightSampleTable->buffer, 0, lightSampleTable->size));
+	update.add(resourceDescLayout.get(), resourceDescSet, 1, zvk::Descriptor::makeBufferInfo(materials.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 2, zvk::Descriptor::makeBufferInfo(materialIds.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 3, zvk::Descriptor::makeBufferInfo(vertices.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 4, zvk::Descriptor::makeBufferInfo(indices.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 5, zvk::Descriptor::makeBufferInfo(instances.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 6, zvk::Descriptor::makeBufferInfo(lightInstances.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 7, zvk::Descriptor::makeBufferInfo(lightSampleTable.get()));
 
 	mCtx->device.updateDescriptorSets(update.writes, {});
 }
@@ -265,6 +266,7 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 
 	auto images = scene.resource.imagePool();
 
+	// Load one extra texture to ensure the array is not empty
 	auto extImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, 4);
 	images.push_back(extImage);
 

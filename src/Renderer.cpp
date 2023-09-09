@@ -187,20 +187,16 @@ void Renderer::initDescriptor() {
 
 	for (int i = 0; i < 2; i++) {
 		update.add(
-			mImageOutDescLayout.get(), mImageOutDescSet[i], 0,
-			vk::DescriptorImageInfo(depthNormal[i]->sampler, depthNormal[i]->view, depthNormal[i]->layout)
+			mImageOutDescLayout.get(), mImageOutDescSet[i], 0, zvk::Descriptor::makeImageInfo(depthNormal[i].get())
 		);
 		update.add(
-			mImageOutDescLayout.get(), mImageOutDescSet[i], 1,
-			vk::DescriptorImageInfo(albedoMatIdx[i]->sampler, albedoMatIdx[i]->view, albedoMatIdx[i]->layout)
+			mImageOutDescLayout.get(), mImageOutDescSet[i], 1, zvk::Descriptor::makeImageInfo(albedoMatIdx[i].get())
 		);
 		update.add(
-			mImageOutDescLayout.get(), mImageOutDescSet[i], 2,
-			vk::DescriptorImageInfo(colorOutput[i]->sampler, colorOutput[i]->view, colorOutput[i]->layout)
+			mImageOutDescLayout.get(), mImageOutDescSet[i], 2, zvk::Descriptor::makeImageInfo(colorOutput[i].get())
 		);
 		update.add(
-			mImageOutDescLayout.get(), mImageOutDescSet[i], 3,
-			vk::DescriptorBufferInfo(reservoir[i]->buffer, 0, reservoir[i]->size)
+			mImageOutDescLayout.get(), mImageOutDescSet[i], 3, zvk::Descriptor::makeBufferInfo(reservoir[i].get())
 		);
 	}
 	mContext->device.updateDescriptorSets(update.writes, {});

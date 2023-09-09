@@ -76,8 +76,7 @@ void GBufferPass::initDescriptor() {
 	zvk::DescriptorWrite update;
 
 	update.add(
-		mDrawParamDescLayout.get(), mDrawParamDescSet, 0,
-		vk::DescriptorBufferInfo(mDrawParamBuffer->buffer, 0, mDrawParamBuffer->size)
+		mDrawParamDescLayout.get(), mDrawParamDescSet, 0, zvk::Descriptor::makeBufferInfo(mDrawParamBuffer.get())
 	);
 	mCtx->device.updateDescriptorSets(update.writes, {});
 }
