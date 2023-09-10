@@ -12,11 +12,10 @@ Just finished the base framework of a Vulkan ray tracer, which took much longer 
 
 ### TODO
 
-- Setting up light source data structure
-- Monte Carlo ray tracing shader code
+- Monte Carlo ray tracing shader code (from EIDOLA with optimization)
 - ReSTIR DI
 - ReSTIR PT
 - Batched G-buffer draw call
-- Cache & memory improvement as in RTXDI
+- Cache & memory improvement as RTXDI
 - Async command recording & submission
 - Denoiser?
