@@ -91,47 +91,54 @@ layout(push_constant) uniform _PushConstant {
 	GBufferDrawParam uGBufferDrawParam;
 };
 
-
-layout(set = CameraDescSet, binding = 0, std140) uniform _Camera {
-	Camera uCamera;
+layout(buffer_reference, std140, buffer_reference_align = 16) buffer _Camera {
+	Camera camera;
 };
 
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer _Materials {
+	Material materials[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer _MaterialIndices {
+	int materialIndices[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer _Vertices {
+	MeshVertex vertices[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer _Indices {
+	uint indices[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer _ObjectInstances {
+	ObjectInstance objectInstances[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer _LightInstances {
+	LightInstance lightInstances[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer _LightSampleTable {
+	LightSampleTableElement lightSampleTable[];
+};
+
+layout(buffer_reference, std430, buffer_reference_align = 16) readonly buffer _GBufferDrawParam {
+	GBufferDrawParam GBufferDrawParams[];
+};
+
+layout(set = PointerDescSet, binding = 0) uniform _Pointers {
+	_Camera camera;
+	_Materials materials;
+	_Vertices vertices;
+	_Indices indices;
+	_ObjectInstances objectInstances;
+	_LightInstances lightInstances;
+	_LightSampleTable lightSampleTable;
+	_GBufferDrawParam GBufferDrawParams;
+};
 
 layout(set = ResourceDescSet, binding = 0) uniform sampler2D uTextures[];
-
-layout(set = ResourceDescSet, binding = 1, std140) readonly buffer _Materials {
-	Material uMaterials[];
-};
-
-layout(set = ResourceDescSet, binding = 2) readonly buffer _MaterialIndices {
-	int uMaterialIndices[];
-};
-
-layout(set = ResourceDescSet, binding = 3) readonly buffer _Vertices {
-	MeshVertex uVertices[];
-};
-
-layout(set = ResourceDescSet, binding = 4) readonly buffer _Indices {
-	uint uIndices[];
-};
-
-layout(set = ResourceDescSet, binding = 5, std140) readonly buffer _ObjectInstances {
-	ObjectInstance uObjectInstances[];
-};
-
-layout(set = ResourceDescSet, binding = 6, std430) readonly buffer _LightInstances {
-	LightInstance uLightInstances[];
-};
-
-layout(set = ResourceDescSet, binding = 7, std430) readonly buffer _LightSampleTable {
-	LightSampleTableElement uLightSampleTable[];
-};
-
-
-layout(set = GBufferDrawParamDescSet, binding = 0, std140) readonly buffer _GBufferDrawParam {
-	GBufferDrawParam uGBufferDrawParams[];
-};
-
 
 layout(set = ImageOutputDescSet, binding = 0) uniform usampler2D uGBufferA;
 layout(set = ImageOutputDescSet, binding = 1) uniform usampler2D uGBufferB;

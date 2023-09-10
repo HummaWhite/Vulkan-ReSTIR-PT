@@ -9,7 +9,6 @@ GBufferPass::GBufferPass(
 	createResource(extent);
 	createRenderPass(outLayout);
 	createFramebuffer(extent);
-	createDescriptor();
 }
 
 void GBufferPass::destroy() {
@@ -29,8 +28,7 @@ void GBufferPass::destroy() {
 }
 
 void GBufferPass::render(
-	vk::CommandBuffer cmd, vk::Extent2D extent,
-	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet,
+	vk::CommandBuffer cmd, vk::Extent2D extent, vk::DescriptorSet resourceDescSet,
 	vk::Buffer vertexBuffer, vk::Buffer indexBuffer, uint32_t offset, uint32_t count
 ) {
 	vk::ClearValue clearValues[] = {
@@ -49,10 +47,7 @@ void GBufferPass::render(
 	auto bindPoint = vk::PipelineBindPoint::eGraphics;
 
 	cmd.bindPipeline(bindPoint, mPipeline);
-
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, cameraDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, GBufferDrawParamDescSet, mDrawParamDescSet, {});
 
 	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
@@ -70,15 +65,6 @@ void GBufferPass::render(
 		);
 	}
 	cmd.endRenderPass();
-}
-
-void GBufferPass::initDescriptor() {
-	zvk::DescriptorWrite update;
-
-	update.add(
-		mDrawParamDescLayout.get(), mDrawParamDescSet, 0, zvk::Descriptor::makeBufferInfo(mDrawParamBuffer.get())
-	);
-	mCtx->device.updateDescriptorSets(update.writes, {});
 }
 
 void GBufferPass::swap() {
@@ -335,16 +321,6 @@ void GBufferPass::createPipeline(
 		throw std::runtime_error("Failed to create GBufferPass pipeline");
 	}
 	mPipeline = result.value;
-}
-
-void GBufferPass::createDescriptor() {
-	std::vector<vk::DescriptorSetLayoutBinding> drawBindings = {
-		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
-	};
-
-	mDrawParamDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, drawBindings);
-	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(mCtx, mDrawParamDescLayout.get(), 1);
-	mDrawParamDescSet = mDescriptorPool->allocDescriptorSet(mDrawParamDescLayout->layout);
 }
 
 void GBufferPass::destroyFrame() {

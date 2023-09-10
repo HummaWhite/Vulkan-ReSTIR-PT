@@ -93,12 +93,15 @@ private:
 
 	Scene mScene;
 	std::unique_ptr<DeviceScene> mDeviceScene;
-
 	std::unique_ptr<GBufferPass> mGBufferPass;
 	std::unique_ptr<PathTracingPass> mPathTracingPass;
 	std::unique_ptr<PostProcPassFrag> mPostProcPass;
 
+	std::unique_ptr<zvk::Buffer> mDevicePointers;
+
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
+	std::unique_ptr<zvk::DescriptorSetLayout> mDevicePtrDescLayout;
 	std::unique_ptr<zvk::DescriptorSetLayout> mImageOutDescLayout;
+	vk::DescriptorSet mDevicePtrDescSet;
 	vk::DescriptorSet mImageOutDescSet[2];
 };

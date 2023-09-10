@@ -29,16 +29,13 @@ void PathTracingPass::destroy() {
 }
 
 void PathTracingPass::render(
-	vk::CommandBuffer cmd,
-	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet,
+	vk::CommandBuffer cmd, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet,
 	vk::Extent2D extent, uint32_t maxDepth
 ) {
 	const auto& ext = mCtx->instance()->extFunctions();
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
 
 	cmd.bindPipeline(bindPoint, mPipeline);
-
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, cameraDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ImageOutputDescSet, imageOutDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, mDescriptorSet, {});

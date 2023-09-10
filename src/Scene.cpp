@@ -191,18 +191,7 @@ void DeviceScene::destroy() {
 
 void DeviceScene::initDescriptor() {
 	zvk::DescriptorWrite update;
-
-	update.add(cameraDescLayout.get(), cameraDescSet, 0, vk::DescriptorBufferInfo(camera->buffer, 0, camera->size));
-
 	update.add(resourceDescLayout.get(), resourceDescSet, 0, zvk::Descriptor::makeImageDescriptorArray(textures));
-	update.add(resourceDescLayout.get(), resourceDescSet, 1, zvk::Descriptor::makeBufferInfo(materials.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 2, zvk::Descriptor::makeBufferInfo(materialIds.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 3, zvk::Descriptor::makeBufferInfo(vertices.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 4, zvk::Descriptor::makeBufferInfo(indices.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 5, zvk::Descriptor::makeBufferInfo(instances.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 6, zvk::Descriptor::makeBufferInfo(lightInstances.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 7, zvk::Descriptor::makeBufferInfo(lightSampleTable.get()));
-
 	mCtx->device.updateDescriptorSets(update.writes, {});
 }
 
@@ -283,51 +272,17 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 }
 
 void DeviceScene::createDescriptor() {
-	std::vector<vk::DescriptorSetLayoutBinding> cameraBindings = {
-		zvk::Descriptor::makeBinding(
-			0, vk::DescriptorType::eUniformBuffer,
-			vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute | RayTracingShaderStageFlags
-		)
-	};
-
 	std::vector<vk::DescriptorSetLayoutBinding> resourceBindings = {
 		zvk::Descriptor::makeBinding(
 			0, vk::DescriptorType::eCombinedImageSampler,
 			vk::ShaderStageFlagBits::eFragment | RayTracingShaderStageFlags,
 			textures.size()
 		),
-		zvk::Descriptor::makeBinding(
-			1, vk::DescriptorType::eStorageBuffer,
-			vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | RayTracingShaderStageFlags
-		),
-		zvk::Descriptor::makeBinding(
-			2, vk::DescriptorType::eStorageBuffer,
-			vk::ShaderStageFlagBits::eVertex | RayTracingShaderStageFlags
-		),
-		zvk::Descriptor::makeBinding(
-			3, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags
-		),
-		zvk::Descriptor::makeBinding(
-			4, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags
-		),
-		zvk::Descriptor::makeBinding(
-			5, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags
-		),
-		zvk::Descriptor::makeBinding(
-			6, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags
-		),
-		zvk::Descriptor::makeBinding(
-			7, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags
-		),
 	};
-
-	cameraDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, cameraBindings);
 	resourceDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, resourceBindings);
 
 	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(
-		mCtx, zvk::DescriptorLayoutArray{ cameraDescLayout.get(), resourceDescLayout.get() }, 1, vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind
+		mCtx, resourceDescLayout.get(), 1, vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind
 	);
-
-	cameraDescSet = mDescriptorPool->allocDescriptorSet(cameraDescLayout->layout);
 	resourceDescSet = mDescriptorPool->allocDescriptorSet(resourceDescLayout->layout);
 }

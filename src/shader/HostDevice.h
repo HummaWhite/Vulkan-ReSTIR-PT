@@ -33,11 +33,9 @@ namespace zvk {
 const int PostProcBlockSizeX = 32;
 const int PostProcBlockSizeY = 32;
 
-const int CameraDescSet = 0;
-const int ResourceDescSet = 1;
-const int GBufferDrawParamDescSet = 2;
-const int ImageOutputDescSet = 3;
-const int RayTracingDescSet = 4;
-const int SwapchainStorageDescSet = 5;
+const int ResourceDescSet = 0;
+const int ImageOutputDescSet = 1;
+const int RayTracingDescSet = 2;
+const int SwapchainStorageDescSet = 3;
 
 #endif

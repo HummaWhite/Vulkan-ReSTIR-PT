@@ -4,6 +4,17 @@
 
 #include <sstream>
 
+struct DevicePointers {
+	uint64_t camera;
+	uint64_t materials;
+	uint64_t vertices;
+	uint64_t indices;
+	uint64_t objectInstances;
+	uint64_t lightInstances;
+	uint64_t lightSampleTable;
+	uint64_t GBufferDrawParams;
+};
+
 const std::vector<const char*> InstanceExtensions{
 	//VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
 };
@@ -117,9 +128,7 @@ void Renderer::initVulkan() {
 
 void Renderer::createPipeline() {
 	std::vector<vk::DescriptorSetLayout> descLayouts = {
-		mDeviceScene->cameraDescLayout->layout,
 		mDeviceScene->resourceDescLayout->layout,
-		mGBufferPass->descSetLayout(),
 		mImageOutDescLayout->layout,
 		mPathTracingPass->descSetLayout()
 	};
@@ -175,7 +184,6 @@ void Renderer::initImageLayout() {
 
 void Renderer::initDescriptor() {
 	mDeviceScene->initDescriptor();
-	mGBufferPass->initDescriptor();
 	mPathTracingPass->initDescriptor();
 
 	auto depthNormal = mGBufferPass->GBufferA;
@@ -226,8 +234,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 
 	cmd.begin(beginInfo); {
 		mGBufferPass->render(
-			cmd, mSwapchain->extent(),
-			mDeviceScene->cameraDescSet, mDeviceScene->resourceDescSet,
+			cmd, mSwapchain->extent(), mDeviceScene->resourceDescSet,
 			mDeviceScene->vertices->buffer, mDeviceScene->indices->buffer, 0, mScene.resource.meshInstances().size()
 		);
 
@@ -260,9 +267,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		*/
 
 		mPathTracingPass->render(
-			cmd,
-			mDeviceScene->cameraDescSet, mDeviceScene->resourceDescSet, mImageOutDescSet[0],
-			mSwapchain->extent(), 1
+			cmd, mDeviceScene->resourceDescSet, mImageOutDescSet[0], mSwapchain->extent(), 1
 		);
 
 		auto rayImageBarriers = {

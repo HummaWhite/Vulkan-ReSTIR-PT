@@ -72,9 +72,7 @@ public:
 	uint32_t numMaterials = 0;
 	uint32_t numTriangles = 0;
 
-	std::unique_ptr<zvk::DescriptorSetLayout> cameraDescLayout;
 	std::unique_ptr<zvk::DescriptorSetLayout> resourceDescLayout;
-	vk::DescriptorSet cameraDescSet;
 	vk::DescriptorSet resourceDescSet;
 
 private:

@@ -45,18 +45,13 @@ public:
 	~GBufferPass() { destroy(); }
 	void destroy();
 
-	vk::DescriptorSetLayout descSetLayout() const { return mDrawParamDescLayout->layout; }
-
 	void createPipeline(
 		vk::Extent2D extent, zvk::ShaderManager* shaderManager,
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
 	void render(
-		vk::CommandBuffer cmd, vk::Extent2D extent,
-		vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet,
+		vk::CommandBuffer cmd, vk::Extent2D extent, vk::DescriptorSet resourceDescSet,
 		vk::Buffer vertexBuffer, vk::Buffer indexBuffer, uint32_t offset, uint32_t count);
-
-	void initDescriptor();
 
 	void swap();
 	void recreateFrame(vk::Extent2D extent);
@@ -66,7 +61,6 @@ private:
 	void createResource(vk::Extent2D extent);
 	void createRenderPass(vk::ImageLayout outLayout);
 	void createFramebuffer(vk::Extent2D extent);
-	void createDescriptor();
 
 	void destroyFrame();
 
@@ -83,12 +77,7 @@ private:
 	std::vector<GBufferDrawParam> mDrawParams;
 	std::unique_ptr<zvk::Buffer> mDrawCommandBuffer;
 	std::unique_ptr<zvk::Buffer> mDrawParamBuffer;
-
 	std::unique_ptr<zvk::Image> mDepthStencil[2];
-
-	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
-	std::unique_ptr<zvk::DescriptorSetLayout> mDrawParamDescLayout;
-	vk::DescriptorSet mDrawParamDescSet;
 
 	const bool mMultiDrawSupport;
 };
