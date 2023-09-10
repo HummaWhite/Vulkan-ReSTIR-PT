@@ -92,14 +92,14 @@ layout(push_constant) uniform _PushConstant {
 };
 
 
-layout(set = CameraDescSet, binding = 0, std140) uniform _Camera {
+layout(set = CameraDescSet, binding = 0) uniform _Camera {
 	Camera uCamera;
 };
 
 
 layout(set = ResourceDescSet, binding = 0) uniform sampler2D uTextures[];
 
-layout(set = ResourceDescSet, binding = 1, std140) readonly buffer _Materials {
+layout(set = ResourceDescSet, binding = 1) readonly buffer _Materials {
 	Material uMaterials[];
 };
 
@@ -115,15 +115,15 @@ layout(set = ResourceDescSet, binding = 4) readonly buffer _Indices {
 	uint uIndices[];
 };
 
-layout(set = ResourceDescSet, binding = 5, std140) readonly buffer _ObjectInstances {
+layout(set = ResourceDescSet, binding = 5) readonly buffer _ObjectInstances {
 	ObjectInstance uObjectInstances[];
 };
 
-layout(set = ResourceDescSet, binding = 6, std430) readonly buffer _LightInstances {
+layout(set = ResourceDescSet, binding = 6) readonly buffer _LightInstances {
 	LightInstance uLightInstances[];
 };
 
-layout(set = ResourceDescSet, binding = 7, std430) readonly buffer _LightSampleTable {
+layout(set = ResourceDescSet, binding = 7) readonly buffer _LightSampleTable {
 	LightSampleTableElement uLightSampleTable[];
 };
 
