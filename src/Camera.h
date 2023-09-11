@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <random>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -39,7 +40,7 @@ public:
 	glm::mat4 viewMatrix() const { return mViewMatrix; }
 	glm::mat4 projMatrix() const { return mProjMatrix; }
 
-	void nextFrame() { mLastProjView = mProjView; }
+	void nextFrame(std::default_random_engine& rng);
 
 private:
 	void update();
@@ -49,15 +50,23 @@ private:
 	std140(glm::mat4, mProjMatrix);
 	std140(glm::mat4, mProjView);
 	std140(glm::mat4, mLastProjView);
+
 	std140(glm::vec3, mPos);
-	std140(glm::vec3, mAngle);
-	std140(glm::vec3, mFront);
-	std140(glm::vec3, mRight);
-	std140(glm::vec3, mUp) = glm::vec3(0.0f, 0.0f, 1.0f);
-	std140(glm::ivec2, mFilmSize);
 	std140(float, mFOV) = 45.0f;
+
+	std140(glm::vec3, mAngle);
 	std140(float, mNear) = 0.1f;
+
+	std140(glm::vec3, mFront);
 	std140(float, mFar) = 1000.0f;
+
+	std140(glm::vec3, mRight);
 	std140(float, mLensRadius) = 0.0f;
+
+	std140(glm::vec3, mUp) = glm::vec3(0.0f, 0.0f, 1.0f);
 	std140(float, mFocalDist) = 1.0f;
+
+	std140(glm::ivec2, mFilmSize);
+	std140(uint32_t, seed0) = 0;
+	std140(uint32_t, seed1);
 };

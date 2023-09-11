@@ -76,6 +76,8 @@ private:
 	Timer mRenderTimer;
 	double mLastTime = 0;
 
+	std::default_random_engine mRng;
+
 	vk::ApplicationInfo mAppInfo;
 	std::unique_ptr<zvk::Instance> mInstance;
 	std::unique_ptr<zvk::Context> mContext;

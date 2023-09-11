@@ -23,22 +23,30 @@ struct Material {
 	int pad0;
 };
 
-struct Camera{
+struct Camera {
 	mat4 view;
 	mat4 proj;
 	mat4 projView;
 	mat4 lastProjView;
+
 	vec3 pos;
-	vec3 angle;
-	vec3 front;
-	vec3 right;
-	vec3 up;
-	ivec2 filmSize;
 	float FOV;
+
+	vec3 angle;
 	float near;
+
+	vec3 front;
 	float far;
+
+	vec3 right;
 	float lensRadius;
+
+	vec3 up;
 	float focalDist;
+
+	ivec2 filmSize;
+	uint seed0;
+	uint seed1;
 };
 
 struct GBufferDrawParam {

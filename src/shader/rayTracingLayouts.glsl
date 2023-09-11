@@ -6,6 +6,7 @@
 struct RTPayload {
 	vec3 radiance;
 	vec3 throughput;
+	uint rng;
 };
 
 layout(set = RayTracingDescSet, binding = 0) uniform accelerationStructureEXT uTLAS;

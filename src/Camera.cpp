@@ -65,6 +65,12 @@ void Camera::setPlanes(float nearZ, float farZ) {
 	update();
 }
 
+void Camera::nextFrame(std::default_random_engine& rng) {
+	mLastProjView = mProjView;
+	seed0++;
+	seed1 = std::uniform_int_distribution<uint32_t>(0, std::numeric_limits<uint32_t>::max())(rng);
+}
+
 void Camera::update() {
 	float x = glm::sin(glm::radians(mAngle.x)) * glm::cos(glm::radians(mAngle.y));
 	float y = glm::cos(glm::radians(mAngle.x)) * glm::cos(glm::radians(mAngle.y));

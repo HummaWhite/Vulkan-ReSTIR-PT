@@ -5,8 +5,8 @@
 
 #include "rayTracingLayouts.glsl"
 
-layout(location = 0) rayPayloadInEXT RTPayload prd;
+layout(location = 0) rayPayloadInEXT RTPayload rtPayload;
 
 void main() {
-    prd.radiance = vec3(0.4, 0.6, 1.0);
+    rtPayload.radiance = vec3(0.4, 0.6, 1.0);
 }

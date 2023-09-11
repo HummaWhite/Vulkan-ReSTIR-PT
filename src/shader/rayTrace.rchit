@@ -6,8 +6,19 @@
 #include "rayTracingLayouts.glsl"
 #include "math.glsl"
 
-layout(location = 0) rayPayloadInEXT RTPayload prd;
+layout(location = 0) rayPayloadInEXT RTPayload rtPayload;
 hitAttributeEXT vec3 attribs;
+
+vec3 sampleLight(vec3 ref, out float pdf, inout uint rng) {
+}
+
+vec3 sampleLights(vec3 ref, out float pdf, inout uint rng) {
+    float sum = uLightSampleTable[0].prob;
+    uint num = uLightSampleTable[0].failId;
+
+    int idx = 1;
+    vec3 radiance = sampleLight(ref, pdf, rng);
+}
 
 void main() {
     vec3 bary = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
@@ -50,8 +61,8 @@ void main() {
 	}
 	albedo = albedo * vec3(-dot(norm, uCamera.front) * 0.5 + 0.55);
 
-    prd.radiance = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
-    prd.radiance = pos;
-    prd.radiance = norm * 0.5 + 0.5;
-    prd.radiance = albedo;
+    rtPayload.radiance = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
+    rtPayload.radiance = pos;
+    rtPayload.radiance = norm * 0.5 + 0.5;
+    rtPayload.radiance = albedo;
 }

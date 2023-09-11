@@ -192,3 +192,42 @@ vec3 colorWheel(float x) {
 		return vec3(1.0, 4.0 - x / Div, 0.0);
 	}
 }
+
+uint hash(uint a) {
+	a = (a + 0x7ed55d16u) + (a << 12u);
+	a = (a ^ 0xc761c23cu) ^ (a >> 19u);
+	a = (a + 0x165667b1u) + (a << 5u);
+	a = (a + 0xd3a2646cu) ^ (a << 9u);
+	a = (a + 0xfd7046c5u) + (a << 3u);
+	a = (a ^ 0xb55a4f09u) ^ (a >> 16u);
+	return a;
+}
+
+uint hash2(uint seed) {
+	seed = (seed ^ 61u) ^ (seed >> 16u);
+	seed *= 9u;
+	seed = seed ^ (seed >> 4u);
+	seed *= 0x27d4eb2du;
+	seed = seed ^ (seed >> 15u);
+	return seed;
+}
+
+uint makeSeed(uint seed0, uint seed1, uint index) {
+	return hash2((1u << 31u) | (seed1 << 22) | seed0) ^ hash2(index);
+}
+
+uint urand(inout uint rng) {
+	return rng = hash2(rng);
+}
+
+float sample1f(inout uint rng) {
+	return float(urand(rng)) / 4294967295.0;
+}
+
+vec2 sample2f(inout uint rng) {
+	return vec2(sample1f(rng), sample1f(rng));
+}
+
+vec3 sample3f(inout uint rng) {
+	return vec3(sample2f(rng), sample1f(rng));
+}

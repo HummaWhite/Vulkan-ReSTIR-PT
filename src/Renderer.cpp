@@ -88,7 +88,7 @@ void Renderer::initVulkan() {
 
 		initScene();
 		mScene.camera.setFilmSize({ mWidth, mHeight });
-		mScene.camera.nextFrame();
+		mScene.camera.nextFrame(mRng);
 
 		mDeviceScene = std::make_unique<DeviceScene>(mContext.get(), mScene, zvk::QueueIdx::GeneralUse);
 
@@ -355,7 +355,7 @@ void Renderer::swap() {
 void Renderer::loop() {
 	updateCameraUniform();
 	drawFrame();
-	mScene.camera.nextFrame();
+	mScene.camera.nextFrame(mRng);
 }
 
 void Renderer::recreateFrame() {
