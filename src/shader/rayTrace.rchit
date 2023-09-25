@@ -10,6 +10,7 @@ layout(location = 0) rayPayloadInEXT RTPayload rtPayload;
 hitAttributeEXT vec3 attribs;
 
 vec3 sampleLight(vec3 ref, out float pdf, inout uint rng) {
+    return vec3(0.f);
 }
 
 vec3 sampleLights(vec3 ref, out float pdf, inout uint rng) {
@@ -18,6 +19,7 @@ vec3 sampleLights(vec3 ref, out float pdf, inout uint rng) {
 
     int idx = 1;
     vec3 radiance = sampleLight(ref, pdf, rng);
+    return vec3(0.f);
 }
 
 void main() {
@@ -47,19 +49,19 @@ void main() {
     norm = normalize(transpose(mat3(gl_WorldToObjectEXT)) * norm);
 
     if (matIdx == InvalidResourceIdx) {
-		albedo = norm * 0.5 + 0.5;
-	}
-	else {
-		int texIdx = uMaterials[matIdx].textureIdx;
+		    albedo = norm * 0.5 + 0.5;
+	  }
+	  else {
+		    int texIdx = uMaterials[matIdx].textureIdx;
 
-		if (texIdx == InvalidResourceIdx) {
-			albedo = uMaterials[matIdx].baseColor;
-		}
-		else {
-			albedo = texture(uTextures[texIdx], vec2(uvx, uvy)).rgb;
-		}
-	}
-	albedo = albedo * vec3(-dot(norm, uCamera.front) * 0.5 + 0.55);
+		    if (texIdx == InvalidResourceIdx) {
+			      albedo = uMaterials[matIdx].baseColor;
+		    }
+		    else {
+			      albedo = texture(uTextures[texIdx], vec2(uvx, uvy)).rgb;
+		    }
+	  }
+	  albedo = albedo * vec3(-dot(norm, uCamera.front) * 0.5 + 0.55);
 
     rtPayload.radiance = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
     rtPayload.radiance = pos;
