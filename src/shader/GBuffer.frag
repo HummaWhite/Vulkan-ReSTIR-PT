@@ -19,6 +19,7 @@ layout(location = 0) in VSOut {
 void main() {
 	GBufferDrawParam param = uGBufferDrawParam;
 	vec3 albedo;
+	float alpha = 1.0;
 
 	if (param.matIdx == InvalidResourceIdx) {
 		albedo = fsIn.norm * 0.5 + 0.5;
@@ -30,10 +31,11 @@ void main() {
 			albedo = uMaterials[param.matIdx].baseColor;
 		}
 		else {
-			albedo = texture(uTextures[texIdx], fsIn.uv).rgb;
+			vec4 albedoAlpha = texture(uTextures[texIdx], fsIn.uv);
+			albedo = albedoAlpha.rgb;
+			alpha = albedoAlpha.a;
 		}
 	}
-	albedo = albedo * vec3(-dot(fsIn.norm, uCamera.front) * 0.5 + 0.55);
 
 	vec4 lastCoord = uCamera.lastProjView * vec4(fsIn.pos, 1.0);
 	lastCoord /= lastCoord.w;
@@ -41,6 +43,10 @@ void main() {
 	lastCoord = lastCoord * 0.5 + 0.5;
 
 	vec2 thisCoord = gl_FragCoord.xy / uCamera.filmSize;
+
+	if (alpha < 0.5) {
+		discard;
+	}
 
 	packGBuffer(
 		GBufferA, GBufferB,

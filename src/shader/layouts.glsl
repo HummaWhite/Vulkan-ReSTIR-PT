@@ -80,13 +80,13 @@ struct ObjectInstance {
 	mat4 transformInvT;
 	uint indexOffset;
 	uint indexCount;
-	float pad0;
+	float transformedSurfaceArea;
 	float pad1;
 };
 
 struct LightInstance {
 	vec3 radiance;
-	uint instanceIdx;
+	uint objectIdx;
 };
 
 struct LightSampleTableElement {

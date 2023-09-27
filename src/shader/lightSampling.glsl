@@ -1,0 +1,6 @@
+#ifndef LIGHT_SAMPLING_GLSL
+#define LIGHT_SAMPLING_GLSL
+
+
+
+#endif

@@ -15,7 +15,7 @@
 
 struct LightInstance {
 	std140(glm::vec3, radiance);
-	std140(uint32_t, instanceIdx);
+	std140(uint32_t, objectIdx);
 };
 
 class Scene

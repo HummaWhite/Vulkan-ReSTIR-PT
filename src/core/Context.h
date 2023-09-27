@@ -88,6 +88,7 @@ private:
 class BaseVkObject {
 public:
     BaseVkObject() : mCtx(nullptr) {}
+    virtual ~BaseVkObject() {}
     BaseVkObject(const Context* ctx) : mCtx(ctx) {}
     BaseVkObject(const Context& ctx) : mCtx(&ctx) {}
 

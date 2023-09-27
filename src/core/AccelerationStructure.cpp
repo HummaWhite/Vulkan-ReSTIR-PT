@@ -28,7 +28,8 @@ AccelerationStructure::AccelerationStructure(
 
         auto geometry = vk::AccelerationStructureGeometryKHR()
             .setGeometry(geometryData)
-            .setGeometryType(vk::GeometryTypeKHR::eTriangles);
+            .setGeometryType(vk::GeometryTypeKHR::eTriangles)
+            .setFlags(vk::GeometryFlagBitsKHR::eNoDuplicateAnyHitInvocation);
 
         auto buildRange = vk::AccelerationStructureBuildRangeInfoKHR()
             .setPrimitiveCount(mesh.numIndices / 3)

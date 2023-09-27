@@ -1,6 +1,7 @@
 const float Pi = 3.14159265358979323846;
 const float PiInv = 1.0 / Pi;
 const float Inf = 1.0 / 0.0;
+const vec3 Black = vec3(0.0);
 
 float sqr(float x) {
 	return x * x;

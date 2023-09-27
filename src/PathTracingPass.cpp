@@ -70,6 +70,7 @@ void PathTracingPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t
 	enum Stages : uint32_t {
 		RayGen,
 		Miss,
+		ShadowMiss,
 		ClosestHit,
 		NumStages
 	};
@@ -82,6 +83,9 @@ void PathTracingPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t
 	);
 	stages[Miss] = zvk::ShaderManager::shaderStageCreateInfo(
 		shaderManager->createShaderModule("shaders/rayTrace.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
+	);
+	stages[ShadowMiss] = zvk::ShaderManager::shaderStageCreateInfo(
+		shaderManager->createShaderModule("shaders/rayTraceShadow.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
 	);
 	stages[ClosestHit] = zvk::ShaderManager::shaderStageCreateInfo(
 		shaderManager->createShaderModule("shaders/rayTrace.rchit.spv"), vk::ShaderStageFlagBits::eClosestHitKHR
@@ -97,6 +101,12 @@ void PathTracingPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t
 		vk::RayTracingShaderGroupCreateInfoKHR(
 			vk::RayTracingShaderGroupTypeKHR::eGeneral,
 			Miss, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR
+		)
+	);
+	groups.push_back(
+		vk::RayTracingShaderGroupCreateInfoKHR(
+			vk::RayTracingShaderGroupTypeKHR::eGeneral,
+			ShadowMiss, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR
 		)
 	);
 	groups.push_back(
@@ -211,9 +221,9 @@ void PathTracingPass::createShaderBindingTable() {
 	const auto& ext = mCtx->instance()->extFunctions();
 	const auto& pipelineProps = mCtx->instance()->rayTracingPipelineProperties;
 
-	uint32_t numMiss = 1;
-	uint32_t numHit = 1;
-	uint32_t numHandles = 1 + numMiss + numHit;
+	uint32_t numMissGroup = 2;
+	uint32_t numHitGroup = 1;
+	uint32_t numGroups = 1 + numMissGroup + numHitGroup;
 	uint32_t handleSize = pipelineProps.shaderGroupHandleSize;
 
 	uint32_t alignedHandleSize = zvk::align(pipelineProps.shaderGroupHandleSize, pipelineProps.shaderGroupHandleAlignment);
@@ -223,19 +233,20 @@ void PathTracingPass::createShaderBindingTable() {
 	mRayGenRegion.size = mRayGenRegion.stride;
 
 	mMissRegion.stride = alignedHandleSize;
-	mMissRegion.size = zvk::align(numMiss * alignedHandleSize, baseAlignment);
+	mMissRegion.size = zvk::align(numMissGroup * alignedHandleSize, baseAlignment);
 
 	mHitRegion.stride = alignedHandleSize;
-	mHitRegion.size = zvk::align(numHit * alignedHandleSize, baseAlignment);
+	mHitRegion.size = zvk::align(numHitGroup * alignedHandleSize, baseAlignment);
 
-	uint32_t dataSize = numHandles * handleSize;
-	auto handles = ext.getRayTracingShaderGroupHandlesKHR(mCtx->device, mPipeline, 0, numHandles, dataSize);
+	uint32_t dataSize = numGroups * handleSize;
+	auto handles = ext.getRayTracingShaderGroupHandlesKHR(mCtx->device, mPipeline, 0, numGroups, dataSize);
 
 	vk::DeviceSize SBTSize = mRayGenRegion.size + mMissRegion.size + mHitRegion.size + mCallRegion.size;
 
 	mShaderBindingTable = zvk::Memory::createBuffer(
 		mCtx, SBTSize,
-		vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress,
+		vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress |
+			vk::BufferUsageFlagBits::eTransferSrc,
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
@@ -246,25 +257,22 @@ void PathTracingPass::createShaderBindingTable() {
 	mMissRegion.deviceAddress = SBTAddress + mRayGenRegion.size;
 	mHitRegion.deviceAddress = SBTAddress + mRayGenRegion.size + mMissRegion.size;
 
-	auto getHandle = [&](uint32_t i) { return handles.data() + i * handleSize; };
+	auto pDst = reinterpret_cast<uint8_t*>(mShaderBindingTable->data);
+	auto pSrc = reinterpret_cast<uint8_t*>(handles.data());
 
-	auto pSBTBuffer = reinterpret_cast<uint8_t*>(mShaderBindingTable->data);
-	uint8_t* pData = nullptr;
-	uint32_t handleIdx = 0;
+	memcpy(pDst, pSrc, handleSize);
+	
+	pDst += mRayGenRegion.size;
+	pSrc += handleSize;
 
-	pData = pSBTBuffer;
-	memcpy(pData, getHandle(handleIdx++), handleSize);
-
-	pData = pSBTBuffer + mRayGenRegion.size;
-	for (uint32_t i = 0; i < numMiss; i++) {
-		memcpy(pData, getHandle(handleIdx++), handleSize);
-		pData += mMissRegion.stride;
+	for (uint32_t i = 0; i < numMissGroup; i++) {
+		memcpy(pDst + i * alignedHandleSize, pSrc + i * handleSize, handleSize);
 	}
+	pDst += mMissRegion.size;
+	pSrc += numMissGroup * handleSize;
 
-	pData = pSBTBuffer + mRayGenRegion.size + mMissRegion.size;
-	for (uint32_t i = 0; i < numHit; i++) {
-		memcpy(pData, getHandle(handleIdx++), handleSize);
-		pData += mHitRegion.stride;
+	for (uint32_t i = 0; i < numHitGroup; i++) {
+		memcpy(pDst + i * alignedHandleSize, pSrc + i * handleSize, handleSize);
 	}
 	mShaderBindingTable->unmapMemory();
 }

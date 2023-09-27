@@ -152,9 +152,9 @@ void Scene::buildLightSampler() {
 	std::vector<float> powerDistrib;
 
 	for (const auto light : lightInstances) {
-		auto modelInstance = resource.modelInstances()[light.instanceIdx];
+		auto modelInstance = resource.modelInstances()[light.objectIdx];
 		float transformedSurfaceArea = resource.getModelTransformedSurfaceArea(modelInstance);
-		objectInstances[light.instanceIdx].transformedSurfaceArea = transformedSurfaceArea;
+		objectInstances[light.objectIdx].transformedSurfaceArea = transformedSurfaceArea;
 		powerDistrib.push_back(luminance(light.radiance) * transformedSurfaceArea);
 	}
 	lightSampleTable.build(powerDistrib);
