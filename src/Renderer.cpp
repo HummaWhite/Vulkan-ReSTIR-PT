@@ -88,6 +88,7 @@ void Renderer::initVulkan() {
 
 		initScene();
 		mScene.camera.setFilmSize({ mWidth, mHeight });
+		mScene.camera.setPlanes(1e-3f, 500.f);
 		mScene.camera.nextFrame(mRng);
 
 		mDeviceScene = std::make_unique<DeviceScene>(mContext.get(), mScene, zvk::QueueIdx::GeneralUse);
@@ -129,7 +130,7 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::initScene() {
-	mScene.load("res/sponza.xml");
+	mScene.load("res/box.xml");
 }
 
 void Renderer::createDescriptor() {
@@ -203,31 +204,35 @@ void Renderer::initDescriptor() {
 }
 
 void Renderer::createRenderCmdBuffer() {
-	mGCTCmdBuffers = zvk::Command::createPrimary(mContext.get(), zvk::QueueIdx::GeneralUse, mSwapchain->numImages());
+	mGCTCmdBuffers = zvk::Command::createPrimary(mContext.get(), zvk::QueueIdx::GeneralUse, NumFramesInFlight);
 }
 
 void Renderer::createSyncObject() {
 	auto fenceCreateInfo = vk::FenceCreateInfo()
 		.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
-	mInFlightFence = mContext->device.createFence(fenceCreateInfo);
-	mFrameReadySemaphore = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
-	mRenderFinishSemaphore = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
+	for (int i = 0; i < NumFramesInFlight; i++) {
+		mInFlightFences[i] = mContext->device.createFence(fenceCreateInfo);
+		mFrameReadySemaphores[i] = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
+		mRenderFinishSemaphores[i] = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
+	}
 }
 
 void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
+	int curFrame = mFrameIndex & 1;
+
 	auto beginInfo = vk::CommandBufferBeginInfo()
 		.setFlags(vk::CommandBufferUsageFlagBits{})
 		.setPInheritanceInfo(nullptr);
 
-	const auto& GBufferA = mGBufferPass->GBufferA[0];
-	const auto& GBufferB = mGBufferPass->GBufferB[0];
-	const auto& rayOutput = mPathTracingPass->colorOutput[0];
+	const auto& GBufferA = mGBufferPass->GBufferA[curFrame];
+	const auto& GBufferB = mGBufferPass->GBufferB[curFrame];
+	const auto& rayOutput = mPathTracingPass->colorOutput[curFrame];
 
 	cmd.begin(beginInfo); {
 		mGBufferPass->render(
-			cmd, mSwapchain->extent(),
-			mDeviceScene->cameraDescSet, mDeviceScene->resourceDescSet,
+			cmd, mSwapchain->extent(), curFrame,
+			mDeviceScene->cameraDescSet[curFrame], mDeviceScene->resourceDescSet,
 			mDeviceScene->vertices->buffer, mDeviceScene->indices->buffer, 0, mScene.resource.meshInstances().size()
 		);
 
@@ -243,25 +248,9 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			{}, {}, GBufferImageBarriers
 		);
 
-		/*
-		vk::ImageMemoryBarrier2 GBufferImageBarriers[] = {
-			depthNormal->getBarrier2(
-				depthNormal->layout,
-				vk::AccessFlagBits2::eColorAttachmentWrite, vk::AccessFlagBits2::eShaderSampledRead,
-				vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eRayTracingShaderKHR
-			),
-			albedoMatIdx->getBarrier2(
-				albedoMatIdx->layout,
-				vk::AccessFlagBits2::eColorAttachmentWrite, vk::AccessFlagBits2::eShaderSampledRead,
-				vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::PipelineStageFlagBits2::eRayTracingShaderKHR
-			),
-		};
-		cmd.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(GBufferImageBarriers));
-		*/
-
 		mPathTracingPass->render(
-			cmd,
-			mDeviceScene->cameraDescSet, mDeviceScene->resourceDescSet, mImageOutDescSet[0],
+			cmd, curFrame,
+			mDeviceScene->cameraDescSet[curFrame], mDeviceScene->resourceDescSet, mImageOutDescSet[curFrame],
 			mSwapchain->extent(), 1
 		);
 
@@ -276,13 +265,14 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			{}, {}, rayImageBarriers
 		);
 
-		mPostProcPass->render(cmd, mImageOutDescSet[0], mSwapchain->extent(), imageIdx);
+		mPostProcPass->render(cmd, curFrame, imageIdx, mImageOutDescSet[curFrame], mSwapchain->extent());
 	}
 	cmd.end();
 }
 
 void Renderer::updateCameraUniform() {
-	memcpy(mDeviceScene->camera->data, &mScene.camera, sizeof(Camera));
+	int curFrame = mFrameIndex & 1;
+	memcpy(mDeviceScene->camera[curFrame]->data, &mScene.camera, sizeof(Camera));
 }
 
 uint32_t Renderer::acquireFrame(vk::Semaphore signalFrameReady) {
@@ -319,41 +309,38 @@ void Renderer::presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish) {
 }
 
 void Renderer::drawFrame() {
-	if (mContext->device.waitForFences(mInFlightFence, true, UINT64_MAX) != vk::Result::eSuccess) {
+	updateCameraUniform();
+
+	int curFrame = mFrameIndex & 1;
+
+	if (mContext->device.waitForFences(mInFlightFences[curFrame], true, UINT64_MAX) != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to wait for any fences");
 	}
-	mContext->device.resetFences(mInFlightFence);
+	mContext->device.resetFences(mInFlightFences[curFrame]);
+	uint32_t imageIdx = acquireFrame(mFrameReadySemaphores[curFrame]);
 
-	uint32_t imageIdx = acquireFrame(mFrameReadySemaphore);
-	mGCTCmdBuffers[imageIdx]->cmd.reset();
-	recordRenderCommand(mGCTCmdBuffers[imageIdx]->cmd, imageIdx);
+	mGCTCmdBuffers[curFrame]->cmd.reset();
+	recordRenderCommand(mGCTCmdBuffers[curFrame]->cmd, imageIdx);
 
 	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
 	auto submitInfo = vk::SubmitInfo()
-		.setCommandBuffers(mGCTCmdBuffers[imageIdx]->cmd)
-		.setWaitSemaphores(mFrameReadySemaphore)
+		.setCommandBuffers(mGCTCmdBuffers[curFrame]->cmd)
+		.setWaitSemaphores(mFrameReadySemaphores[curFrame])
 		.setWaitDstStageMask(waitStage)
-		.setSignalSemaphores(mRenderFinishSemaphore);
+		.setSignalSemaphores(mRenderFinishSemaphores[curFrame]);
 
 	try {
-		mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFence);
+		mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFences[curFrame]);
 	}
 	catch (const std::exception& e) {
 		Log::line<0>(e.what());
 	}
-	presentFrame(imageIdx, mRenderFinishSemaphore);
-	swap();
-}
-
-void Renderer::swap() {
-	mGBufferPass->swap();
-	mPathTracingPass->swap();
-	std::swap(mImageOutDescSet[0], mImageOutDescSet[1]);
+	presentFrame(imageIdx, mRenderFinishSemaphores[curFrame]);
+	mFrameIndex++;
 }
 
 void Renderer::loop() {
-	updateCameraUniform();
 	drawFrame();
 	mScene.camera.nextFrame(mRng);
 }
@@ -385,9 +372,11 @@ void Renderer::cleanupVulkan() {
 	mImageOutDescLayout.reset();
 	mDescriptorPool.reset();
 
-	mContext->device.destroyFence(mInFlightFence);
-	mContext->device.destroySemaphore(mFrameReadySemaphore);
-	mContext->device.destroySemaphore(mRenderFinishSemaphore);
+	for (int i = 0; i < 2; i++) {
+		mContext->device.destroyFence(mInFlightFences[i]);
+		mContext->device.destroySemaphore(mFrameReadySemaphores[i]);
+		mContext->device.destroySemaphore(mRenderFinishSemaphores[i]);
+	}
 
 	for (auto& cmd : mGCTCmdBuffers) {
 		cmd.reset();

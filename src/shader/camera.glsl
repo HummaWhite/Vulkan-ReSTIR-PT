@@ -19,6 +19,22 @@ Ray makeRay(vec3 ori, vec3 dir) {
 	return ret;
 }
 
+Ray pinholeCameraSampleRay(Camera cam, vec2 uv, vec2 r) {
+	vec2 texelSize = 1.0 / vec2(cam.filmSize);
+	vec2 biasedCoord = uv + texelSize * r.xy;
+	vec2 ndc = biasedCoord * 2.0 - 1.0;
+	float aspect = float(cam.filmSize.x) / float(cam.filmSize.y);
+	float tanFOV = tan(radians(cam.FOV * 0.5));
+
+	vec3 pFocusPlane = vec3(ndc * vec2(aspect, 1.0) * tanFOV, 1.0);
+
+	vec3 ori = cam.pos;
+	vec3 dir = normalize(pFocusPlane);
+	dir = normalize(cam.right * dir.x + cam.up * dir.y + cam.front * dir.z);
+
+	return Ray(ori, dir);
+}
+
 Ray thinLensCameraSampleRay(Camera cam, vec2 uv, vec4 r) {
 	vec2 texelSize = 1.0 / vec2(cam.filmSize);
 	vec2 biasedCoord = uv + texelSize * r.xy;

@@ -25,9 +25,13 @@ struct Material {
 
 struct Camera {
 	mat4 view;
+	mat4 viewInv;
 	mat4 proj;
+	mat4 projInv;
 	mat4 projView;
+	mat4 projViewInv;
 	mat4 lastProjView;
+	mat4 lastProjViewInv;
 
 	vec3 pos;
 	float FOV;
@@ -95,15 +99,9 @@ struct LightSampleTableElement {
 };
 
 
-layout(push_constant) uniform _PushConstant {
-	GBufferDrawParam uGBufferDrawParam;
-};
-
-
 layout(set = CameraDescSet, binding = 0) uniform _Camera {
 	Camera uCamera;
 };
-
 
 layout(set = ResourceDescSet, binding = 0) uniform sampler2D uTextures[];
 

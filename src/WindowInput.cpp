@@ -67,7 +67,10 @@ namespace WindowInput {
 		float offsetX = posX - lastCursorX;
 		float offsetY = posY - lastCursorY;
 		glm::vec3 offset(offsetX, -offsetY, 0);
-		camera->rotate(offset * CameraRotateSensitivity);
+
+		float speed = isPressingKey(GLFW_KEY_LEFT_CONTROL) ? .1f : 1.f;
+
+		camera->rotate(offset * CameraRotateSensitivity * speed);
 
 		lastCursorX = posX;
 		lastCursorY = posY;
@@ -77,7 +80,8 @@ namespace WindowInput {
 		if (!cursorDisabled) {
 			return;
 		}
-		camera->changeFOV(offsetY * CamerFOVSensitivity);
+		float speed = isPressingKey(GLFW_KEY_LEFT_CONTROL) ? .1f : 1.f;
+		camera->changeFOV(offsetY * CamerFOVSensitivity * speed);
 	}
 
 	void moveCamera(int key) {
@@ -114,8 +118,10 @@ namespace WindowInput {
 			camera->setAngle({ angle.x, angle.y, 0.f });
 			break;
 		}
-		camera->move(dPos * CameraMoveSensitivity * float(deltaTime));
-		camera->roll(dRoll * CameraRollSensitivity * deltaTime);
+		float speed = isPressingKey(GLFW_KEY_LEFT_CONTROL) ? .1f : 1.f;
+
+		camera->move(dPos * CameraMoveSensitivity * float(deltaTime) * speed);
+		camera->roll(dRoll * CameraRollSensitivity * deltaTime * speed);
 	}
 
 	void processKeys()

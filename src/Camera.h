@@ -47,18 +47,22 @@ private:
 
 private:
 	std140(glm::mat4, mViewMatrix);
+	std140(glm::mat4, mViewMatrixInv);
 	std140(glm::mat4, mProjMatrix);
+	std140(glm::mat4, mProjMatrixInv);
 	std140(glm::mat4, mProjView);
+	std140(glm::mat4, mProjViewInv);
 	std140(glm::mat4, mLastProjView);
+	std140(glm::mat4, mLastProjViewInv);
 
 	std140(glm::vec3, mPos);
 	std140(float, mFOV) = 45.0f;
 
 	std140(glm::vec3, mAngle);
-	std140(float, mNear) = 0.1f;
+	std140(float, mNear) = 1e-3f;
 
 	std140(glm::vec3, mFront);
-	std140(float, mFar) = 1000.0f;
+	std140(float, mFar) = 1e3f;
 
 	std140(glm::vec3, mRight);
 	std140(float, mLensRadius) = 0.0f;

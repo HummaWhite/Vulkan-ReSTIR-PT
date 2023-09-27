@@ -11,10 +11,13 @@ layout(location = 1) out uvec4 GBufferB;
 
 layout(location = 0) in VSOut {
 	vec3 pos;
-	float depth;
 	vec3 norm;
 	vec2 uv;
 } fsIn;
+
+layout(push_constant) uniform _PushConstant {
+	GBufferDrawParam uGBufferDrawParam;
+};
 
 void main() {
 	GBufferDrawParam param = uGBufferDrawParam;
@@ -40,12 +43,12 @@ void main() {
 	vec2 thisCoord = gl_FragCoord.xy / uCamera.filmSize;
 
 	if (alpha < 0.5) {
-		discard;
+		//discard;
 	}
 
 	packGBuffer(
 		GBufferA, GBufferB,
-		albedo, fsIn.norm, fsIn.depth,
+		albedo, normalize(fsIn.norm), length(uCamera.pos - fsIn.pos),
 		lastCoord.xy - thisCoord, param.matIdx
 	);
 }

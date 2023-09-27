@@ -5,8 +5,8 @@
 
 #include "rayTracingLayouts.glsl"
 
-layout(location = 0) rayPayloadInEXT RTPayload rtPayload;
+layout(location = 0) rayPayloadInEXT Intersection rtIsec;
 
 void main() {
-    rtPayload.radiance = vec3(0.0);
+    rtIsec.hit = false;
 }

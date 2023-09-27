@@ -4,6 +4,8 @@
 #ifdef __cplusplus
   #include <vulkan/vulkan.hpp>
 
+  constexpr uint32_t NumFramesInFlight = 2;
+
   #define ENUM_BEGIN(x) enum x {
   #define ENUM_END(x) }
   #define SWAPCHAIN_FORMAT vk::Format::eB8G8R8A8Unorm

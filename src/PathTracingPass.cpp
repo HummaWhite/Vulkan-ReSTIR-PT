@@ -29,7 +29,7 @@ void PathTracingPass::destroy() {
 }
 
 void PathTracingPass::render(
-	vk::CommandBuffer cmd,
+	vk::CommandBuffer cmd, uint32_t frameIdx,
 	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet,
 	vk::Extent2D extent, uint32_t maxDepth
 ) {
@@ -54,11 +54,6 @@ void PathTracingPass::initDescriptor() {
 		vk::WriteDescriptorSetAccelerationStructureKHR(mTLAS->structure)
 	);
 	mCtx->device.updateDescriptorSets(update.writes, {});
-}
-
-void PathTracingPass::swap() {
-	std::swap(colorOutput[0], colorOutput[1]);
-	std::swap(reservoir[0], reservoir[1]);
 }
 
 void PathTracingPass::recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {

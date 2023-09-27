@@ -41,12 +41,11 @@ public:
 	void createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
 	void render(
-		vk::CommandBuffer cmd,
+		vk::CommandBuffer cmd, uint32_t frameIdx,
 		vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet,
 		vk::Extent2D extent, uint32_t maxDepth);
 
 	void initDescriptor();
-	void swap();
 	void recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx);
 
 private:

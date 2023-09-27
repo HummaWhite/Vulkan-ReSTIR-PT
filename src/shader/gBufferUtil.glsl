@@ -1,3 +1,6 @@
+#ifndef GBUFFER_UTIL_GLSL
+#define GBUFFER_UTIL_GLSL
+
 uint packAlbedo(vec3 albedo) {
     return packUnorm4x8(vec4(albedo, 1.0));
 }
@@ -7,7 +10,7 @@ vec3 unpackAlbedo(uint packed) {
 }
 
 uvec2 packNormal(vec3 n) {
-    vec2 p = vec2(n) * (1.0 / (abs(n.x) + abs(n.y) + n.z));
+    vec2 p = n.xy * (1.0 / (abs(n.x) + abs(n.y) + n.z));
     return floatBitsToUint(vec2(p.x + p.y, p.x - p.y));
 }
 
@@ -18,15 +21,25 @@ vec3 unpackNormal(uvec2 packed) {
     return normalize(v);
 }
 
+uint packMotionVector(vec2 motion) {
+    return packSnorm2x16(motion);
+}
+
+vec2 unpackMotionVector(uint packed) {
+    return unpackSnorm2x16(packed);
+}
+
 void packGBuffer(
     out uvec4 GBufferA, out uvec4 GBufferB,
     vec3 albedo, vec3 normal, float depth,
     vec2 motion, int materialIdx
 ) {
     GBufferA.x = packAlbedo(albedo);
-    GBufferA.yz = packNormal(normal);
-    GBufferA.w = floatBitsToUint(depth);
+    GBufferA.yzw = floatBitsToUint(normal);
 
-    GBufferB.xy = floatBitsToUint(motion);
-    GBufferB.z = uint(materialIdx);
+    GBufferB.x = floatBitsToUint(depth);
+    GBufferB.y = uint(materialIdx);
+    GBufferB.z = packMotionVector(motion);
 }
+
+#endif

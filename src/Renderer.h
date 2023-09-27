@@ -23,6 +23,7 @@
 #include "GBufferPass.h"
 #include "PathTracingPass.h"
 #include "PostProcPassFrag.h"
+#include "shader/HostDevice.h"
 
 #include "util/Error.h"
 #include "util/Timer.h"
@@ -35,8 +36,6 @@ public:
 	void exec();
 
 	void setShoudResetSwapchain(bool reset) { mShouldResetSwapchain = reset; }
-
-	constexpr static uint32_t NumFramesConcurrent = 4;
 
 private:
 	void initWindow();
@@ -58,7 +57,6 @@ private:
 	uint32_t acquireFrame(vk::Semaphore signalFrameReady);
 	void presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish);
 	void drawFrame();
-	void swap();
 
 	void loop();
 
@@ -75,6 +73,7 @@ private:
 	Timer mFPSTimer;
 	Timer mRenderTimer;
 	double mLastTime = 0;
+	uint32_t mFrameIndex = 0;
 
 	std::default_random_engine mRng;
 
@@ -89,9 +88,9 @@ private:
 
 	std::vector<std::unique_ptr<zvk::CommandBuffer>> mGCTCmdBuffers;
 
-	vk::Semaphore mFrameReadySemaphore;
-	vk::Semaphore mRenderFinishSemaphore;
-	vk::Fence mInFlightFence;
+	vk::Semaphore mFrameReadySemaphores[NumFramesInFlight];
+	vk::Semaphore mRenderFinishSemaphores[NumFramesInFlight];
+	vk::Fence mInFlightFences[NumFramesInFlight];
 
 	Scene mScene;
 	std::unique_ptr<DeviceScene> mDeviceScene;

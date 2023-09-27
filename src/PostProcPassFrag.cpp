@@ -153,7 +153,7 @@ void PostProcPassFrag::createPipeline(
 	mPipeline = result.value;
 }
 
-void PostProcPassFrag::render(vk::CommandBuffer cmd, vk::DescriptorSet imageOutDescSet, vk::Extent2D extent, uint32_t imageIdx) {
+void PostProcPassFrag::render(vk::CommandBuffer cmd, uint32_t frameIdx, uint32_t imageIdx, vk::DescriptorSet imageOutDescSet, vk::Extent2D extent) {
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f)
 	};

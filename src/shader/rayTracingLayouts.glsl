@@ -6,11 +6,18 @@
 const float MinRayDistance = 1e-4;
 const float MaxRayDistance = 1e7;
 
-struct RTPayload {
-	vec3 radiance;
-	vec3 throughput;
-	uint curDepth;
-	uint rng;
+struct Intersection {
+	vec3 pos;
+	vec3 norm;
+	vec3 albedo;
+	vec3 bary;
+	vec2 uv;
+	uint instanceIndex;
+	int lightIndex;
+	float transSurfaceArea;
+	int matIndex;
+	int texIndex;
+	bool hit;
 };
 
 struct RTShadowPayload {

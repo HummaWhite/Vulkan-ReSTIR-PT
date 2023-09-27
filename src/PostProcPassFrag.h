@@ -38,7 +38,7 @@ public:
 		zvk::ShaderManager* shaderManager, vk::Extent2D extent,
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
-	void render(vk::CommandBuffer cmd, vk::DescriptorSet imageOutDescSet, vk::Extent2D extent, uint32_t imageIdx);
+	void render(vk::CommandBuffer cmd, uint32_t frameIdx, uint32_t imageIdx, vk::DescriptorSet imageOutDescSet, vk::Extent2D extent);
 	void recreateFrame(const zvk::Swapchain* swapchain);
 
 private:

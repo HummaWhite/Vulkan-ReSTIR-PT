@@ -52,13 +52,12 @@ public:
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
 	void render(
-		vk::CommandBuffer cmd, vk::Extent2D extent,
+		vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t frameIdx,
 		vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet,
 		vk::Buffer vertexBuffer, vk::Buffer indexBuffer, uint32_t offset, uint32_t count);
 
 	void initDescriptor();
 
-	void swap();
 	void recreateFrame(vk::Extent2D extent);
 
 private:

@@ -79,11 +79,10 @@ vec3 localToWorld(vec3 n, vec3 v)
 	return normalize(matLocalToWorld(n) * v);
 }
 
-vec4 sampleCosineWeightedHemisphere(vec3 n, vec2 u) {
+vec3 sampleCosineWeightedHemisphere(vec3 n, vec2 u) {
 	vec2 uv = toConcentricDisk(u);
 	float z = sqrt(1.0 - dot(uv, uv));
-	vec3 v = localToWorld(n, vec3(uv, z));
-	return vec4(v, PiInv * z);
+	return localToWorld(n, vec3(uv, z));
 }
 
 bool sameHemisphere(vec3 n, vec3 a, vec3 b) {

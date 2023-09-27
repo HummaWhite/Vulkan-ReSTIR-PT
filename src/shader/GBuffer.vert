@@ -10,19 +10,20 @@ layout(location = 3) in float aTexY;
 
 layout(location = 0) out VSOut {
 	vec3 pos;
-	float depth;
 	vec3 norm;
 	vec2 uv;
 } vsOut;
+
+layout(push_constant) uniform _PushConstant {
+	GBufferDrawParam uGBufferDrawParam;
+};
 
 void main() {
 	GBufferDrawParam param = uGBufferDrawParam;
 	vec4 pos = param.model * vec4(aPos, 1.0);
 	vsOut.pos = pos.xyz;
 	gl_Position = uCamera.projView * pos;
-	gl_Position.y = -gl_Position.y;
 
 	vsOut.norm = normalize(mat3(param.modelInvT) * aNorm);
 	vsOut.uv = vec2(aTexX, aTexY);
-	vsOut.depth = gl_Position.z / gl_Position.w;
 }

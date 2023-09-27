@@ -198,7 +198,8 @@ void DeviceScene::destroy() {
 void DeviceScene::initDescriptor() {
 	zvk::DescriptorWrite update;
 
-	update.add(cameraDescLayout.get(), cameraDescSet, 0, vk::DescriptorBufferInfo(camera->buffer, 0, camera->size));
+	update.add(cameraDescLayout.get(), cameraDescSet[0], 0, vk::DescriptorBufferInfo(camera[0]->buffer, 0, camera[0]->size));
+	update.add(cameraDescLayout.get(), cameraDescSet[1], 0, vk::DescriptorBufferInfo(camera[1]->buffer, 0, camera[1]->size));
 
 	update.add(resourceDescLayout.get(), resourceDescSet, 0, zvk::Descriptor::makeImageDescriptorArray(textures));
 	update.add(resourceDescLayout.get(), resourceDescSet, 1, zvk::Descriptor::makeBufferInfo(materials.get()));
@@ -263,12 +264,14 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
 
-	camera = zvk::Memory::createBuffer(
-		mCtx, sizeof(Camera),
-		vk::BufferUsageFlagBits::eUniformBuffer,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-	);
-	camera->mapMemory();
+	for (int i = 0; i < 2; i++) {
+		camera[i] = zvk::Memory::createBuffer(
+			mCtx, sizeof(Camera),
+			vk::BufferUsageFlagBits::eUniformBuffer,
+			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+		);
+		camera[i]->mapMemory();
+	}
 
 	auto images = scene.resource.imagePool();
 
@@ -331,9 +334,10 @@ void DeviceScene::createDescriptor() {
 	resourceDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, resourceBindings);
 
 	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(
-		mCtx, zvk::DescriptorLayoutArray{ cameraDescLayout.get(), resourceDescLayout.get() }, 1, vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind
+		mCtx, zvk::DescriptorLayoutArray{ cameraDescLayout.get(), cameraDescLayout.get(), resourceDescLayout.get() }, 1, vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind
 	);
 
-	cameraDescSet = mDescriptorPool->allocDescriptorSet(cameraDescLayout->layout);
+	cameraDescSet[0] = mDescriptorPool->allocDescriptorSet(cameraDescLayout->layout);
+	cameraDescSet[1] = mDescriptorPool->allocDescriptorSet(cameraDescLayout->layout);
 	resourceDescSet = mDescriptorPool->allocDescriptorSet(resourceDescLayout->layout);
 }

@@ -5,8 +5,8 @@
 
 #include "rayTracingLayouts.glsl"
 
-layout(location = 1) rayPayloadInEXT RTShadowPayload rtShadowPayload;
+layout(location = 1) rayPayloadInEXT bool rtShadowed;
 
 void main() {
-    rtShadowPayload.hit = false;
+    rtShadowed = false;
 }

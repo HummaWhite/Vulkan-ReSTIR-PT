@@ -29,7 +29,7 @@ void GBufferPass::destroy() {
 }
 
 void GBufferPass::render(
-	vk::CommandBuffer cmd, vk::Extent2D extent,
+	vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t frameIdx,
 	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet,
 	vk::Buffer vertexBuffer, vk::Buffer indexBuffer, uint32_t offset, uint32_t count
 ) {
@@ -41,7 +41,7 @@ void GBufferPass::render(
 
 	auto renderPassBeginInfo = vk::RenderPassBeginInfo()
 		.setRenderPass(mRenderPass)
-		.setFramebuffer(framebuffer[0])
+		.setFramebuffer(framebuffer[frameIdx])
 		.setRenderArea({ { 0, 0 }, extent })
 		.setClearValues(clearValues);
 
@@ -79,13 +79,6 @@ void GBufferPass::initDescriptor() {
 		mDrawParamDescLayout.get(), mDrawParamDescSet, 0, zvk::Descriptor::makeBufferInfo(mDrawParamBuffer.get())
 	);
 	mCtx->device.updateDescriptorSets(update.writes, {});
-}
-
-void GBufferPass::swap() {
-	std::swap(GBufferA[0], GBufferA[1]);
-	std::swap(GBufferB[0], GBufferB[1]);
-	std::swap(mDepthStencil[0], mDepthStencil[1]);
-	std::swap(framebuffer[0], framebuffer[1]);
 }
 
 void GBufferPass::recreateFrame(vk::Extent2D extent) {
