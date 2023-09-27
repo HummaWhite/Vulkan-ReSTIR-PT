@@ -116,11 +116,11 @@ public:
 	void createMipmap();
 
 	static uint32_t mipLevels(vk::Extent2D extent) {
-		return std::floor(std::log2(std::max(extent.width, extent.height))) + 1;
+		return static_cast<uint32_t>(std::floor(std::log2(std::max(extent.width, extent.height))) + 1);
 	}
 
 	static uint32_t mipLevels(vk::Extent3D extent) {
-		return std::floor(std::log2(std::max(std::max(extent.width, extent.height), extent.depth))) + 1;
+		return static_cast<uint32_t>(std::floor(std::log2(std::max(std::max(extent.width, extent.height), extent.depth))) + 1);
 	}
 
 public:

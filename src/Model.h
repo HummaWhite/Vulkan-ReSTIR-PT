@@ -100,5 +100,5 @@ struct ObjectInstance {
 	std140(uint32_t, indexOffset);
 	std140(uint32_t, indexCount);
 	std140(float, transformedSurfaceArea);
-	std140(float, debugVal);
+	std140(int32_t, lightIndex) = InvalidResourceIdx;
 };

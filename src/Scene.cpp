@@ -150,12 +150,18 @@ void Scene::loadEnvironmentMap(pugi::xml_node envMapNode) {
 void Scene::buildLightSampler() {
 	Log::line<1>("Light Sample Table");
 	std::vector<float> powerDistrib;
+	numObjectInstances = static_cast<uint32_t>(objectInstances.size());
 
-	for (const auto light : lightInstances) {
-		auto modelInstance = resource.modelInstances()[light.objectIdx];
+	for (uint32_t i = 0; i < lightInstances.size(); i++) {
+		auto& lightInstance = lightInstances[i];
+		auto modelInstance = resource.modelInstances()[lightInstance.objectIdx];
+		ObjectInstance& lightObject = objectInstances[lightInstance.objectIdx];
+
 		float transformedSurfaceArea = resource.getModelTransformedSurfaceArea(modelInstance);
-		objectInstances[light.objectIdx].transformedSurfaceArea = transformedSurfaceArea;
-		powerDistrib.push_back(luminance(light.radiance) * transformedSurfaceArea);
+		lightObject.lightIndex = i;
+		lightObject.transformedSurfaceArea = transformedSurfaceArea;
+
+		powerDistrib.push_back(luminance(lightInstance.radiance) * transformedSurfaceArea);
 	}
 	lightSampleTable.build(powerDistrib);
 

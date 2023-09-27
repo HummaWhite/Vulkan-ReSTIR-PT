@@ -21,20 +21,15 @@ void main() {
 	vec3 albedo;
 	float alpha = 1.0;
 
-	if (param.matIdx == InvalidResourceIdx) {
-		albedo = fsIn.norm * 0.5 + 0.5;
+	int texIdx = uMaterials[param.matIdx].textureIdx;
+
+	if (texIdx == InvalidResourceIdx) {
+		albedo = uMaterials[param.matIdx].baseColor;
 	}
 	else {
-		int texIdx = uMaterials[param.matIdx].textureIdx;
-
-		if (texIdx == InvalidResourceIdx) {
-			albedo = uMaterials[param.matIdx].baseColor;
-		}
-		else {
-			vec4 albedoAlpha = texture(uTextures[texIdx], fsIn.uv);
-			albedo = albedoAlpha.rgb;
-			alpha = albedoAlpha.a;
-		}
+		vec4 albedoAlpha = texture(uTextures[texIdx], fsIn.uv);
+		albedo = albedoAlpha.rgb;
+		alpha = albedoAlpha.a;
 	}
 
 	vec4 lastCoord = uCamera.lastProjView * vec4(fsIn.pos, 1.0);

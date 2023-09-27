@@ -42,6 +42,7 @@ public:
 	std::vector<ObjectInstance> objectInstances;
 	std::vector<LightInstance> lightInstances;
 	DiscreteSampler1D<float> lightSampleTable;
+	uint32_t numObjectInstances = 0;
 };
 
 class DeviceScene : public zvk::BaseVkObject {

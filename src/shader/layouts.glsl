@@ -81,7 +81,7 @@ struct ObjectInstance {
 	uint indexOffset;
 	uint indexCount;
 	float transformedSurfaceArea;
-	float pad1;
+	int lightIndex;
 };
 
 struct LightInstance {

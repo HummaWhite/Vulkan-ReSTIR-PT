@@ -17,6 +17,7 @@
 class Resource {
 public:
 	friend class Scene;
+	Resource();
 	~Resource() { destroy(); }
 
 	const std::vector<MeshVertex>& vertices() const { return mVertices; }

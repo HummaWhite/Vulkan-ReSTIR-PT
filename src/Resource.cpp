@@ -33,6 +33,12 @@ std::optional<uint32_t> Resource::addImage(const File::path& path, zvk::HostImag
 	return mImagePool.size() - 1;
 }
 
+Resource::Resource() {
+	Material emptyMat;
+	emptyMat.baseColor = glm::vec3(1.f, 0.f, 1.f);
+	mMaterials.push_back(emptyMat);
+}
+
 std::vector<ObjectInstance> Resource::objectInstances() const {
 	std::vector<ObjectInstance> instances;
 
@@ -45,8 +51,7 @@ std::vector<ObjectInstance> Resource::objectInstances() const {
 			transform, transformInv, transformInvT,
 			mMeshInstances[instance->meshOffset()].indexOffset,
 			instance->mNumIndices,
-			0.0f, //getModelTransformedSurfaceArea(instance),
-			static_cast<float>(rand()) / RAND_MAX
+			0.0f, InvalidResourceIdx
 		});
 	}
 	return instances;
