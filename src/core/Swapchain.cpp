@@ -1,6 +1,7 @@
 #include "Swapchain.h"
 #include "Command.h"
-#include "util/EnumBitField.h"
+#include "util/EnumBitField.h" 
+#include "util/Error.h"
 #include "shader/HostDevice.h"
 
 #include <set>

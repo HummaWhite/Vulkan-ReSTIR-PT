@@ -1,5 +1,6 @@
 #include "GBufferPass.h"
 #include "shader/HostDevice.h"
+#include "core/DebugUtils.h"
 
 GBufferPass::GBufferPass(
 	const zvk::Context* ctx, vk::Extent2D extent, const Resource& resource, vk::ImageLayout outLayout
@@ -105,11 +106,13 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 		mCtx, zvk::QueueIdx::GeneralUse, commands.data(), zvk::sizeOf(commands),
 		vk::BufferUsageFlagBits::eIndirectBuffer
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, mDrawCommandBuffer->buffer, "drawCommandBuffer");
 
 	mDrawParamBuffer = zvk::Memory::createBufferFromHost(
 		mCtx, zvk::QueueIdx::GeneralUse, mDrawParams.data(), zvk::sizeOf(mDrawParams),
 		vk::BufferUsageFlagBits::eStorageBuffer
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, mDrawParamBuffer->buffer, "drawParamBuffer");
 }
 
 void GBufferPass::createResource(vk::Extent2D extent) {
@@ -122,6 +125,8 @@ void GBufferPass::createResource(vk::Extent2D extent) {
 		GBufferA[i]->createImageView();
 		GBufferA[i]->createSampler(vk::Filter::eNearest);
 
+		zvk::DebugUtils::nameVkObject(mCtx->device, GBufferA[i]->image, "GBufferA[" + std::to_string(i) + "]");
+
 		GBufferB[i] = zvk::Memory::createImage2D(
 			mCtx, extent, GBufferBFormat, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
@@ -129,6 +134,8 @@ void GBufferPass::createResource(vk::Extent2D extent) {
 		);
 		GBufferB[i]->createImageView();
 		GBufferB[i]->createSampler(vk::Filter::eNearest);
+
+		zvk::DebugUtils::nameVkObject(mCtx->device, GBufferB[i]->image, "GBufferB[" + std::to_string(i) + "]");
 
 		mDepthStencil[i] = zvk::Memory::createImage2D(
 			mCtx, extent, DepthStencilFormat, vk::ImageTiling::eOptimal,

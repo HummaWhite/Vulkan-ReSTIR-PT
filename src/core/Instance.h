@@ -6,7 +6,6 @@
 #include <optional>
 #include <vector>
 
-#include "VkExtFunctions.h"
 #include "util/NamespaceDecl.h"
 
 NAMESPACE_BEGIN(zvk)
@@ -35,7 +34,6 @@ public:
 	vk::PhysicalDevice physicalDevice() const { return mPhysicalDevice; }
 	vk::SurfaceKHR surface() const { return mSurface; }
 	QueueFamilies queueFamilies() const { return mQueueFamilies; }
-	const ExtFunctions& extFunctions() const { return mExtFunctions; }
 
 private:
 	void queryExtensionsAndLayers();
@@ -61,7 +59,6 @@ private:
 
 	QueueFamilies mQueueFamilies;
 
-	ExtFunctions mExtFunctions;
 	vk::DebugUtilsMessengerEXT mDebugMessenger;
 
 	std::vector<char*> mRequiredVkExtensions;

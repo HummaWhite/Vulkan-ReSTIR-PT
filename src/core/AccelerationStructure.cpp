@@ -1,5 +1,6 @@
 #include "AccelerationStructure.h"
 #include "Command.h"
+#include "core/ExtFunctions.h"
 
 NAMESPACE_BEGIN(zvk)
 
@@ -9,8 +10,6 @@ AccelerationStructure::AccelerationStructure(
     vk::BuildAccelerationStructureFlagsKHR flags
 ) : BaseVkObject(ctx), type(vk::AccelerationStructureTypeKHR::eBottomLevel)
 {
-    const auto& ext = mCtx->instance()->extFunctions();
-
     std::vector<vk::AccelerationStructureGeometryKHR> geometries;
     std::vector<vk::AccelerationStructureBuildRangeInfoKHR> buildRangeInfos;
 
@@ -50,8 +49,6 @@ AccelerationStructure::AccelerationStructure(
     vk::BuildAccelerationStructureFlagsKHR flags
 ) : BaseVkObject(ctx), type(vk::AccelerationStructureTypeKHR::eTopLevel)
 {
-    const auto& ext = mCtx->instance()->extFunctions();
-
     auto instanceBuffer = Memory::createBufferFromHost(
         mCtx, queueIdx, instances,
         vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress,
@@ -79,14 +76,17 @@ AccelerationStructure::AccelerationStructure(
     buildAccelerationStructure(queueIdx, geometry, buildRangeInfo, flags);
 }
 
+void AccelerationStructure::destroy() {
+    zvk::ExtFunctions::destroyAccelerationStructureKHR(mCtx->device, structure);
+    mBuffer.reset();
+}
+
 void AccelerationStructure::buildAccelerationStructure(
     QueueIdx queueIdx,
     const vk::ArrayProxy<const vk::AccelerationStructureGeometryKHR>& geometries,
     const vk::ArrayProxy<const vk::AccelerationStructureBuildRangeInfoKHR>& buildRangeInfos,
     vk::BuildAccelerationStructureFlagsKHR flags
 ) {
-    const auto& ext = mCtx->instance()->extFunctions();
-
     auto buildGeometryInfo = vk::AccelerationStructureBuildGeometryInfoKHR()
         .setType(type)
         .setFlags(flags)
@@ -98,7 +98,7 @@ void AccelerationStructure::buildAccelerationStructure(
         maxPrimitiveCounts.push_back(buildRange.primitiveCount);
     }
 
-    auto buildSizeInfo = ext.getAccelerationStructureBuildSizesKHR(
+    auto buildSizeInfo = zvk::ExtFunctions::getAccelerationStructureBuildSizesKHR(
         mCtx->device, vk::AccelerationStructureBuildTypeKHR::eDevice, buildGeometryInfo, maxPrimitiveCounts
     );
 
@@ -113,12 +113,12 @@ void AccelerationStructure::buildAccelerationStructure(
         .setSize(buildSizeInfo.accelerationStructureSize)
         .setType(type);
 
-    structure = ext.createAccelerationStructureKHR(mCtx->device, createInfo);
+    structure = zvk::ExtFunctions::createAccelerationStructureKHR(mCtx->device, createInfo);
 
     auto addressInfo = vk::AccelerationStructureDeviceAddressInfoKHR()
         .setAccelerationStructure(structure);
 
-    address = ext.getAccelerationStructureDeviceAddressKHR(mCtx->device, addressInfo);
+    address = zvk::ExtFunctions::getAccelerationStructureDeviceAddressKHR(mCtx->device, addressInfo);
 
     auto scratchBuffer = Memory::createBuffer(
         mCtx, buildSizeInfo.buildScratchSize,
@@ -132,7 +132,7 @@ void AccelerationStructure::buildAccelerationStructure(
         .setScratchData(scratchBuffer->address());
 
     auto cmd = Command::createOneTimeSubmit(mCtx, queueIdx);
-    ext.cmdBuildAccelerationStructuresKHR(cmd->cmd, buildGeometryInfo, buildRangeInfos.data());
+    zvk::ExtFunctions::cmdBuildAccelerationStructuresKHR(cmd->cmd, buildGeometryInfo, buildRangeInfos.data());
     cmd->submitAndWait();
 }
 

@@ -1,7 +1,10 @@
 #include "Instance.h"
 #include "VkDebugLayers.h"
+#include "ExtFunctions.h"
+#include "DebugUtils.h"
 
 #include "util/EnumBitField.h"
+#include "util/Error.h"
 
 #include <set>
 
@@ -46,7 +49,7 @@ Instance::Instance(
 		.setPNext(EnableValidationLayer ? &debugInfo : featureChain);
 
 	mInstance = vk::createInstance(instanceInfo);
-	mExtFunctions = ExtFunctions(mInstance);
+	ExtFunctions::load(mInstance);
 
 	setupDebugMessenger();
 	createSurface(window);
@@ -57,7 +60,7 @@ Instance::Instance(
 void Instance::destroy() {
 	if (mDebugMessenger) {
 		//mVkInstance.destroyDebugUtilsMessengerEXT(mVkDebugMessenger);
-		mExtFunctions.destroyDebugUtilsMessenger(mDebugMessenger);
+		ExtFunctions::destroyDebugUtilsMessenger(mInstance, mDebugMessenger);
 	}
 	mInstance.destroySurfaceKHR(mSurface);
 	mInstance.destroy();
@@ -112,7 +115,7 @@ void Instance::setupDebugMessenger() {
 	}
 	auto createInfo = zvkNormalDebugCreateInfo();
 	//mVkDebugMessenger = mVkInstance.createDebugUtilsMessengerEXT(createInfo);
-	mDebugMessenger = mExtFunctions.createDebugUtilsMessengerEXT(createInfo);
+	mDebugMessenger = ExtFunctions::createDebugUtilsMessengerEXT(mInstance, createInfo);
 }
 
 void Instance::createSurface(GLFWwindow* window) {

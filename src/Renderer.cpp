@@ -6,6 +6,8 @@
 
 const std::vector<const char*> InstanceExtensions{
 	//VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+	VK_EXT_DEBUG_MARKER_EXTENSION_NAME,
+	VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
 };
 
 const std::vector<const char*> DeviceExtensions = {
@@ -15,7 +17,7 @@ const std::vector<const char*> DeviceExtensions = {
 	VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
 	VK_KHR_RAY_QUERY_EXTENSION_NAME,
 	VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-	VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME
+	VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
 };
 
 void framebufferResizeCallback(GLFWwindow* window, int width, int height) {

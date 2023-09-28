@@ -1,6 +1,7 @@
 #include "Scene.h"
 #include "util/Error.h"
 #include "shader/HostDevice.h"
+#include "core/DebugUtils.h"
 
 #include <sstream>
 #include <pugixml.hpp>
@@ -227,42 +228,49 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 		vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer | RTBuildFlags,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, vertices->buffer, "vertices");
 
 	indices = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.resource.indices().data(), zvk::sizeOf(scene.resource.indices()),
 		vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer | RTBuildFlags,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, indices->buffer, "indices");
 
 	materials = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.resource.materials().data(), zvk::sizeOf(scene.resource.materials()),
 		vk::BufferUsageFlagBits::eStorageBuffer,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, materials->buffer, "materials");
 
 	materialIds = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.resource.materialIndices().data(), zvk::sizeOf(scene.resource.materialIndices()),
 		vk::BufferUsageFlagBits::eStorageBuffer,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, materialIds->buffer, "materialIds");
 
 	instances = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.objectInstances.data(), zvk::sizeOf(scene.objectInstances),
 		vk::BufferUsageFlagBits::eStorageBuffer,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, instances->buffer, "instances");
 
 	lightInstances = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.lightInstances.data(), zvk::sizeOf(scene.lightInstances),
 		vk::BufferUsageFlagBits::eStorageBuffer,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, lightInstances->buffer, "lightInstances");
 
 	lightSampleTable = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.lightSampleTable.binomDistribs.data(), zvk::sizeOf(scene.lightSampleTable.binomDistribs),
 		vk::BufferUsageFlagBits::eStorageBuffer,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, lightSampleTable->buffer, "lightSampleTable");
 
 	for (int i = 0; i < 2; i++) {
 		camera[i] = zvk::Memory::createBuffer(
@@ -272,6 +280,8 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 		);
 		camera[i]->mapMemory();
 	}
+	zvk::DebugUtils::nameVkObject(mCtx->device, camera[0]->buffer, "camera[0]");
+	zvk::DebugUtils::nameVkObject(mCtx->device, camera[1]->buffer, "camera[1]");
 
 	auto images = scene.resource.imagePool();
 

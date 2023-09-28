@@ -1,5 +1,7 @@
 #include "PathTracingPass.h"
 #include "shader/HostDevice.h"
+#include "core/ExtFunctions.h"
+#include "core/DebugUtils.h"
 
 PathTracingPass::PathTracingPass(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :
 	zvk::BaseVkObject(ctx)
@@ -33,7 +35,6 @@ void PathTracingPass::render(
 	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet,
 	vk::Extent2D extent, uint32_t maxDepth
 ) {
-	const auto& ext = mCtx->instance()->extFunctions();
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
 
 	cmd.bindPipeline(bindPoint, mPipeline);
@@ -43,7 +44,7 @@ void PathTracingPass::render(
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ImageOutputDescSet, imageOutDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, mDescriptorSet, {});
 
-	ext.cmdTraceRaysKHR(cmd, mRayGenRegion, mMissRegion, mHitRegion, mCallRegion, extent.width, extent.height, maxDepth);
+	zvk::ExtFunctions::cmdTraceRaysKHR(cmd, mRayGenRegion, mMissRegion, mHitRegion, mCallRegion, extent.width, extent.height, maxDepth);
 }
 
 void PathTracingPass::initDescriptor() {
@@ -122,7 +123,7 @@ void PathTracingPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t
 		.setGroups(groups)
 		.setMaxPipelineRayRecursionDepth(maxDepth);
 
-	auto result = mCtx->instance()->extFunctions().createRayTracingPipelineKHR(mCtx->device, {}, {}, pipelineCreateInfo);
+	auto result = zvk::ExtFunctions::createRayTracingPipelineKHR(mCtx->device, {}, {}, pipelineCreateInfo);
 
 	if (result.result != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to create RayTracingPass pipeline");
@@ -152,6 +153,8 @@ void PathTracingPass::createAccelerationStructure(const Resource& resource, cons
 		auto BLAS = std::make_unique<zvk::AccelerationStructure>(
 			mCtx, zvk::QueueIdx::GeneralUse, meshData, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
 		);
+		zvk::DebugUtils::nameVkObject(mCtx->device, BLAS->structure, "BLAS_" + model->name());
+
 		mObjectBLAS.push_back(std::move(BLAS));
 	}
 	std::vector<vk::AccelerationStructureInstanceKHR> instances;
@@ -177,6 +180,7 @@ void PathTracingPass::createAccelerationStructure(const Resource& resource, cons
 	mTLAS = std::make_unique<zvk::AccelerationStructure>(
 		mCtx, zvk::QueueIdx::GeneralUse, instances, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, mTLAS->structure, "TLAS");
 }
 
 void PathTracingPass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
@@ -190,6 +194,8 @@ void PathTracingPass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 		);
 		colorOutput[i]->createImageView();
 		colorOutput[i]->createSampler(vk::Filter::eLinear);
+
+		zvk::DebugUtils::nameVkObject(mCtx->device, colorOutput[i]->image, "colorOutput[" + std::to_string(i) + "]");
 
 		auto barrier = colorOutput[i]->getBarrier(
 			vk::ImageLayout::eGeneral,
@@ -205,6 +211,7 @@ void PathTracingPass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 			mCtx, sizeof(Reservoir) * extent.width * extent.height, vk::BufferUsageFlagBits::eStorageBuffer,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
+		zvk::DebugUtils::nameVkObject(mCtx->device, reservoir[i]->buffer, "reservoir[" + std::to_string(i) + "]");
 	}
 	cmd->submitAndWait();
 }
@@ -213,7 +220,6 @@ void PathTracingPass::createShaderBindingTable() {
 	// TODO:
 	// write a wrapper class for Shader Binding Table
 
-	const auto& ext = mCtx->instance()->extFunctions();
 	const auto& pipelineProps = mCtx->instance()->rayTracingPipelineProperties;
 
 	uint32_t numMissGroup = 2;
@@ -234,7 +240,7 @@ void PathTracingPass::createShaderBindingTable() {
 	mHitRegion.size = zvk::align(numHitGroup * alignedHandleSize, baseAlignment);
 
 	uint32_t dataSize = numGroups * handleSize;
-	auto handles = ext.getRayTracingShaderGroupHandlesKHR(mCtx->device, mPipeline, 0, numGroups, dataSize);
+	auto handles = zvk::ExtFunctions::getRayTracingShaderGroupHandlesKHR(mCtx->device, mPipeline, 0, numGroups, dataSize);
 
 	vk::DeviceSize SBTSize = mRayGenRegion.size + mMissRegion.size + mHitRegion.size + mCallRegion.size;
 
@@ -245,6 +251,8 @@ void PathTracingPass::createShaderBindingTable() {
 		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, mShaderBindingTable->buffer, "shader binding table");
+
 	mShaderBindingTable->mapMemory();
 
 	vk::DeviceAddress SBTAddress = mShaderBindingTable->address();
