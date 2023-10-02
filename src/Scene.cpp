@@ -174,6 +174,7 @@ DeviceScene::DeviceScene(const zvk::Context* ctx, const Scene& scene, zvk::Queue
 	BaseVkObject(ctx)
 {
 	createBufferAndImages(scene, queueIdx);
+	createAccelerationStructure(scene, queueIdx);
 	createDescriptor();
 }
 
@@ -210,6 +211,8 @@ void DeviceScene::initDescriptor() {
 	update.add(resourceDescLayout.get(), resourceDescSet, 5, zvk::Descriptor::makeBufferInfo(instances.get()));
 	update.add(resourceDescLayout.get(), resourceDescSet, 6, zvk::Descriptor::makeBufferInfo(lightInstances.get()));
 	update.add(resourceDescLayout.get(), resourceDescSet, 7, zvk::Descriptor::makeBufferInfo(lightSampleTable.get()));
+
+	update.add(rayTracingDescLayout.get(), rayTracingDescSet, 0, vk::WriteDescriptorSetAccelerationStructureKHR(topAccelStructure->structure));
 
 	mCtx->device.updateDescriptorSets(update.writes, {});
 }
@@ -301,6 +304,56 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 	delete extImage;
 }
 
+void DeviceScene::createAccelerationStructure(const Scene& scene, zvk::QueueIdx queueIdx) {
+	for (auto model : scene.resource.uniqueModelInstances()) {
+		auto firstMesh = scene.resource.meshInstances()[model->meshOffset()];
+
+		uint64_t indexOffset = firstMesh.indexOffset * sizeof(uint32_t);
+
+		zvk::AccelerationStructureTriangleMesh meshData{
+			.vertexAddress = vertices->address(),
+			.indexAddress = indices->address() + indexOffset,
+			.vertexStride = sizeof(MeshVertex),
+			.vertexFormat = vk::Format::eR32G32B32Sfloat,
+			.indexType = vk::IndexType::eUint32,
+			.maxVertex = model->numVertices(),
+			.numIndices = model->numIndices(),
+			.indexOffset = firstMesh.indexOffset
+		};
+
+		auto BLAS = std::make_unique<zvk::AccelerationStructure>(
+			mCtx, queueIdx, meshData, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
+		);
+		zvk::DebugUtils::nameVkObject(mCtx->device, BLAS->structure, "BLAS_" + model->name());
+
+		meshAccelStructures.push_back(std::move(BLAS));
+	}
+	std::vector<vk::AccelerationStructureInstanceKHR> instances;
+
+	for (uint32_t i = 0; i < scene.resource.modelInstances().size(); i++) {
+		auto modelInstance = scene.resource.modelInstances()[i];
+
+		vk::TransformMatrixKHR transform;
+		glm::mat4 matrix = glm::transpose(modelInstance->modelMatrix());
+		memcpy(&transform, &matrix, 12 * sizeof(float));
+
+		instances.push_back(
+			vk::AccelerationStructureInstanceKHR()
+			.setTransform(transform)
+			.setInstanceCustomIndex(i)
+			.setMask(0xff)
+			.setInstanceShaderBindingTableRecordOffset(0)
+			.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)
+			.setAccelerationStructureReference(meshAccelStructures[modelInstance->refId()]->address)
+		);
+	}
+
+	topAccelStructure = std::make_unique<zvk::AccelerationStructure>(
+		mCtx, queueIdx, instances, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
+	);
+	zvk::DebugUtils::nameVkObject(mCtx->device, topAccelStructure->structure, "TLAS");
+}
+
 void DeviceScene::createDescriptor() {
 	std::vector<vk::DescriptorSetLayoutBinding> cameraBindings = {
 		zvk::Descriptor::makeBinding(
@@ -340,14 +393,22 @@ void DeviceScene::createDescriptor() {
 		),
 	};
 
+
+	std::vector<vk::DescriptorSetLayoutBinding> accelStructBindings = {
+		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eAccelerationStructureKHR, RayTracingShaderStageFlags)
+	};
+
 	cameraDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, cameraBindings);
 	resourceDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, resourceBindings);
+	rayTracingDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, accelStructBindings);
 
 	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(
-		mCtx, zvk::DescriptorLayoutArray{ cameraDescLayout.get(), cameraDescLayout.get(), resourceDescLayout.get() }, 1, vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind
+		mCtx, zvk::DescriptorLayoutArray{ cameraDescLayout.get(), cameraDescLayout.get(), resourceDescLayout.get(), rayTracingDescLayout.get() }, 1,
+		vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind
 	);
 
 	cameraDescSet[0] = mDescriptorPool->allocDescriptorSet(cameraDescLayout->layout);
 	cameraDescSet[1] = mDescriptorPool->allocDescriptorSet(cameraDescLayout->layout);
 	resourceDescSet = mDescriptorPool->allocDescriptorSet(resourceDescLayout->layout);
+	rayTracingDescSet = mDescriptorPool->allocDescriptorSet(rayTracingDescLayout->layout);
 }

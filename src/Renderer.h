@@ -21,7 +21,7 @@
 #include "core/Descriptor.h"
 #include "Scene.h"
 #include "GBufferPass.h"
-#include "PathTracingPass.h"
+#include "NaiveDirectIllumination.h"
 #include "PostProcPassFrag.h"
 #include "shader/HostDevice.h"
 
@@ -96,7 +96,7 @@ private:
 	std::unique_ptr<DeviceScene> mDeviceScene;
 
 	std::unique_ptr<GBufferPass> mGBufferPass;
-	std::unique_ptr<PathTracingPass> mPathTracingPass;
+	std::unique_ptr<NaiveDirectIllumination> mNaiveDirectPass;
 	std::unique_ptr<PostProcPassFrag> mPostProcPass;
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;

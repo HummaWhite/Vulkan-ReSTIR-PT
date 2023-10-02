@@ -1,17 +1,15 @@
-#include "PathTracingPass.h"
+#include "NaiveDirectIllumination.h"
 #include "shader/HostDevice.h"
 #include "core/ExtFunctions.h"
 #include "core/DebugUtils.h"
 
-PathTracingPass::PathTracingPass(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :
+NaiveDirectIllumination::NaiveDirectIllumination(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :
 	zvk::BaseVkObject(ctx)
 {
-	createAccelerationStructure(resource, scene, queueIdx);
 	createFrame(extent, queueIdx);
-	createDescriptor();
 }
 
-void PathTracingPass::destroy() {
+void NaiveDirectIllumination::destroy() {
 	destroyFrame();
 
 	/*
@@ -30,9 +28,9 @@ void PathTracingPass::destroy() {
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void PathTracingPass::render(
+void NaiveDirectIllumination::render(
 	vk::CommandBuffer cmd, uint32_t frameIdx,
-	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet,
+	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet, vk::DescriptorSet rayTracingDescSet,
 	vk::Extent2D extent, uint32_t maxDepth
 ) {
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
@@ -42,27 +40,17 @@ void PathTracingPass::render(
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, cameraDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ImageOutputDescSet, imageOutDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, mDescriptorSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, rayTracingDescSet, {});
 
 	zvk::ExtFunctions::cmdTraceRaysKHR(cmd, mRayGenRegion, mMissRegion, mHitRegion, mCallRegion, extent.width, extent.height, maxDepth);
 }
 
-void PathTracingPass::initDescriptor() {
-	zvk::DescriptorWrite update;
-
-	update.add(
-		mDescriptorSetLayout.get(), mDescriptorSet, 0,
-		vk::WriteDescriptorSetAccelerationStructureKHR(mTLAS->structure)
-	);
-	mCtx->device.updateDescriptorSets(update.writes, {});
-}
-
-void PathTracingPass::recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
+void NaiveDirectIllumination::recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 	destroyFrame();
 	createFrame(extent, queueIdx);
 }
 
-void PathTracingPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+void NaiveDirectIllumination::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
 	enum Stages : uint32_t {
 		RayGen,
 		Miss,
@@ -133,71 +121,21 @@ void PathTracingPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t
 	createShaderBindingTable();
 }
 
-void PathTracingPass::createAccelerationStructure(const Resource& resource, const DeviceScene* scene, zvk::QueueIdx queueIdx) {
-	for (auto model : resource.uniqueModelInstances()) {
-		auto firstMesh = resource.meshInstances()[model->meshOffset()];
-
-		uint64_t indexOffset = firstMesh.indexOffset * sizeof(uint32_t);
-
-		zvk::AccelerationStructureTriangleMesh meshData {
-			.vertexAddress = scene->vertices->address(),
-			.indexAddress = scene->indices->address() + indexOffset,
-			.vertexStride = sizeof(MeshVertex),
-			.vertexFormat = vk::Format::eR32G32B32Sfloat,
-			.indexType = vk::IndexType::eUint32,
-			.maxVertex = model->numVertices(),
-			.numIndices = model->numIndices(),
-			.indexOffset = firstMesh.indexOffset
-		};
-
-		auto BLAS = std::make_unique<zvk::AccelerationStructure>(
-			mCtx, zvk::QueueIdx::GeneralUse, meshData, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
-		);
-		zvk::DebugUtils::nameVkObject(mCtx->device, BLAS->structure, "BLAS_" + model->name());
-
-		mObjectBLAS.push_back(std::move(BLAS));
-	}
-	std::vector<vk::AccelerationStructureInstanceKHR> instances;
-
-	for (uint32_t i = 0; i < resource.modelInstances().size(); i++) {
-		auto modelInstance = resource.modelInstances()[i];
-
-		vk::TransformMatrixKHR transform;
-		glm::mat4 matrix = glm::transpose(modelInstance->modelMatrix());
-		memcpy(&transform, &matrix, 12 * sizeof(float));
-
-		instances.push_back(
-			vk::AccelerationStructureInstanceKHR()
-				.setTransform(transform)
-				.setInstanceCustomIndex(i)
-				.setMask(0xff)
-				.setInstanceShaderBindingTableRecordOffset(0)
-				.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)
-				.setAccelerationStructureReference(mObjectBLAS[modelInstance->refId()]->address)
-		);
-	}
-
-	mTLAS = std::make_unique<zvk::AccelerationStructure>(
-		mCtx, zvk::QueueIdx::GeneralUse, instances, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
-	);
-	zvk::DebugUtils::nameVkObject(mCtx->device, mTLAS->structure, "TLAS");
-}
-
-void PathTracingPass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
+void NaiveDirectIllumination::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 	auto cmd = zvk::Command::createOneTimeSubmit(mCtx, queueIdx);
 
 	for (int i = 0; i < 2; i++) {
-		colorOutput[i] = zvk::Memory::createImage2D(
+		directOutput[i] = zvk::Memory::createImage2D(
 			mCtx, extent, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
-		colorOutput[i]->createImageView();
-		colorOutput[i]->createSampler(vk::Filter::eLinear);
+		directOutput[i]->createImageView();
+		directOutput[i]->createSampler(vk::Filter::eLinear);
 
-		zvk::DebugUtils::nameVkObject(mCtx->device, colorOutput[i]->image, "colorOutput[" + std::to_string(i) + "]");
+		zvk::DebugUtils::nameVkObject(mCtx->device, directOutput[i]->image, "colorOutput[" + std::to_string(i) + "]");
 
-		auto barrier = colorOutput[i]->getBarrier(
+		auto barrier = directOutput[i]->getBarrier(
 			vk::ImageLayout::eGeneral,
 			vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite
 		);
@@ -216,7 +154,7 @@ void PathTracingPass::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
 	cmd->submitAndWait();
 }
 
-void PathTracingPass::createShaderBindingTable() {
+void NaiveDirectIllumination::createShaderBindingTable() {
 	// TODO:
 	// write a wrapper class for Shader Binding Table
 
@@ -280,15 +218,5 @@ void PathTracingPass::createShaderBindingTable() {
 	mShaderBindingTable->unmapMemory();
 }
 
-void PathTracingPass::createDescriptor() {
-	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
-		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eAccelerationStructureKHR, RayTracingShaderStageFlags)
-	};
-
-	mDescriptorSetLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, bindings);
-	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(mCtx, mDescriptorSetLayout.get(), 1);
-	mDescriptorSet = mDescriptorPool->allocDescriptorSet(mDescriptorSetLayout->layout);
-}
-
-void PathTracingPass::destroyFrame() {
+void NaiveDirectIllumination::destroyFrame() {
 }

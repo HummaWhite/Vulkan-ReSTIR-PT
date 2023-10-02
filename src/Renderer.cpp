@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include "WindowInput.h"
 #include "shader/HostDevice.h"
+#include "core/DebugUtils.h"
 
 #include <sstream>
 
@@ -96,7 +97,7 @@ void Renderer::initVulkan() {
 		mDeviceScene = std::make_unique<DeviceScene>(mContext.get(), mScene, zvk::QueueIdx::GeneralUse);
 
 		mGBufferPass = std::make_unique<GBufferPass>(mContext.get(), mSwapchain->extent(), mScene.resource);
-		mPathTracingPass = std::make_unique<PathTracingPass>(mContext.get(), mScene.resource, mDeviceScene.get(), mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
+		mNaiveDirectPass = std::make_unique<NaiveDirectIllumination>(mContext.get(), mScene.resource, mDeviceScene.get(), mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
 		mPostProcPass = std::make_unique<PostProcPassFrag>(mContext.get(), mSwapchain.get());
 
 		Log::newLine();
@@ -124,15 +125,15 @@ void Renderer::createPipeline() {
 		mDeviceScene->resourceDescLayout->layout,
 		mGBufferPass->descSetLayout(),
 		mImageOutDescLayout->layout,
-		mPathTracingPass->descSetLayout()
+		mDeviceScene->rayTracingDescLayout->layout,
 	};
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager.get(), descLayouts);
-	mPathTracingPass->createPipeline(mShaderManager.get(), 1, descLayouts);
+	mNaiveDirectPass->createPipeline(mShaderManager.get(), 1, descLayouts);
 	mPostProcPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
 
 void Renderer::initScene() {
-	mScene.load("res/box.xml");
+	mScene.load("res/sponza.xml");
 }
 
 void Renderer::createDescriptor() {
@@ -179,12 +180,11 @@ void Renderer::initImageLayout() {
 void Renderer::initDescriptor() {
 	mDeviceScene->initDescriptor();
 	mGBufferPass->initDescriptor();
-	mPathTracingPass->initDescriptor();
 
 	auto depthNormal = mGBufferPass->GBufferA;
 	auto albedoMatIdx = mGBufferPass->GBufferB;
-	auto colorOutput = mPathTracingPass->colorOutput;
-	auto reservoir = mPathTracingPass->reservoir;
+	auto colorOutput = mNaiveDirectPass->directOutput;
+	auto reservoir = mNaiveDirectPass->reservoir;
 
 	zvk::DescriptorWrite update;
 
@@ -229,7 +229,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 
 	const auto& GBufferA = mGBufferPass->GBufferA[curFrame];
 	const auto& GBufferB = mGBufferPass->GBufferB[curFrame];
-	const auto& rayOutput = mPathTracingPass->colorOutput[curFrame];
+	const auto& rayOutput = mNaiveDirectPass->directOutput[curFrame];
 
 	cmd.begin(beginInfo); {
 		mGBufferPass->render(
@@ -250,21 +250,24 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			{}, {}, GBufferImageBarriers
 		);
 
-		mPathTracingPass->render(
+		mNaiveDirectPass->render(
 			cmd, curFrame,
-			mDeviceScene->cameraDescSet[curFrame], mDeviceScene->resourceDescSet, mImageOutDescSet[curFrame],
+			mDeviceScene->cameraDescSet[curFrame], mDeviceScene->resourceDescSet, mImageOutDescSet[curFrame], mDeviceScene->rayTracingDescSet,
 			mSwapchain->extent(), 1
 		);
 
-		auto rayImageBarriers = {
-			rayOutput->getBarrier(rayOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
+		auto rayImageBarriersBefore = {
+			rayOutput->getBarrier(
+				rayOutput->layout,
+				vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead
+			),
 		};
 
 		cmd.pipelineBarrier(
 			vk::PipelineStageFlagBits::eRayTracingShaderKHR,
 			vk::PipelineStageFlagBits::eFragmentShader,
 			vk::DependencyFlags{ 0 },
-			{}, {}, rayImageBarriers
+			{}, {}, rayImageBarriersBefore
 		);
 
 		mPostProcPass->render(cmd, curFrame, imageIdx, mImageOutDescSet[curFrame], mSwapchain->extent());
@@ -311,8 +314,6 @@ void Renderer::presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish) {
 }
 
 void Renderer::drawFrame() {
-	updateCameraUniform();
-
 	int curFrame = mFrameIndex & 1;
 
 	if (mContext->device.waitForFences(mInFlightFences[curFrame], true, UINT64_MAX) != vk::Result::eSuccess) {
@@ -320,6 +321,8 @@ void Renderer::drawFrame() {
 	}
 	mContext->device.resetFences(mInFlightFences[curFrame]);
 	uint32_t imageIdx = acquireFrame(mFrameReadySemaphores[curFrame]);
+
+	updateCameraUniform();
 
 	mGCTCmdBuffers[curFrame]->cmd.reset();
 	recordRenderCommand(mGCTCmdBuffers[curFrame]->cmd, imageIdx);
@@ -359,7 +362,7 @@ void Renderer::recreateFrame() {
 
 	mSwapchain = std::make_unique<zvk::Swapchain>(mContext.get(), width, height, SWAPCHAIN_FORMAT, false);
 	mGBufferPass->recreateFrame(mSwapchain->extent());
-	mPathTracingPass->recreateFrame(mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
+	mNaiveDirectPass->recreateFrame(mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
 	mPostProcPass->recreateFrame(mSwapchain.get());
 }
 
@@ -368,7 +371,7 @@ void Renderer::cleanupVulkan() {
 
 	mDeviceScene.reset();
 	mGBufferPass.reset();
-	mPathTracingPass.reset();
+	mNaiveDirectPass.reset();
 	mPostProcPass.reset();
 
 	mImageOutDescLayout.reset();

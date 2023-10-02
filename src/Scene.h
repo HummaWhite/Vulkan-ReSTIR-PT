@@ -9,6 +9,7 @@
 #include "core/HostImage.h"
 #include "core/Memory.h"
 #include "core/Descriptor.h""
+#include "core/AccelerationStructure.h"
 #include "Model.h"
 #include "Camera.h"
 #include "Resource.h"
@@ -55,6 +56,7 @@ public:
 
 private:
 	void createBufferAndImages(const Scene& scene, zvk::QueueIdx queueIdx);
+	void createAccelerationStructure(const Scene& scene, zvk::QueueIdx queueIdx);
 	void createDescriptor();
 
 public:
@@ -68,6 +70,9 @@ public:
 	std::unique_ptr<zvk::Buffer> camera[2];
 	std::vector<std::unique_ptr<zvk::Image>> textures;
 
+	std::unique_ptr<zvk::AccelerationStructure> topAccelStructure;
+	std::vector<std::unique_ptr<zvk::AccelerationStructure>> meshAccelStructures;
+
 	uint32_t numVertices = 0;
 	uint32_t numIndices = 0;
 	uint32_t numMaterials = 0;
@@ -75,8 +80,10 @@ public:
 
 	std::unique_ptr<zvk::DescriptorSetLayout> cameraDescLayout;
 	std::unique_ptr<zvk::DescriptorSetLayout> resourceDescLayout;
+	std::unique_ptr<zvk::DescriptorSetLayout> rayTracingDescLayout;
 	vk::DescriptorSet cameraDescSet[2];
 	vk::DescriptorSet resourceDescSet;
+	vk::DescriptorSet rayTracingDescSet;
 
 private:
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;

@@ -22,12 +22,12 @@ vec3 sampleLight(ObjectInstance obj, vec3 ref, out float dist, out vec3 norm, ve
     return (pos - ref) / dist;
 }
 
-vec3 sampleLight(vec3 ref, out vec3 dir, out float dist, out float pdf, out uint idx, inout uint rng) {
+vec3 sampleLight(vec3 ref, out vec3 dir, out float dist, out float pdf, inout uint rng) {
     float sumPower = uLightSampleTable[0].prob;
     uint numLights = uLightSampleTable[0].failId;
 
     vec2 r = sample2f(rng);
-    idx = uint(float(numLights) * r.x);
+    uint idx = uint(float(numLights) * r.x);
     idx = (r.y < uLightSampleTable[idx + 1].prob) ? idx : uLightSampleTable[idx + 1].failId - 1;
 
     vec3 radiance = uLightInstances[idx].radiance;

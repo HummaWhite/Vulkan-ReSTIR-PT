@@ -29,51 +29,40 @@ struct Reservoir {
 	uint32_t pad;
 };
 
-class PathTracingPass : public zvk::BaseVkObject {
+class NaiveDirectIllumination : public zvk::BaseVkObject {
 public:
-	PathTracingPass(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx);
+	NaiveDirectIllumination(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx);
 
-	~PathTracingPass() { destroy(); }
+	~NaiveDirectIllumination() { destroy(); }
 	void destroy();
-
-	vk::DescriptorSetLayout descSetLayout() const { return mDescriptorSetLayout->layout; }
 
 	void createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
 	void render(
 		vk::CommandBuffer cmd, uint32_t frameIdx,
-		vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet,
+		vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet, vk::DescriptorSet rayTracingDescSet,
 		vk::Extent2D extent, uint32_t maxDepth);
 
-	void initDescriptor();
 	void recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx);
 
 private:
-	void createAccelerationStructure(const Resource& resource, const DeviceScene* scene, zvk::QueueIdx queueIdx);
 	void createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx);
 	void createShaderBindingTable();
-	void createDescriptor();
 
 	void destroyFrame();
 
 public:
-	std::unique_ptr<zvk::Image> colorOutput[2];
+	std::unique_ptr<zvk::Image> directOutput[2];
 	std::unique_ptr<zvk::Buffer> reservoir[2];
 
 private:
 	vk::Pipeline mPipeline;
 	vk::PipelineLayout mPipelineLayout;
 
-	std::vector<std::unique_ptr<zvk::AccelerationStructure>> mObjectBLAS;
-	std::unique_ptr<zvk::AccelerationStructure> mTLAS;
 	std::unique_ptr<zvk::Buffer> mShaderBindingTable;
 
 	vk::StridedDeviceAddressRegionKHR mRayGenRegion;
 	vk::StridedDeviceAddressRegionKHR mMissRegion;
 	vk::StridedDeviceAddressRegionKHR mHitRegion;
 	vk::StridedDeviceAddressRegionKHR mCallRegion;
-
-	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
-	std::unique_ptr<zvk::DescriptorSetLayout> mDescriptorSetLayout;
-	vk::DescriptorSet mDescriptorSet;
 };
