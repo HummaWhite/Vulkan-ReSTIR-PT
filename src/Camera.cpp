@@ -68,8 +68,8 @@ void Camera::setPlanes(float nearZ, float farZ) {
 void Camera::nextFrame(std::default_random_engine& rng) {
 	mLastProjView = mProjView;
 	mLastProjViewInv = mProjViewInv;
-	seed0++;
-	seed1 = std::uniform_int_distribution<uint32_t>(0, std::numeric_limits<uint32_t>::max())(rng);
+	mFrameIndex++;
+	seed = std::uniform_int_distribution<uint32_t>(0, std::numeric_limits<uint32_t>::max())(rng);
 }
 
 void Camera::update() {
@@ -94,4 +94,5 @@ void Camera::update() {
 	mProjMatrixInv = glm::inverse(mProjMatrix);
 	mProjView = mProjMatrix * mViewMatrix;
 	mProjViewInv = glm::inverse(mProjView);
+	mFrameIndex = 0;
 }

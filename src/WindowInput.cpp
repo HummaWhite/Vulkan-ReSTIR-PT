@@ -8,10 +8,11 @@ namespace WindowInput {
 	constexpr float CamerFOVSensitivity = 150.0f;
 
 	Camera* camera = nullptr;
-	int lastCursorX = 0;
-	int lastCursorY = 0;
+	double lastCursorX = 0;
+	double lastCursorY = 0;
 	bool firstCursorMove = true;
-	bool cursorDisabled = false;
+	bool cursorDisabled = true;
+	bool locked = false;
 	double deltaTime = 0;
 	std::set<int> pressedKeys;
 
@@ -44,7 +45,10 @@ namespace WindowInput {
 					firstCursorMove = true;
 				}
 				cursorDisabled ^= 1;
-				glfwSetInputMode(window, GLFW_CURSOR, cursorDisabled ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+				glfwSetInputMode(window, GLFW_CURSOR, cursorDisabled ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+			}
+			else if (key == GLFW_KEY_F2) {
+				locked ^= 1;
 			}
 			if (!isPressingKey(GLFW_KEY_LEFT_CONTROL) && !isPressingKey(GLFW_KEY_RIGHT_CONTROL)) {
 				return;
@@ -53,7 +57,7 @@ namespace WindowInput {
 	}
 
 	void cursorCallback(GLFWwindow* window, double posX, double posY) {
-		if (!cursorDisabled) {
+		if (cursorDisabled || locked) {
 			return;
 		}
 
@@ -64,8 +68,8 @@ namespace WindowInput {
 			return;
 		}
 
-		float offsetX = posX - lastCursorX;
-		float offsetY = posY - lastCursorY;
+		float offsetX = static_cast<float>(posX - lastCursorX);
+		float offsetY = static_cast<float>(posY - lastCursorY);
 		glm::vec3 offset(offsetX, -offsetY, 0);
 
 		float speed = isPressingKey(GLFW_KEY_LEFT_CONTROL) ? .1f : 1.f;
@@ -77,7 +81,7 @@ namespace WindowInput {
 	}
 
 	void scrollCallback(GLFWwindow* window, double offsetX, double offsetY) {
-		if (!cursorDisabled) {
+		if (cursorDisabled || locked) {
 			return;
 		}
 		float speed = isPressingKey(GLFW_KEY_LEFT_CONTROL) ? .1f : 1.f;
@@ -85,6 +89,10 @@ namespace WindowInput {
 	}
 
 	void moveCamera(int key) {
+		if (locked) {
+			return;
+		}
+
 		glm::vec3 angle = camera->angle();
 		glm::vec3 dPos(0.f);
 		float dRoll = 0.f;

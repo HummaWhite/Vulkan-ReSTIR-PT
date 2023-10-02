@@ -49,8 +49,8 @@ struct Camera {
 	float focalDist;
 
 	ivec2 filmSize;
-	uint seed0;
-	uint seed1;
+	uint frameIndex;
+	uint seed;
 };
 
 struct GBufferDrawParam {

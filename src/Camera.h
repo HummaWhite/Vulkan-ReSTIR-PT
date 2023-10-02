@@ -71,6 +71,6 @@ private:
 	std140(float, mFocalDist) = 1.0f;
 
 	std140(glm::ivec2, mFilmSize);
-	std140(uint32_t, seed0) = 0;
-	std140(uint32_t, seed1);
+	std140(uint32_t, mFrameIndex) = 0;
+	std140(uint32_t, seed);
 };
