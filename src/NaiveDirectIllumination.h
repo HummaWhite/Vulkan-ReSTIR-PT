@@ -20,6 +20,7 @@
 #include "core/Memory.h"
 #include "core/Descriptor.h"
 #include "core/AccelerationStructure.h"
+#include "core/ShaderBindingTable.h"
 #include "Scene.h"
 
 #include "util/Error.h"
@@ -47,8 +48,6 @@ public:
 
 private:
 	void createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx);
-	void createShaderBindingTable();
-
 	void destroyFrame();
 
 public:
@@ -58,11 +57,5 @@ public:
 private:
 	vk::Pipeline mPipeline;
 	vk::PipelineLayout mPipelineLayout;
-
-	std::unique_ptr<zvk::Buffer> mShaderBindingTable;
-
-	vk::StridedDeviceAddressRegionKHR mRayGenRegion;
-	vk::StridedDeviceAddressRegionKHR mMissRegion;
-	vk::StridedDeviceAddressRegionKHR mHitRegion;
-	vk::StridedDeviceAddressRegionKHR mCallRegion;
+	std::unique_ptr<zvk::ShaderBindingTable> mShaderBindingTable;
 };

@@ -12,18 +12,6 @@ NaiveDirectIllumination::NaiveDirectIllumination(const zvk::Context* ctx, const 
 void NaiveDirectIllumination::destroy() {
 	destroyFrame();
 
-	/*
-	delete mShaderBindingTable;
-	delete mTLAS;
-
-	for (auto& blas : mObjectBLAS) {
-		delete blas;
-	}
-	
-	delete mDescriptorSetLayout;
-	delete mDescriptorPool;
-	*/
-
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
@@ -42,7 +30,11 @@ void NaiveDirectIllumination::render(
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ImageOutputDescSet, imageOutDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, rayTracingDescSet, {});
 
-	zvk::ExtFunctions::cmdTraceRaysKHR(cmd, mRayGenRegion, mMissRegion, mHitRegion, mCallRegion, extent.width, extent.height, maxDepth);
+	zvk::ExtFunctions::cmdTraceRaysKHR(
+		cmd,
+		mShaderBindingTable->rayGenRegion, mShaderBindingTable->missRegion, mShaderBindingTable->hitRegion, mShaderBindingTable->callableRegion,
+		extent.width, extent.height, maxDepth
+	);
 }
 
 void NaiveDirectIllumination::recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
@@ -118,7 +110,7 @@ void NaiveDirectIllumination::createPipeline(zvk::ShaderManager* shaderManager, 
 	}
 	mPipeline = result.value;
 
-	createShaderBindingTable();
+	mShaderBindingTable = std::make_unique<zvk::ShaderBindingTable>(mCtx, 2, 1, mPipeline);
 }
 
 void NaiveDirectIllumination::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
@@ -152,70 +144,6 @@ void NaiveDirectIllumination::createFrame(vk::Extent2D extent, zvk::QueueIdx que
 		zvk::DebugUtils::nameVkObject(mCtx->device, reservoir[i]->buffer, "reservoir[" + std::to_string(i) + "]");
 	}
 	cmd->submitAndWait();
-}
-
-void NaiveDirectIllumination::createShaderBindingTable() {
-	// TODO:
-	// write a wrapper class for Shader Binding Table
-
-	const auto& pipelineProps = mCtx->instance()->rayTracingPipelineProperties;
-
-	uint32_t numMissGroup = 2;
-	uint32_t numHitGroup = 1;
-	uint32_t numGroups = 1 + numMissGroup + numHitGroup;
-	uint32_t handleSize = pipelineProps.shaderGroupHandleSize;
-
-	uint32_t alignedHandleSize = zvk::align(pipelineProps.shaderGroupHandleSize, pipelineProps.shaderGroupHandleAlignment);
-	uint32_t baseAlignment = pipelineProps.shaderGroupBaseAlignment;
-
-	mRayGenRegion.stride = zvk::align(alignedHandleSize, baseAlignment);
-	mRayGenRegion.size = mRayGenRegion.stride;
-
-	mMissRegion.stride = alignedHandleSize;
-	mMissRegion.size = zvk::align(numMissGroup * alignedHandleSize, baseAlignment);
-
-	mHitRegion.stride = alignedHandleSize;
-	mHitRegion.size = zvk::align(numHitGroup * alignedHandleSize, baseAlignment);
-
-	uint32_t dataSize = numGroups * handleSize;
-	auto handles = zvk::ExtFunctions::getRayTracingShaderGroupHandlesKHR(mCtx->device, mPipeline, 0, numGroups, dataSize);
-
-	vk::DeviceSize SBTSize = mRayGenRegion.size + mMissRegion.size + mHitRegion.size + mCallRegion.size;
-
-	mShaderBindingTable = zvk::Memory::createBuffer(
-		mCtx, SBTSize,
-		vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eShaderDeviceAddress |
-			vk::BufferUsageFlagBits::eTransferSrc,
-		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-		vk::MemoryAllocateFlagBits::eDeviceAddress
-	);
-	zvk::DebugUtils::nameVkObject(mCtx->device, mShaderBindingTable->buffer, "shader binding table");
-
-	mShaderBindingTable->mapMemory();
-
-	vk::DeviceAddress SBTAddress = mShaderBindingTable->address();
-	mRayGenRegion.deviceAddress = SBTAddress;
-	mMissRegion.deviceAddress = SBTAddress + mRayGenRegion.size;
-	mHitRegion.deviceAddress = SBTAddress + mRayGenRegion.size + mMissRegion.size;
-
-	auto pDst = reinterpret_cast<uint8_t*>(mShaderBindingTable->data);
-	auto pSrc = reinterpret_cast<uint8_t*>(handles.data());
-
-	memcpy(pDst, pSrc, handleSize);
-	
-	pDst += mRayGenRegion.size;
-	pSrc += handleSize;
-
-	for (uint32_t i = 0; i < numMissGroup; i++) {
-		memcpy(pDst + i * alignedHandleSize, pSrc + i * handleSize, handleSize);
-	}
-	pDst += mMissRegion.size;
-	pSrc += numMissGroup * handleSize;
-
-	for (uint32_t i = 0; i < numHitGroup; i++) {
-		memcpy(pDst + i * alignedHandleSize, pSrc + i * handleSize, handleSize);
-	}
-	mShaderBindingTable->unmapMemory();
 }
 
 void NaiveDirectIllumination::destroyFrame() {
