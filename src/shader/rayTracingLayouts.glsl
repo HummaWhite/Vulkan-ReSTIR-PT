@@ -6,17 +6,23 @@
 const float MinRayDistance = 1e-4;
 const float MaxRayDistance = 1e7;
 
+struct CompactMaterial {
+	uint data;
+	uint type;
+};
+
+// Don't make it larger than 32 registers
 struct Intersection {
 	vec3 pos;
-	vec3 norm;
-	vec3 albedo;
-	vec3 bary;
-	vec2 uv;
 	uint instanceIndex;
+
+	vec3 norm;
 	int lightIndex;
+
+	vec3 albedo;
 	float transSurfaceArea;
+
 	int matIndex;
-	int texIndex;
 	bool hit;
 };
 

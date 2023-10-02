@@ -1,3 +1,6 @@
+#ifndef MATH_GLSL
+#define MATH_GLSL
+
 const float Pi = 3.14159265358979323846;
 const float PiInv = 1.0 / Pi;
 const float Inf = 1.0 / 0.0;
@@ -231,3 +234,5 @@ vec2 sample2f(inout uint rng) {
 vec3 sample3f(inout uint rng) {
 	return vec3(sample2f(rng), sample1f(rng));
 }
+
+#endif

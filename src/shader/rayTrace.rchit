@@ -17,7 +17,6 @@ void main() {
     ObjectInstance instance = uObjectInstances[gl_InstanceCustomIndexEXT];
 
     rtIsec.hit = true;
-    rtIsec.bary = bary;
     rtIsec.instanceIndex = gl_InstanceCustomIndexEXT;
     rtIsec.lightIndex = InvalidResourceIdx;
 
@@ -41,7 +40,6 @@ void main() {
     // norm = normalize(vec3(instance.transformInvT * vec4(norm, 1.0)));
     rtIsec.pos = vec3(gl_ObjectToWorldEXT * vec4(pos, 1.0));
     rtIsec.norm = normalize(transpose(mat3(gl_WorldToObjectEXT)) * norm);
-    rtIsec.uv = vec2(uvx, uvy);
 
     if (instance.lightIndex != InvalidResourceIdx) {
         rtIsec.albedo = uLightInstances[instance.lightIndex].radiance;
@@ -59,6 +57,5 @@ void main() {
 	    albedo = texture(uTextures[texIdx], vec2(uvx, uvy)).rgb;
 	}
     rtIsec.matIndex = matIdx;
-    rtIsec.texIndex = texIdx;
     rtIsec.albedo = albedo;
 }

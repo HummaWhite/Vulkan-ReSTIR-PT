@@ -40,6 +40,7 @@ void main() {
     isec.hit = true;
     isec.lightIndex = InvalidResourceIdx;
 
+#pragma unroll
     for (int bounce = 0; bounce < maxTracingDepth; bounce++) {
         if (bounce > 0) {
             traceRayEXT(
@@ -63,7 +64,7 @@ void main() {
             break;
         }
 
-        if (/* sample direct lighting */ false)
+        if (/* sample direct lighting */ true)
         {
             const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
