@@ -8,8 +8,59 @@
 #include "GBufferUtil.glsl"
 #include "lightSampling.glsl"
 
-layout(location = 0) rayPayloadEXT Intersection rtIntersection;
+layout(location = 0) rayPayloadEXT Intersection rtIsec;
 layout(location = 1) rayPayloadEXT bool rtShadowed;
+
+struct SurfaceInfo {
+    vec3 pos;
+    vec3 norm;
+    vec3 albedo;
+    int lightIndex;
+    float transSurfaceArea;
+    uint matIndex;
+    uint dummy[64];
+};
+
+void loadSurfaceInfo(out SurfaceInfo info) {
+    ObjectInstance instance = uObjectInstances[rtIsec.instanceIdx];
+
+    info.lightIndex = InvalidResourceIdx;
+    info.matIndex = uMaterialIndices[instance.indexOffset / 3 + rtIsec.triangleIdx];
+
+    uint i0 = uIndices[instance.indexOffset + rtIsec.triangleIdx * 3 + 0];
+    uint i1 = uIndices[instance.indexOffset + rtIsec.triangleIdx * 3 + 1];
+    uint i2 = uIndices[instance.indexOffset + rtIsec.triangleIdx * 3 + 2];
+
+    MeshVertex v0 = uVertices[i0];
+    MeshVertex v1 = uVertices[i1];
+    MeshVertex v2 = uVertices[i2];
+
+    vec3 bary = vec3(1.0 - rtIsec.bary.x - rtIsec.bary.y, rtIsec.bary.x, rtIsec.bary.y);;
+
+    vec3 pos = v0.pos * bary.x + v1.pos * bary.y + v2.pos * bary.z;
+    vec3 norm = v0.norm * bary.x + v1.norm * bary.y + v2.norm * bary.z;
+    float uvx = v0.uvx * bary.x + v1.uvx * bary.y + v2.uvx * bary.z;
+    float uvy = v0.uvy * bary.x + v1.uvy * bary.y + v2.uvy * bary.z;
+
+    info.pos = vec3(instance.transform * vec4(pos, 1.0));
+    info.norm = normalize(vec3(instance.transformInvT * vec4(norm, 1.0)));
+
+    if (instance.lightIndex != InvalidResourceIdx) {
+        info.albedo = uLightInstances[instance.lightIndex].radiance;
+        info.transSurfaceArea = instance.transformedSurfaceArea;
+        info.lightIndex = instance.lightIndex;
+        return;
+    }
+    int texIdx = uMaterials[info.matIndex].textureIdx;
+
+	if (texIdx == InvalidResourceIdx) {
+	    info.albedo = uMaterials[info.matIndex].baseColor;
+	}
+	else {
+	    info.albedo = texture(uTextures[texIdx], vec2(uvx, uvy)).rgb;
+	}
+    info.matIndex = info.matIndex;
+}
 
 void main() {
     const int MaxTracingDepth = 4;
@@ -25,7 +76,10 @@ void main() {
     int matIndex = int(GBufferB.y);
     // vec2 motion = unpackSnorm2x16(GBufferB.z);
 
-    int maxTracingDepth = (depth == 0.0) ? 0 : MaxTracingDepth;
+    if (depth == 0.0) {
+        imageStore(uRayColorOutput, ivec2(gl_LaunchIDEXT.xy), vec4(vec3(0.0), 1.0));
+        return;
+    }
     
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
     uint rng = makeSeed(uCamera.frameIndex, uCamera.seed, gl_LaunchIDEXT.x * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.y);
@@ -33,16 +87,18 @@ void main() {
     vec3 radiance = vec3(0.0);
     vec3 throughput = vec3(1.0);
 
-    Intersection isec;
-    isec.pos = ray.ori + ray.dir * depth;
-    isec.norm = norm;
-    isec.albedo = albedo;
-    isec.hit = true;
-    isec.lightIndex = InvalidResourceIdx;
+    SurfaceInfo surf;
+    surf.pos = ray.ori + ray.dir * depth;
+    surf.norm = norm;
+    surf.albedo = albedo;
+    surf.lightIndex = InvalidResourceIdx;
+    rtIsec.hit = true;
 
 #pragma unroll
-    for (int bounce = 0; bounce < maxTracingDepth; bounce++) {
+    for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
         if (bounce > 0) {
+            rtIsec.hit = false;
+
             traceRayEXT(
                 /* AS, flags, masks    */ uTLAS, gl_RayFlagsOpaqueEXT, 0xff,
                 /* SBT offset & stride */ 0, 0,
@@ -50,16 +106,16 @@ void main() {
                 /* ray attribs         */ ray.ori, MinRayDistance, ray.dir, MaxRayDistance,
                 /* payload location    */ 0
             );
-            isec = rtIntersection;
+            loadSurfaceInfo(surf);
         }
 
-        if (!isec.hit) {
+        if (!rtIsec.hit) {
             break;
         }
 
-        if (isec.lightIndex != InvalidResourceIdx) {
-            if (dot(ray.dir, isec.norm) < 0) {
-                radiance += isec.albedo * throughput;
+        if (surf.lightIndex != InvalidResourceIdx) {
+            if (dot(ray.dir, surf.norm) < 0) {
+                radiance += surf.albedo * throughput;
             }
             break;
         }
@@ -73,25 +129,25 @@ void main() {
             uint lightIdx;
 
             rtShadowed = true;
-            lightRadiance = sampleLight(isec.pos, lightDir, lightDist, lightPdf, lightIdx, rng);
+            lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, lightIdx, rng);
 
             traceRayEXT(
                 /* AS, flags, masks    */ uTLAS, shadowRayFlags, 0xff,
                 /* SBT offset & stride */ 0, 0,
                 /* miss index          */ 1,
-                /* ray attribs         */ isec.pos, MinRayDistance, lightDir, lightDist - 1e-4,
+                /* ray attribs         */ surf.pos, MinRayDistance, lightDir, lightDist - 1e-4,
                 /* payload location    */ 1
             );
 
             if (!rtShadowed && lightPdf > 1e-6) {
-                radiance += lightRadiance * isec.albedo * PiInv * satDot(norm, lightDir) / lightPdf * throughput;
+                radiance += lightRadiance * surf.albedo * PiInv * satDot(norm, lightDir) / lightPdf * throughput;
             }
         }
 
-        ray.dir = sampleCosineWeightedHemisphere(isec.norm, sample2f(rng));
-        ray.ori = isec.pos + isec.norm * 1e-4;
+        ray.dir = sampleCosineWeightedHemisphere(surf.norm, sample2f(rng));
+        ray.ori = surf.pos + surf.norm * 1e-4;
 
-        throughput *= isec.albedo;
+        throughput *= surf.albedo;
     }
     vec3 prevRadiance = imageLoad(uRayColorOutput, ivec2(gl_LaunchIDEXT.xy)).rgb;
 
