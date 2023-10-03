@@ -20,7 +20,11 @@ vec3 ACES(vec3 color) {
 
 void main() {
     ivec2 coord = ivec2(vec2(textureSize(uGBufferA, 0) - 1) * vTexUV);
-    vec3 color = imageLoad(uRayColorOutput, coord).rgb;
+
+    vec3 direct = imageLoad(uDirectOutput, coord).rgb;
+    vec3 indirect = imageLoad(uIndirectOutput, coord).rgb;
+    vec3 color = direct + indirect;
+
     //color = filmic(color);
     color = ACES(color);
     color = pow(color, vec3(1.0 / 2.2));

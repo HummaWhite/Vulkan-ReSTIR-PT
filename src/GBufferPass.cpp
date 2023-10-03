@@ -75,10 +75,7 @@ void GBufferPass::render(
 
 void GBufferPass::initDescriptor() {
 	zvk::DescriptorWrite update;
-
-	update.add(
-		mDrawParamDescLayout.get(), mDrawParamDescSet, 0, zvk::Descriptor::makeBufferInfo(mDrawParamBuffer.get())
-	);
+	update.add(mDrawParamDescLayout.get(), mDrawParamDescSet, 0, zvk::Descriptor::makeBufferInfo(mDrawParamBuffer.get()));
 	mCtx->device.updateDescriptorSets(update.writes, {});
 }
 
@@ -116,7 +113,7 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 }
 
 void GBufferPass::createResource(vk::Extent2D extent) {
-	for (int i = 0; i < 2; i++) {
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
 		GBufferA[i] = zvk::Memory::createImage2D(
 			mCtx, extent, GBufferAFormat, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
@@ -212,7 +209,7 @@ void GBufferPass::createRenderPass(vk::ImageLayout outLayout) {
 }
 
 void GBufferPass::createFramebuffer(vk::Extent2D extent) {
-	for (int i = 0; i < 2; i++) {
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
 		auto attachments = { GBufferA[i]->view, GBufferB[i]->view, mDepthStencil[i]->view };
 
 		auto createInfo = vk::FramebufferCreateInfo()
@@ -348,7 +345,7 @@ void GBufferPass::createDescriptor() {
 }
 
 void GBufferPass::destroyFrame() {
-	for (int i = 0; i < 2; i++) {
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
 		mCtx->device.destroyFramebuffer(framebuffer[i]);
 	}
 }

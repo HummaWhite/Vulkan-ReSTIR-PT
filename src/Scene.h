@@ -67,7 +67,6 @@ public:
 	std::unique_ptr<zvk::Buffer> instances;
 	std::unique_ptr<zvk::Buffer> lightInstances;
 	std::unique_ptr<zvk::Buffer> lightSampleTable;
-	std::unique_ptr<zvk::Buffer> camera[2];
 	std::vector<std::unique_ptr<zvk::Image>> textures;
 
 	std::unique_ptr<zvk::AccelerationStructure> topAccelStructure;
@@ -78,10 +77,8 @@ public:
 	uint32_t numMaterials = 0;
 	uint32_t numTriangles = 0;
 
-	std::unique_ptr<zvk::DescriptorSetLayout> cameraDescLayout;
 	std::unique_ptr<zvk::DescriptorSetLayout> resourceDescLayout;
 	std::unique_ptr<zvk::DescriptorSetLayout> rayTracingDescLayout;
-	vk::DescriptorSet cameraDescSet[2];
 	vk::DescriptorSet resourceDescSet;
 	vk::DescriptorSet rayTracingDescSet;
 

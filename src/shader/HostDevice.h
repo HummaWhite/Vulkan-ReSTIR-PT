@@ -38,7 +38,7 @@ const int PostProcBlockSizeY = 32;
 const int CameraDescSet = 0;
 const int ResourceDescSet = 1;
 const int GBufferDrawParamDescSet = 2;
-const int ImageOutputDescSet = 3;
+const int RayImageDescSet = 3;
 const int RayTracingDescSet = 4;
 const int SwapchainStorageDescSet = 5;
 

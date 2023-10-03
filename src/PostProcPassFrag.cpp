@@ -32,10 +32,6 @@ PostProcPassFrag::PostProcPassFrag(const zvk::Context* ctx, const zvk::Swapchain
 }
 
 void PostProcPassFrag::destroy() {
-	/*
-	mQuadVertexBuffer.reset();
-	*/
-
 	mCtx->device.destroyRenderPass(mRenderPass);
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
@@ -153,7 +149,7 @@ void PostProcPassFrag::createPipeline(
 	mPipeline = result.value;
 }
 
-void PostProcPassFrag::render(vk::CommandBuffer cmd, uint32_t frameIdx, uint32_t imageIdx, vk::DescriptorSet imageOutDescSet, vk::Extent2D extent) {
+void PostProcPassFrag::render(vk::CommandBuffer cmd, uint32_t frameIdx, uint32_t imageIdx, vk::DescriptorSet rayImageDescSet, vk::Extent2D extent) {
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f)
 	};
@@ -167,7 +163,7 @@ void PostProcPassFrag::render(vk::CommandBuffer cmd, uint32_t frameIdx, uint32_t
 	cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
 	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
-	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, ImageOutputDescSet, imageOutDescSet, {});
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, RayImageDescSet, rayImageDescSet, {});
 
 	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));

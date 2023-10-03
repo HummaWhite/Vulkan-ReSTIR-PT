@@ -21,6 +21,18 @@ const std::vector<const char*> DeviceExtensions = {
 	VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
 };
 
+struct DIReservoir {
+	uint32_t pad;
+};
+
+struct GIReservoir {
+	uint32_t pad;
+};
+
+struct PTReservoir {
+	uint32_t pad;
+};
+
 void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 	// Log::bracketLine<0>("Resize to " + std::to_string(width) + "x" + std::to_string(height));
 	auto appPtr = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
@@ -89,7 +101,11 @@ void Renderer::initVulkan() {
 		mSwapchain = std::make_unique<zvk::Swapchain>(mContext.get(), mWidth, mHeight, SWAPCHAIN_FORMAT, false);
 		mShaderManager = std::make_unique<zvk::ShaderManager>(mContext->device);
 
+		createCameraBuffer();
+		createRayImage();
+
 		initScene();
+
 		mScene.camera.setFilmSize({ mWidth, mHeight });
 		mScene.camera.setPlanes(1e-3f, 500.f);
 		mScene.camera.nextFrame(mRng);
@@ -97,7 +113,7 @@ void Renderer::initVulkan() {
 		mDeviceScene = std::make_unique<DeviceScene>(mContext.get(), mScene, zvk::QueueIdx::GeneralUse);
 
 		mGBufferPass = std::make_unique<GBufferPass>(mContext.get(), mSwapchain->extent(), mScene.resource);
-		mNaiveDirectPass = std::make_unique<NaiveDirectIllumination>(mContext.get(), mScene.resource, mDeviceScene.get(), mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
+		mNaiveDIPass = std::make_unique<NaiveDIPass>(mContext.get(), mScene.resource, mDeviceScene.get(), mSwapchain->extent());
 		mPostProcPass = std::make_unique<PostProcPassFrag>(mContext.get(), mSwapchain.get());
 
 		Log::newLine();
@@ -105,7 +121,7 @@ void Renderer::initVulkan() {
 		createDescriptor();
 
 		createPipeline();
-		createRenderCmdBuffer();
+		createCommandBuffer();
 		createSyncObject();
 
 		initImageLayout();
@@ -121,19 +137,110 @@ void Renderer::initVulkan() {
 
 void Renderer::createPipeline() {
 	std::vector<vk::DescriptorSetLayout> descLayouts = {
-		mDeviceScene->cameraDescLayout->layout,
+		mCameraDescLayout->layout,
 		mDeviceScene->resourceDescLayout->layout,
 		mGBufferPass->descSetLayout(),
-		mImageOutDescLayout->layout,
+		mRayImageDescLayout->layout,
 		mDeviceScene->rayTracingDescLayout->layout,
 	};
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager.get(), descLayouts);
-	mNaiveDirectPass->createPipeline(mShaderManager.get(), 1, descLayouts);
+	mNaiveDIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
 	mPostProcPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
 
 void Renderer::initScene() {
 	mScene.load("res/sponza.xml");
+}
+
+void Renderer::createCameraBuffer() {
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
+		mCameraBuffer[i] = zvk::Memory::createBuffer(
+			mContext.get(), sizeof(Camera),
+			vk::BufferUsageFlagBits::eUniformBuffer,
+			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+		);
+		mCameraBuffer[i]->mapMemory();
+		zvk::DebugUtils::nameVkObject(mContext->device, mCameraBuffer[i]->buffer, "camera[" + std::to_string(i) + "]");
+	}
+}
+
+void Renderer::createRayImage() {
+	auto extent = mSwapchain->extent();
+
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
+		mDirectOutput[i] = zvk::Memory::createImage2D(
+			mContext.get(), extent, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal,
+			vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
+			vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+		mDirectOutput[i]->createImageView();
+		mDirectOutput[i]->createSampler(vk::Filter::eLinear);
+
+		zvk::DebugUtils::nameVkObject(mContext->device, mDirectOutput[i]->image, "directOutput[" + std::to_string(i) + "]");
+
+		mIndirectOutput[i] = zvk::Memory::createImage2D(
+			mContext.get(), extent, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal,
+			vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
+			vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+		mIndirectOutput[i]->createImageView();
+		mIndirectOutput[i]->createSampler(vk::Filter::eLinear);
+
+		zvk::DebugUtils::nameVkObject(mContext->device, mDirectOutput[i]->image, "indirectOutput[" + std::to_string(i) + "]");
+
+		vk::DeviceSize DIResvSize = sizeof(DIReservoir) * extent.width * extent.height;
+		vk::DeviceSize GIResvSize = sizeof(GIReservoir) * extent.width * extent.height;
+
+		for (int j = 0; j < 2; j++) {
+			mDIReservoir[i][j] = zvk::Memory::createBuffer(
+				mContext.get(), DIResvSize, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
+			);
+			zvk::DebugUtils::nameVkObject(
+				mContext->device, mDIReservoir[i][j]->buffer, "DIReservoir[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+			);
+
+			mGIReservoir[i][j] = zvk::Memory::createBuffer(
+				mContext.get(), GIResvSize, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
+			);
+			zvk::DebugUtils::nameVkObject(
+				mContext->device, mGIReservoir[i][j]->buffer, "GIReservoir[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+			);
+		}
+	}
+}
+
+void Renderer::initImageLayout() {
+	auto cmd = zvk::Command::createOneTimeSubmit(mContext.get(), zvk::QueueIdx::GeneralUse);
+
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
+		auto GBufferBarriers = {
+			mGBufferPass->GBufferA[i]->getBarrier(
+				vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderWrite
+			),
+			mGBufferPass->GBufferB[i]->getBarrier(
+				vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderWrite
+			),
+		};
+		auto outputBarriers = {
+			mDirectOutput[i]->getBarrier(
+				vk::ImageLayout::eGeneral, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite
+			),
+			mIndirectOutput[i]->getBarrier(
+				vk::ImageLayout::eGeneral, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite
+			),
+		};
+
+		cmd->cmd.pipelineBarrier(
+			vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eFragmentShader,
+			vk::DependencyFlags{ 0 }, {}, {}, GBufferBarriers
+		);
+		cmd->cmd.pipelineBarrier(
+			vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eRayTracingShaderKHR,
+			vk::DependencyFlags{ 0 }, {}, {}, outputBarriers
+		);
+	}
+
+	cmd->submitAndWait();
 }
 
 void Renderer::createDescriptor() {
@@ -143,69 +250,76 @@ void Renderer::createDescriptor() {
 		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eCombinedImageSampler, imageOutFlags),
 		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eCombinedImageSampler, imageOutFlags),
 		zvk::Descriptor::makeBinding(2, vk::DescriptorType::eStorageImage, imageOutFlags),
-		zvk::Descriptor::makeBinding(3, vk::DescriptorType::eStorageBuffer, imageOutFlags),
+		zvk::Descriptor::makeBinding(3, vk::DescriptorType::eStorageImage, imageOutFlags),
+		zvk::Descriptor::makeBinding(4, vk::DescriptorType::eStorageBuffer, imageOutFlags),
+		zvk::Descriptor::makeBinding(5, vk::DescriptorType::eStorageBuffer, imageOutFlags),
+		zvk::Descriptor::makeBinding(6, vk::DescriptorType::eStorageBuffer, imageOutFlags),
+		zvk::Descriptor::makeBinding(7, vk::DescriptorType::eStorageBuffer, imageOutFlags),
 	};
+	mRayImageDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), imageOutBindings);
 
-	mImageOutDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), imageOutBindings);
-	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(mContext.get(), mImageOutDescLayout.get(), 2);
-	mImageOutDescSet[0] = mDescriptorPool->allocDescriptorSet(mImageOutDescLayout->layout);
-	mImageOutDescSet[1] = mDescriptorPool->allocDescriptorSet(mImageOutDescLayout->layout);
-}
+	std::vector<vk::DescriptorSetLayoutBinding> cameraBindings = {
+		zvk::Descriptor::makeBinding(
+			0, vk::DescriptorType::eUniformBuffer,
+			vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute | RayTracingShaderStageFlags
+		)
+	};
+	mCameraDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), cameraBindings);
 
-void Renderer::initImageLayout() {
-	auto cmd = zvk::Command::createOneTimeSubmit(mContext.get(), zvk::QueueIdx::GeneralUse);
-	std::vector<vk::ImageMemoryBarrier> barriers;
-
-	for (int i = 0; i < 2; i++) {
-		barriers.push_back(
-			mGBufferPass->GBufferA[i]->getBarrier(
-				vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderWrite
-			)
-		);
-
-		barriers.push_back(
-			mGBufferPass->GBufferB[i]->getBarrier(
-				vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderWrite
-			)
-		);
-	}
-	cmd->cmd.pipelineBarrier(
-		vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eFragmentShader, vk::DependencyFlags{ 0 },
-		{}, {}, barriers
+	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(
+		mContext.get(), zvk::DescriptorLayoutArray{ mRayImageDescLayout.get(), mCameraDescLayout.get() }, NumFramesInFlight
 	);
 
-	cmd->submitAndWait();
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
+		mRayImageDescSet[i] = mDescriptorPool->allocDescriptorSet(mRayImageDescLayout->layout);
+		mCameraDescSet[i] = mDescriptorPool->allocDescriptorSet(mCameraDescLayout->layout);
+	}
 }
 
 void Renderer::initDescriptor() {
 	mDeviceScene->initDescriptor();
 	mGBufferPass->initDescriptor();
 
-	auto depthNormal = mGBufferPass->GBufferA;
-	auto albedoMatIdx = mGBufferPass->GBufferB;
-	auto colorOutput = mNaiveDirectPass->directOutput;
-	auto reservoir = mNaiveDirectPass->reservoir;
-
 	zvk::DescriptorWrite update;
 
-	for (int i = 0; i < 2; i++) {
-		update.add(
-			mImageOutDescLayout.get(), mImageOutDescSet[i], 0, zvk::Descriptor::makeImageInfo(depthNormal[i].get())
-		);
-		update.add(
-			mImageOutDescLayout.get(), mImageOutDescSet[i], 1, zvk::Descriptor::makeImageInfo(albedoMatIdx[i].get())
-		);
-		update.add(
-			mImageOutDescLayout.get(), mImageOutDescSet[i], 2, zvk::Descriptor::makeImageInfo(colorOutput[i].get())
-		);
-		update.add(
-			mImageOutDescLayout.get(), mImageOutDescSet[i], 3, zvk::Descriptor::makeBufferInfo(reservoir[i].get())
-		);
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
+		update.add(mRayImageDescLayout.get(), mRayImageDescSet[i], 0, zvk::Descriptor::makeImageInfo(mGBufferPass->GBufferA[i].get()));
+		update.add(mRayImageDescLayout.get(), mRayImageDescSet[i], 1, zvk::Descriptor::makeImageInfo(mGBufferPass->GBufferB[i].get()));
+		update.add(mRayImageDescLayout.get(), mRayImageDescSet[i], 2, zvk::Descriptor::makeImageInfo(mDirectOutput[i].get()));
+		update.add(mRayImageDescLayout.get(), mRayImageDescSet[i], 3, zvk::Descriptor::makeImageInfo(mIndirectOutput[i].get()));
+		update.add(mRayImageDescLayout.get(), mRayImageDescSet[i], 4, zvk::Descriptor::makeBufferInfo(mDIReservoir[i][0].get()));
+		update.add(mRayImageDescLayout.get(), mRayImageDescSet[i], 5, zvk::Descriptor::makeBufferInfo(mDIReservoir[i][1].get()));
+		update.add(mRayImageDescLayout.get(), mRayImageDescSet[i], 6, zvk::Descriptor::makeBufferInfo(mGIReservoir[i][0].get()));
+		update.add(mRayImageDescLayout.get(), mRayImageDescSet[i], 7, zvk::Descriptor::makeBufferInfo(mGIReservoir[i][1].get()));
+
+		update.add(mCameraDescLayout.get(), mCameraDescSet[i], 0, vk::DescriptorBufferInfo(mCameraBuffer[i]->buffer, 0, mCameraBuffer[i]->size));
 	}
 	mContext->device.updateDescriptorSets(update.writes, {});
 }
 
-void Renderer::createRenderCmdBuffer() {
+void Renderer::updateDescriptor() {
+}
+
+void Renderer::updateCameraUniform() {
+	memcpy(mCameraBuffer[mFrameIndex]->data, &mScene.camera, sizeof(Camera));
+}
+
+void Renderer::recreateFrame() {
+	int width, height;
+	glfwGetFramebufferSize(mMainWindow, &width, &height);
+
+	while (width == 0 || height == 0) {
+		glfwGetFramebufferSize(mMainWindow, &width, &height);
+		glfwWaitEvents();
+	}
+	mContext->device.waitIdle();
+
+	mSwapchain = std::make_unique<zvk::Swapchain>(mContext.get(), width, height, SWAPCHAIN_FORMAT, false);
+	mGBufferPass->recreateFrame(mSwapchain->extent());
+	mPostProcPass->recreateFrame(mSwapchain.get());
+}
+
+void Renderer::createCommandBuffer() {
 	mGCTCmdBuffers = zvk::Command::createPrimary(mContext.get(), zvk::QueueIdx::GeneralUse, NumFramesInFlight);
 }
 
@@ -221,20 +335,18 @@ void Renderer::createSyncObject() {
 }
 
 void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
-	int curFrame = mFrameIndex & 1;
-
 	auto beginInfo = vk::CommandBufferBeginInfo()
 		.setFlags(vk::CommandBufferUsageFlagBits{})
 		.setPInheritanceInfo(nullptr);
 
-	const auto& GBufferA = mGBufferPass->GBufferA[curFrame];
-	const auto& GBufferB = mGBufferPass->GBufferB[curFrame];
-	const auto& rayOutput = mNaiveDirectPass->directOutput[curFrame];
+	const auto& GBufferA = mGBufferPass->GBufferA[mFrameIndex];
+	const auto& GBufferB = mGBufferPass->GBufferB[mFrameIndex];
+	const auto& rayOutput = mDirectOutput[mFrameIndex];
 
 	cmd.begin(beginInfo); {
 		mGBufferPass->render(
-			cmd, mSwapchain->extent(), curFrame,
-			mDeviceScene->cameraDescSet[curFrame], mDeviceScene->resourceDescSet,
+			cmd, mSwapchain->extent(), mFrameIndex,
+			mCameraDescSet[mFrameIndex], mDeviceScene->resourceDescSet,
 			mDeviceScene->vertices->buffer, mDeviceScene->indices->buffer, 0, mScene.resource.meshInstances().size()
 		);
 
@@ -250,9 +362,9 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			{}, {}, GBufferImageBarriers
 		);
 
-		mNaiveDirectPass->render(
-			cmd, curFrame,
-			mDeviceScene->cameraDescSet[curFrame], mDeviceScene->resourceDescSet, mImageOutDescSet[curFrame], mDeviceScene->rayTracingDescSet,
+		mNaiveDIPass->render(
+			cmd, mFrameIndex,
+			mCameraDescSet[mFrameIndex], mDeviceScene->resourceDescSet, mRayImageDescSet[mFrameIndex], mDeviceScene->rayTracingDescSet,
 			mSwapchain->extent(), 1
 		);
 
@@ -270,14 +382,9 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			{}, {}, rayImageBarriersBefore
 		);
 
-		mPostProcPass->render(cmd, curFrame, imageIdx, mImageOutDescSet[curFrame], mSwapchain->extent());
+		mPostProcPass->render(cmd, mFrameIndex, imageIdx, mRayImageDescSet[mFrameIndex], mSwapchain->extent());
 	}
 	cmd.end();
-}
-
-void Renderer::updateCameraUniform() {
-	int curFrame = mFrameIndex & 1;
-	memcpy(mDeviceScene->camera[curFrame]->data, &mScene.camera, sizeof(Camera));
 }
 
 uint32_t Renderer::acquireFrame(vk::Semaphore signalFrameReady) {
@@ -314,35 +421,33 @@ void Renderer::presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish) {
 }
 
 void Renderer::drawFrame() {
-	int curFrame = mFrameIndex & 1;
-
-	if (mContext->device.waitForFences(mInFlightFences[curFrame], true, UINT64_MAX) != vk::Result::eSuccess) {
+	if (mContext->device.waitForFences(mInFlightFences[mFrameIndex], true, UINT64_MAX) != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to wait for any fences");
 	}
-	mContext->device.resetFences(mInFlightFences[curFrame]);
-	uint32_t imageIdx = acquireFrame(mFrameReadySemaphores[curFrame]);
+	mContext->device.resetFences(mInFlightFences[mFrameIndex]);
+	uint32_t imageIdx = acquireFrame(mFrameReadySemaphores[mFrameIndex]);
 
 	updateCameraUniform();
 
-	mGCTCmdBuffers[curFrame]->cmd.reset();
-	recordRenderCommand(mGCTCmdBuffers[curFrame]->cmd, imageIdx);
+	mGCTCmdBuffers[mFrameIndex]->cmd.reset();
+	recordRenderCommand(mGCTCmdBuffers[mFrameIndex]->cmd, imageIdx);
 
 	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
 	auto submitInfo = vk::SubmitInfo()
-		.setCommandBuffers(mGCTCmdBuffers[curFrame]->cmd)
-		.setWaitSemaphores(mFrameReadySemaphores[curFrame])
+		.setCommandBuffers(mGCTCmdBuffers[mFrameIndex]->cmd)
+		.setWaitSemaphores(mFrameReadySemaphores[mFrameIndex])
 		.setWaitDstStageMask(waitStage)
-		.setSignalSemaphores(mRenderFinishSemaphores[curFrame]);
+		.setSignalSemaphores(mRenderFinishSemaphores[mFrameIndex]);
 
 	try {
-		mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFences[curFrame]);
+		mContext->queues[zvk::QueueIdx::GeneralUse].queue.submit(submitInfo, mInFlightFences[mFrameIndex]);
 	}
 	catch (const std::exception& e) {
 		Log::line<0>(e.what());
 	}
-	presentFrame(imageIdx, mRenderFinishSemaphores[curFrame]);
-	mFrameIndex++;
+	presentFrame(imageIdx, mRenderFinishSemaphores[mFrameIndex]);
+	mFrameIndex = (mFrameIndex + 1) % NumFramesInFlight;
 }
 
 void Renderer::loop() {
@@ -350,34 +455,30 @@ void Renderer::loop() {
 	mScene.camera.nextFrame(mRng);
 }
 
-void Renderer::recreateFrame() {
-	int width, height;
-	glfwGetFramebufferSize(mMainWindow, &width, &height);
-
-	while (width == 0 || height == 0) {
-		glfwGetFramebufferSize(mMainWindow, &width, &height);
-		glfwWaitEvents();
-	}
-	mContext->device.waitIdle();
-
-	mSwapchain = std::make_unique<zvk::Swapchain>(mContext.get(), width, height, SWAPCHAIN_FORMAT, false);
-	mGBufferPass->recreateFrame(mSwapchain->extent());
-	mNaiveDirectPass->recreateFrame(mSwapchain->extent(), zvk::QueueIdx::GeneralUse);
-	mPostProcPass->recreateFrame(mSwapchain.get());
-}
-
 void Renderer::cleanupVulkan() {
 	mSwapchain.reset();
 
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
+		mCameraBuffer[i].reset();
+		mDirectOutput[i].reset();
+		mIndirectOutput[i].reset();
+
+		for (int j = 0; j < 2; j++) {
+			mDIReservoir[i][j].reset();
+			mGIReservoir[i][j].reset();
+		}
+	}
+
 	mDeviceScene.reset();
 	mGBufferPass.reset();
-	mNaiveDirectPass.reset();
+	mNaiveDIPass.reset();
 	mPostProcPass.reset();
 
-	mImageOutDescLayout.reset();
+	mCameraDescLayout.reset();
+	mRayImageDescLayout.reset();
 	mDescriptorPool.reset();
 
-	for (int i = 0; i < 2; i++) {
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
 		mContext->device.destroyFence(mInFlightFences[i]);
 		mContext->device.destroySemaphore(mFrameReadySemaphores[i]);
 		mContext->device.destroySemaphore(mRenderFinishSemaphores[i]);

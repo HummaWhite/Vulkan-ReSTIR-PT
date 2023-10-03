@@ -21,7 +21,7 @@
 #include "core/Descriptor.h"
 #include "Scene.h"
 #include "GBufferPass.h"
-#include "NaiveDirectIllumination.h"
+#include "NaiveDIPass.h"
 #include "PostProcPassFrag.h"
 #include "shader/HostDevice.h"
 
@@ -44,23 +44,26 @@ private:
 	void createPipeline();
 
 	void initScene();
+	void createCameraBuffer();
+	void createRayImage();
+	void initImageLayout();
 
 	void createDescriptor();
-	void initImageLayout();
 	void initDescriptor();
-	void createRenderCmdBuffer();
+	void updateDescriptor();
+	void updateCameraUniform();
+	void recreateFrame();
+
+	void createCommandBuffer();
 	void createSyncObject();
 
 	void recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx);
-	void updateCameraUniform();
 
 	uint32_t acquireFrame(vk::Semaphore signalFrameReady);
 	void presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish);
 	void drawFrame();
 
 	void loop();
-
-	void recreateFrame();
 
 	void cleanupVulkan();
 
@@ -94,12 +97,21 @@ private:
 
 	Scene mScene;
 	std::unique_ptr<DeviceScene> mDeviceScene;
+	std::unique_ptr<zvk::Buffer> mCameraBuffer[NumFramesInFlight];
+
+	std::unique_ptr<zvk::Image> mDirectOutput[NumFramesInFlight];
+	std::unique_ptr<zvk::Image> mIndirectOutput[NumFramesInFlight];
+
+	std::unique_ptr<zvk::Buffer> mDIReservoir[NumFramesInFlight][2];
+	std::unique_ptr<zvk::Buffer> mGIReservoir[NumFramesInFlight][2];
 
 	std::unique_ptr<GBufferPass> mGBufferPass;
-	std::unique_ptr<NaiveDirectIllumination> mNaiveDirectPass;
+	std::unique_ptr<NaiveDIPass> mNaiveDIPass;
 	std::unique_ptr<PostProcPassFrag> mPostProcPass;
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
-	std::unique_ptr<zvk::DescriptorSetLayout> mImageOutDescLayout;
-	vk::DescriptorSet mImageOutDescSet[2];
+	std::unique_ptr<zvk::DescriptorSetLayout> mRayImageDescLayout;
+	std::unique_ptr<zvk::DescriptorSetLayout> mCameraDescLayout;
+	vk::DescriptorSet mRayImageDescSet[NumFramesInFlight];
+	vk::DescriptorSet mCameraDescSet[NumFramesInFlight];
 };

@@ -62,7 +62,11 @@ struct GBufferDrawParam {
 	int pad2;
 };
 
-struct Reservoir {
+struct DIReservoir {
+	uint pad;
+};
+
+struct GIReservoir {
 	uint pad;
 };
 
@@ -98,54 +102,27 @@ struct LightSampleTableElement {
 	uint failId;
 };
 
+layout(set = CameraDescSet, binding = 0) uniform _Camera { Camera uCamera; };
 
-layout(set = CameraDescSet, binding = 0) uniform _Camera {
-	Camera uCamera;
-};
+layout(set = GBufferDrawParamDescSet, binding = 0, std140) readonly buffer _GBufferDrawParam { GBufferDrawParam uGBufferDrawParams[]; };
 
 layout(set = ResourceDescSet, binding = 0) uniform sampler2D uTextures[];
+layout(set = ResourceDescSet, binding = 1) readonly buffer _Materials { Material uMaterials[]; };
+layout(set = ResourceDescSet, binding = 2) readonly buffer _MaterialIndices { int uMaterialIndices[]; };
+layout(set = ResourceDescSet, binding = 3) readonly buffer _Vertices { MeshVertex uVertices[]; };
+layout(set = ResourceDescSet, binding = 4) readonly buffer _Indices { uint uIndices[]; };
+layout(set = ResourceDescSet, binding = 5) readonly buffer _ObjectInstances { ObjectInstance uObjectInstances[]; };
+layout(set = ResourceDescSet, binding = 6) readonly buffer _LightInstances { LightInstance uLightInstances[]; };
+layout(set = ResourceDescSet, binding = 7) readonly buffer _LightSampleTable { LightSampleTableElement uLightSampleTable[]; };
 
-layout(set = ResourceDescSet, binding = 1) readonly buffer _Materials {
-	Material uMaterials[];
-};
-
-layout(set = ResourceDescSet, binding = 2) readonly buffer _MaterialIndices {
-	int uMaterialIndices[];
-};
-
-layout(set = ResourceDescSet, binding = 3) readonly buffer _Vertices {
-	MeshVertex uVertices[];
-};
-
-layout(set = ResourceDescSet, binding = 4) readonly buffer _Indices {
-	uint uIndices[];
-};
-
-layout(set = ResourceDescSet, binding = 5) readonly buffer _ObjectInstances {
-	ObjectInstance uObjectInstances[];
-};
-
-layout(set = ResourceDescSet, binding = 6) readonly buffer _LightInstances {
-	LightInstance uLightInstances[];
-};
-
-layout(set = ResourceDescSet, binding = 7) readonly buffer _LightSampleTable {
-	LightSampleTableElement uLightSampleTable[];
-};
-
-
-layout(set = GBufferDrawParamDescSet, binding = 0, std140) readonly buffer _GBufferDrawParam {
-	GBufferDrawParam uGBufferDrawParams[];
-};
-
-
-layout(set = ImageOutputDescSet, binding = 0) uniform usampler2D uGBufferA;
-layout(set = ImageOutputDescSet, binding = 1) uniform usampler2D uGBufferB;
-layout(set = ImageOutputDescSet, binding = 2, rgba32f) uniform image2D uRayColorOutput;
-
-layout(set = ImageOutputDescSet, binding = 3) buffer _Reservoir {
-	Reservoir uReservoirs[];
-};
+layout(set = RayImageDescSet, binding = 0) uniform usampler2D uGBufferA;
+layout(set = RayImageDescSet, binding = 1) uniform usampler2D uGBufferB;
+layout(set = RayImageDescSet, binding = 2, rgba32f) uniform image2D uDirectOutput;
+layout(set = RayImageDescSet, binding = 3, rgba32f) uniform image2D uIndirectOutput;
+layout(set = RayImageDescSet, binding = 4) buffer _DIReservoirThis { DIReservoir uDIReservoirThis[]; };
+layout(set = RayImageDescSet, binding = 5) buffer _DIReservoirPrev { DIReservoir uDIReservoirPrev[]; };
+layout(set = RayImageDescSet, binding = 6) buffer _GIReservoirThis { GIReservoir uGIReservoirThis[]; };
+layout(set = RayImageDescSet, binding = 7) buffer _GIReservoirPrev { GIReservoir uGIReservoirPrev[]; };
 
 
 // in ratTraceLayouts.glsl

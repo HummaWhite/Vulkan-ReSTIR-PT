@@ -18,6 +18,7 @@
 #include "core/ShaderManager.h"
 #include "core/Memory.h"
 #include "core/Descriptor.h"
+#include "shader/HostDevice.h"
 #include "Scene.h"
 
 #include "util/Error.h"
@@ -70,9 +71,9 @@ private:
 	void destroyFrame();
 
 public:
-	std::unique_ptr<zvk::Image> GBufferA[2];
-	std::unique_ptr<zvk::Image> GBufferB[2];
-	vk::Framebuffer framebuffer[2];
+	std::unique_ptr<zvk::Image> GBufferA[NumFramesInFlight];
+	std::unique_ptr<zvk::Image> GBufferB[NumFramesInFlight];
+	vk::Framebuffer framebuffer[NumFramesInFlight];
 
 private:
 	vk::Pipeline mPipeline;
@@ -83,7 +84,7 @@ private:
 	std::unique_ptr<zvk::Buffer> mDrawCommandBuffer;
 	std::unique_ptr<zvk::Buffer> mDrawParamBuffer;
 
-	std::unique_ptr<zvk::Image> mDepthStencil[2];
+	std::unique_ptr<zvk::Image> mDepthStencil[NumFramesInFlight];
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
 	std::unique_ptr<zvk::DescriptorSetLayout> mDrawParamDescLayout;

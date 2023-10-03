@@ -1,24 +1,21 @@
-#include "NaiveDirectIllumination.h"
+#include "NaiveDIPass.h"
 #include "shader/HostDevice.h"
 #include "core/ExtFunctions.h"
 #include "core/DebugUtils.h"
 
-NaiveDirectIllumination::NaiveDirectIllumination(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent, zvk::QueueIdx queueIdx) :
+NaiveDIPass::NaiveDIPass(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent) :
 	zvk::BaseVkObject(ctx)
 {
-	createFrame(extent, queueIdx);
 }
 
-void NaiveDirectIllumination::destroy() {
-	destroyFrame();
-
+void NaiveDIPass::destroy() {
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void NaiveDirectIllumination::render(
+void NaiveDIPass::render(
 	vk::CommandBuffer cmd, uint32_t frameIdx,
-	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet imageOutDescSet, vk::DescriptorSet rayTracingDescSet,
+	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet rayImageDescSet, vk::DescriptorSet rayTracingDescSet,
 	vk::Extent2D extent, uint32_t maxDepth
 ) {
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
@@ -27,7 +24,7 @@ void NaiveDirectIllumination::render(
 
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, cameraDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ImageOutputDescSet, imageOutDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayImageDescSet, rayImageDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, rayTracingDescSet, {});
 
 	zvk::ExtFunctions::cmdTraceRaysKHR(
@@ -37,12 +34,7 @@ void NaiveDirectIllumination::render(
 	);
 }
 
-void NaiveDirectIllumination::recreateFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
-	destroyFrame();
-	createFrame(extent, queueIdx);
-}
-
-void NaiveDirectIllumination::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+void NaiveDIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
 	enum Stages : uint32_t {
 		RayGen,
 		Miss,
@@ -55,16 +47,16 @@ void NaiveDirectIllumination::createPipeline(zvk::ShaderManager* shaderManager, 
 	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
 
 	stages[RayGen] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/rayTrace.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
+		shaderManager->createShaderModule("shaders/naiveDIMainLoop.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
 	);
 	stages[Miss] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/rayTrace.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
+		shaderManager->createShaderModule("shaders/rayTracingMiss.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
 	);
 	stages[ShadowMiss] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/rayTraceShadow.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
+		shaderManager->createShaderModule("shaders/rayTracingShadow.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
 	);
 	stages[ClosestHit] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/rayTrace.rchit.spv"), vk::ShaderStageFlagBits::eClosestHitKHR
+		shaderManager->createShaderModule("shaders/intersection.rchit.spv"), vk::ShaderStageFlagBits::eClosestHitKHR
 	);
 
 	groups.push_back(
@@ -111,40 +103,4 @@ void NaiveDirectIllumination::createPipeline(zvk::ShaderManager* shaderManager, 
 	mPipeline = result.value;
 
 	mShaderBindingTable = std::make_unique<zvk::ShaderBindingTable>(mCtx, 2, 1, mPipeline);
-}
-
-void NaiveDirectIllumination::createFrame(vk::Extent2D extent, zvk::QueueIdx queueIdx) {
-	auto cmd = zvk::Command::createOneTimeSubmit(mCtx, queueIdx);
-
-	for (int i = 0; i < 2; i++) {
-		directOutput[i] = zvk::Memory::createImage2D(
-			mCtx, extent, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal,
-			vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
-			vk::MemoryPropertyFlagBits::eDeviceLocal
-		);
-		directOutput[i]->createImageView();
-		directOutput[i]->createSampler(vk::Filter::eLinear);
-
-		zvk::DebugUtils::nameVkObject(mCtx->device, directOutput[i]->image, "colorOutput[" + std::to_string(i) + "]");
-
-		auto barrier = directOutput[i]->getBarrier(
-			vk::ImageLayout::eGeneral,
-			vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite
-		);
-
-		cmd->cmd.pipelineBarrier(
-			vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eRayTracingShaderKHR,
-			vk::DependencyFlags{ 0 }, {}, {}, barrier
-		);
-
-		reservoir[i] = zvk::Memory::createBuffer(
-			mCtx, sizeof(Reservoir) * extent.width * extent.height, vk::BufferUsageFlagBits::eStorageBuffer,
-			vk::MemoryPropertyFlagBits::eDeviceLocal
-		);
-		zvk::DebugUtils::nameVkObject(mCtx->device, reservoir[i]->buffer, "reservoir[" + std::to_string(i) + "]");
-	}
-	cmd->submitAndWait();
-}
-
-void NaiveDirectIllumination::destroyFrame() {
 }

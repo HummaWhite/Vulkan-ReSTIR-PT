@@ -80,7 +80,7 @@ void main() {
     // vec2 motion = unpackSnorm2x16(GBufferB.z);
 
     if (depth == 0.0) {
-        imageStore(uRayColorOutput, ivec2(gl_LaunchIDEXT.xy), vec4(vec3(0.0), 1.0));
+        imageStore(uDirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(vec3(0.0), 1.0));
         return;
     }
     
@@ -166,10 +166,10 @@ void main() {
         lastBsdfPdf = absDot(surf.norm, ray.dir) * PiInv;
         lastPos = surf.pos;
     }
-    vec3 prevRadiance = imageLoad(uRayColorOutput, ivec2(gl_LaunchIDEXT.xy)).rgb;
+    vec3 prevRadiance = imageLoad(uDirectOutput, ivec2(gl_LaunchIDEXT.xy)).rgb;
     radiance = (prevRadiance * float(uCamera.frameIndex) + radiance) / (float(uCamera.frameIndex) + 1.0);
     //radiance = surf.norm * 0.5 + 0.5;
     //radiance = throughput;
 
-    imageStore(uRayColorOutput, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
+    imageStore(uDirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
 }
