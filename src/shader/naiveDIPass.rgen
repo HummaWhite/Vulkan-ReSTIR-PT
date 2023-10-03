@@ -7,67 +7,12 @@
 #include "camera.glsl"
 #include "GBufferUtil.glsl"
 #include "lightSampling.glsl"
+#include "math.glsl"
 
 layout(location = 0) rayPayloadEXT Intersection rtIsec;
 layout(location = 1) rayPayloadEXT bool rtShadowed;
 
-struct SurfaceInfo {
-    vec3 pos;
-    vec3 norm;
-    vec3 albedo;
-    int lightIndex;
-    float transSurfaceArea;
-    uint matIndex;
-};
-
-void loadSurfaceInfo(out SurfaceInfo info) {
-    ObjectInstance instance = uObjectInstances[rtIsec.instanceIdx];
-
-    info.lightIndex = InvalidResourceIdx;
-    info.matIndex = uMaterialIndices[instance.indexOffset / 3 + rtIsec.triangleIdx];
-
-    uint i0 = uIndices[instance.indexOffset + rtIsec.triangleIdx * 3 + 0];
-    uint i1 = uIndices[instance.indexOffset + rtIsec.triangleIdx * 3 + 1];
-    uint i2 = uIndices[instance.indexOffset + rtIsec.triangleIdx * 3 + 2];
-
-    MeshVertex v0 = uVertices[i0];
-    MeshVertex v1 = uVertices[i1];
-    MeshVertex v2 = uVertices[i2];
-
-    vec3 bary = vec3(1.0 - rtIsec.bary.x - rtIsec.bary.y, rtIsec.bary.x, rtIsec.bary.y);;
-
-    vec3 pos = v0.pos * bary.x + v1.pos * bary.y + v2.pos * bary.z;
-    vec3 norm = v0.norm * bary.x + v1.norm * bary.y + v2.norm * bary.z;
-    float uvx = v0.uvx * bary.x + v1.uvx * bary.y + v2.uvx * bary.z;
-    float uvy = v0.uvy * bary.x + v1.uvy * bary.y + v2.uvy * bary.z;
-
-    info.pos = vec3(instance.transform * vec4(pos, 1.0));
-    info.norm = normalize(vec3(instance.transformInvT * vec4(norm, 1.0)));
-
-    if (instance.lightIndex != InvalidResourceIdx) {
-        info.albedo = uLightInstances[instance.lightIndex].radiance;
-        info.transSurfaceArea = instance.transformedSurfaceArea;
-        info.lightIndex = instance.lightIndex;
-        return;
-    }
-    int texIdx = uMaterials[info.matIndex].textureIdx;
-
-	if (texIdx == InvalidResourceIdx) {
-	    info.albedo = uMaterials[info.matIndex].baseColor;
-	}
-	else {
-	    info.albedo = texture(uTextures[texIdx], vec2(uvx, uvy)).rgb;
-	}
-    info.matIndex = info.matIndex;
-}
-
-float MISWeight(float f, float g) {
-    return (f * f) / (f * f + g * g);
-}
-
 void main() {
-    const int MaxTracingDepth = 4;
-
     vec2 uv = (vec2(gl_LaunchIDEXT.xy) + 0.5) / vec2(gl_LaunchSizeEXT.xy);
 
     uvec4 GBufferA = texelFetch(uGBufferA, ivec2(gl_LaunchIDEXT.xy), 0);
@@ -99,77 +44,33 @@ void main() {
     surf.lightIndex = InvalidResourceIdx;
     rtIsec.hit = true;
 
-#pragma unroll
-    for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
-        if (bounce > 0) {
-            rtIsec.hit = false;
+    if (/* sample direct lighting */ true)
+    {
+        const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
-            traceRayEXT(
-                /* AS, flags, masks    */ uTLAS, gl_RayFlagsOpaqueEXT, 0xff,
-                /* SBT offset & stride */ 0, 0,
-                /* miss index          */ 0,
-                /* ray attribs         */ ray.ori, MinRayDistance, ray.dir, MaxRayDistance,
-                /* payload location    */ 0
-            );
-            loadSurfaceInfo(surf);
+        vec3 lightRadiance, lightDir;
+        float lightDist, lightPdf;
+
+        rtShadowed = true;
+        lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, rng);
+
+        traceRayEXT(
+            /* AS, flags, masks    */ uTLAS, shadowRayFlags, 0xff,
+            /* SBT offset & stride */ 0, 0,
+            /* miss index          */ 1,
+            /* ray attribs         */ surf.pos, MinRayDistance, lightDir, lightDist - 1e-4,
+            /* payload location    */ 1
+        );
+
+        if (!rtShadowed && lightPdf > 1e-6) {
+            float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
+            float weight = MISWeight(lightPdf, bsdfPdf);
+            radiance += lightRadiance * (surf.albedo * PiInv) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
         }
-
-        if (!rtIsec.hit) {
-            break;
-        }
-
-        if (surf.lightIndex != InvalidResourceIdx) {
-            float cosTheta = -dot(ray.dir, surf.norm);
-
-            if (cosTheta > 0) {
-                float weight = 1.0;
-
-                if (bounce > 0) {
-                    float dist = length(surf.pos - lastPos);
-                    float sumPower = uLightSampleTable[0].prob;
-                    float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / cosTheta;
-                    weight = MISWeight(lastBsdfPdf, lightPdf);
-                }
-                radiance += surf.albedo * weight * throughput;
-            }
-            break;
-        }
-
-        if (/* sample direct lighting */ true)
-        {
-            const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
-
-            vec3 lightRadiance, lightDir;
-            float lightDist, lightPdf;
-
-            rtShadowed = true;
-            lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, rng);
-
-            traceRayEXT(
-                /* AS, flags, masks    */ uTLAS, shadowRayFlags, 0xff,
-                /* SBT offset & stride */ 0, 0,
-                /* miss index          */ 1,
-                /* ray attribs         */ surf.pos, MinRayDistance, lightDir, lightDist - 1e-4,
-                /* payload location    */ 1
-            );
-
-            if (!rtShadowed && lightPdf > 1e-6) {
-                float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
-                float weight = MISWeight(lightPdf, bsdfPdf);
-                radiance += lightRadiance * (surf.albedo * PiInv) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
-            }
-        }
-
-        ray.dir = sampleCosineWeightedHemisphere(surf.norm, sample2f(rng));
-        ray.ori = surf.pos + ray.dir * 1e-4;
-        throughput *= surf.albedo;
-        lastBsdfPdf = absDot(surf.norm, ray.dir) * PiInv;
-        lastPos = surf.pos;
     }
+
     vec3 prevRadiance = imageLoad(uDirectOutput, ivec2(gl_LaunchIDEXT.xy)).rgb;
     radiance = (prevRadiance * float(uCamera.frameIndex) + radiance) / (float(uCamera.frameIndex) + 1.0);
-    //radiance = surf.norm * 0.5 + 0.5;
-    //radiance = throughput;
 
     imageStore(uDirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
 }

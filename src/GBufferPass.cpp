@@ -14,14 +14,6 @@ GBufferPass::GBufferPass(
 }
 
 void GBufferPass::destroy() {
-	/*
-	mDrawParamDescLayout.reset();
-	mDescriptorPool.reset();
-
-	mDrawCommandBuffer.reset();
-	mDrawParamBuffer.reset();
-	*/
-
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 	mCtx->device.destroyRenderPass(mRenderPass);

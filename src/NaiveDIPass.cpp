@@ -3,11 +3,6 @@
 #include "core/ExtFunctions.h"
 #include "core/DebugUtils.h"
 
-NaiveDIPass::NaiveDIPass(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent) :
-	zvk::BaseVkObject(ctx)
-{
-}
-
 void NaiveDIPass::destroy() {
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
@@ -47,7 +42,7 @@ void NaiveDIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t max
 	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
 
 	stages[RayGen] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/naiveDIMainLoop.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
+		shaderManager->createShaderModule("shaders/naiveDIPass.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
 	);
 	stages[Miss] = zvk::ShaderManager::shaderStageCreateInfo(
 		shaderManager->createShaderModule("shaders/rayTracingMiss.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR

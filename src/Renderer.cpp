@@ -75,7 +75,9 @@ void Renderer::initVulkan() {
 
 	auto descIndexing = vk::PhysicalDeviceDescriptorIndexingFeatures()
 		.setShaderSampledImageArrayNonUniformIndexing(true)
-		.setDescriptorBindingVariableDescriptorCount(true);
+		.setDescriptorBindingVariableDescriptorCount(true)
+		.setDescriptorBindingPartiallyBound(true)
+		.setRuntimeDescriptorArray(true);
 
 	auto bufferDeviceAddress = vk::PhysicalDeviceBufferDeviceAddressFeatures()
 		.setBufferDeviceAddress(true)
@@ -112,8 +114,11 @@ void Renderer::initVulkan() {
 
 		mDeviceScene = std::make_unique<DeviceScene>(mContext.get(), mScene, zvk::QueueIdx::GeneralUse);
 
-		mGBufferPass = std::make_unique<GBufferPass>(mContext.get(), mSwapchain->extent(), mScene.resource);
-		mNaiveDIPass = std::make_unique<NaiveDIPass>(mContext.get(), mScene.resource, mDeviceScene.get(), mSwapchain->extent());
+		auto extent = mSwapchain->extent();
+
+		mGBufferPass = std::make_unique<GBufferPass>(mContext.get(), extent, mScene.resource);
+		mNaiveDIPass = std::make_unique<NaiveDIPass>(mContext.get());
+		mNaiveGIPass = std::make_unique<NaiveGIPass>(mContext.get());
 		mPostProcPass = std::make_unique<PostProcPassFrag>(mContext.get(), mSwapchain.get());
 
 		Log::newLine();
@@ -145,6 +150,7 @@ void Renderer::createPipeline() {
 	};
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager.get(), descLayouts);
 	mNaiveDIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
+	mNaiveGIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
 	mPostProcPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
 
@@ -341,7 +347,8 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 
 	const auto& GBufferA = mGBufferPass->GBufferA[mFrameIndex];
 	const auto& GBufferB = mGBufferPass->GBufferB[mFrameIndex];
-	const auto& rayOutput = mDirectOutput[mFrameIndex];
+	const auto& directOutput = mDirectOutput[mFrameIndex];
+	const auto& indirectOutput = mIndirectOutput[mFrameIndex];
 
 	cmd.begin(beginInfo); {
 		mGBufferPass->render(
@@ -368,18 +375,22 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			mSwapchain->extent(), 1
 		);
 
-		auto rayImageBarriersBefore = {
-			rayOutput->getBarrier(
-				rayOutput->layout,
-				vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead
-			),
+		mNaiveGIPass->render(
+			cmd, mFrameIndex,
+			mCameraDescSet[mFrameIndex], mDeviceScene->resourceDescSet, mRayImageDescSet[mFrameIndex], mDeviceScene->rayTracingDescSet,
+			mSwapchain->extent(), 1
+		);
+
+		auto rayImageBarriers = {
+			directOutput->getBarrier(directOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
+			indirectOutput->getBarrier(indirectOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
 		};
 
 		cmd.pipelineBarrier(
 			vk::PipelineStageFlagBits::eRayTracingShaderKHR,
 			vk::PipelineStageFlagBits::eFragmentShader,
 			vk::DependencyFlags{ 0 },
-			{}, {}, rayImageBarriersBefore
+			{}, {}, rayImageBarriers
 		);
 
 		mPostProcPass->render(cmd, mFrameIndex, imageIdx, mRayImageDescSet[mFrameIndex], mSwapchain->extent());
@@ -472,6 +483,7 @@ void Renderer::cleanupVulkan() {
 	mDeviceScene.reset();
 	mGBufferPass.reset();
 	mNaiveDIPass.reset();
+	mNaiveGIPass.reset();
 	mPostProcPass.reset();
 
 	mCameraDescLayout.reset();

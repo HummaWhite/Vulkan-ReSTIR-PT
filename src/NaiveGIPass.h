@@ -25,3 +25,22 @@
 
 #include "util/Error.h"
 #include "util/Timer.h"
+
+class NaiveGIPass : public zvk::BaseVkObject {
+public:
+	NaiveGIPass(const zvk::Context* ctx) : BaseVkObject(ctx) {}
+	~NaiveGIPass() { destroy(); }
+	void destroy();
+
+	void createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts);
+
+	void render(
+		vk::CommandBuffer cmd, uint32_t frameIdx,
+		vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet rayImageDescSet, vk::DescriptorSet rayTracingDescSet,
+		vk::Extent2D extent, uint32_t maxDepth);
+
+private:
+	vk::Pipeline mPipeline;
+	vk::PipelineLayout mPipelineLayout;
+	std::unique_ptr<zvk::ShaderBindingTable> mShaderBindingTable;
+};

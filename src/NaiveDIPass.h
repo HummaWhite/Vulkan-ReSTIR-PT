@@ -28,8 +28,7 @@
 
 class NaiveDIPass : public zvk::BaseVkObject {
 public:
-	NaiveDIPass(const zvk::Context* ctx, const Resource& resource, const DeviceScene* scene, vk::Extent2D extent);
-
+	NaiveDIPass(const zvk::Context* ctx) : BaseVkObject(ctx) {}
 	~NaiveDIPass() { destroy(); }
 	void destroy();
 

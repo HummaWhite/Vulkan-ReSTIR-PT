@@ -19,14 +19,14 @@
 #include "core/ShaderManager.h"
 #include "core/Memory.h"
 #include "core/Descriptor.h"
+#include "util/Error.h"
+#include "util/Timer.h"
+#include "shader/HostDevice.h"
 #include "Scene.h"
 #include "GBufferPass.h"
 #include "NaiveDIPass.h"
+#include "NaiveGIPass.h"
 #include "PostProcPassFrag.h"
-#include "shader/HostDevice.h"
-
-#include "util/Error.h"
-#include "util/Timer.h"
 
 class Renderer {
 public:
@@ -107,6 +107,7 @@ private:
 
 	std::unique_ptr<GBufferPass> mGBufferPass;
 	std::unique_ptr<NaiveDIPass> mNaiveDIPass;
+	std::unique_ptr<NaiveGIPass> mNaiveGIPass;
 	std::unique_ptr<PostProcPassFrag> mPostProcPass;
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
