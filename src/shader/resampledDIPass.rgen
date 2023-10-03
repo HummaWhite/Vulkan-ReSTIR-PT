@@ -68,6 +68,7 @@ void main() {
             radiance += lightRadiance * (surf.albedo * PiInv) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
         }
     }
+
     vec3 prevRadiance = imageLoad(uDirectOutput, ivec2(gl_LaunchIDEXT.xy)).rgb;
     radiance = (prevRadiance * float(uCamera.frameIndex) + radiance) / (float(uCamera.frameIndex) + 1.0);
 

@@ -66,11 +66,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/")
 set(Assimp_dir "ext/assimp")
 set(Assimp_include_dir "${Assimp_dir}/include")
 
+set(GLFW_dir "ext/GLFW")
+set(GLFW_include_dir "${GLFW_dir}/include")
+
 include_directories(
 	"${CMAKE_CURRENT_SOURCE_DIR}/${Assimp_include_dir}"
 	"${PROJECT_SOURCE_DIR}/build/${Assimp_include_dir}"
+	"${CMAKE_CURRENT_SOURCE_DIR}/${GLFW_include_dir}"
+	"${CMAKE_CURRENT_SOURCE_DIR}/ext/pugixml/src"
+	"${Vulkan_INCLUDE_DIRS}"
 )
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/ext/pugixml/src")
 
 add_subdirectory(ext)
 add_subdirectory(src)

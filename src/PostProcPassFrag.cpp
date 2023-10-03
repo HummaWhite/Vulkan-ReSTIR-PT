@@ -220,7 +220,7 @@ void PostProcPassFrag::createRenderPass() {
 void PostProcPassFrag::createFramebuffer(const zvk::Swapchain* swapchain) {
 	framebuffers.resize(swapchain->numImages());
 
-	for (int i = 0; i < swapchain->numImages(); i++) {;
+	for (int i = 0; i < swapchain->numImages(); i++) {
 		auto createInfo = vk::FramebufferCreateInfo()
 			.setRenderPass(mRenderPass)
 			.setAttachments(swapchain->imageViews()[i])

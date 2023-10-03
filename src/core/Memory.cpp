@@ -176,13 +176,13 @@ vk::SamplerCreateInfo Image::samplerCreateInfo(vk::Filter filter, bool anisotrop
 		.setAddressModeV(vk::SamplerAddressMode::eRepeat)
 		.setAddressModeW(vk::SamplerAddressMode::eRepeat)
 		.setUnnormalizedCoordinates(false)
-		.setAnisotropyEnable(mCtx->instance()->deviceFeatures.samplerAnisotropy & anisotropyIfPossible)
+		.setAnisotropyEnable(mCtx->instance()->deviceFeatures.samplerAnisotropy & vk::Bool32(anisotropyIfPossible))
 		.setMaxAnisotropy(mCtx->instance()->deviceProperties.limits.maxSamplerAnisotropy)
 		.setCompareEnable(false)
 		.setMipmapMode((filter == vk::Filter::eLinear) ? vk::SamplerMipmapMode::eLinear : vk::SamplerMipmapMode::eNearest)
 		.setMipLodBias(0)
 		.setMinLod(0)
-		.setMaxLod(numMipLevels);
+		.setMaxLod(static_cast<float>(numMipLevels));
 }
 
 void Image::createImageView(bool array) {

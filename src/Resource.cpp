@@ -28,7 +28,7 @@ std::optional<uint32_t> Resource::addImage(const File::path& path, zvk::HostImag
 	if (!img) {
 		return std::nullopt;
 	}
-	mMapPathToImageIndex[path] = mImagePool.size();
+	mMapPathToImageIndex[path] = static_cast<uint32_t>(mImagePool.size());
 	mImagePool.push_back(img);
 	return mImagePool.size() - 1;
 }
@@ -98,7 +98,7 @@ ModelInstance* Resource::openModelInstance(const File::path& path, glm::vec3 pos
 
 	if (model == nullptr) {
 		model = createNewModelInstance(path);
-		model->mRefId = mUniqueModelInstances.size();
+		model->mRefId = static_cast<uint32_t>(mUniqueModelInstances.size());
 		mMapPathToModelInstance[path] = model;
 		mUniqueModelInstances.push_back(model);
 	}
@@ -139,26 +139,26 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 
 	std::stack<aiNode*> stack;
 	stack.push(scene->mRootNode);
-	model->mMeshOffset = mMeshInstances.size();
+	model->mMeshOffset = static_cast<uint32_t>(mMeshInstances.size());
 
 	while (!stack.empty()) {
 		auto node = stack.top();
 		stack.pop();
 
-		for (int i = 0; i < node->mNumMeshes; i++) {
+		for (uint32_t i = 0; i < node->mNumMeshes; i++) {
 			auto mesh = scene->mMeshes[node->mMeshes[i]];
 			auto meshInstance = createNewMeshInstance(mesh, scene);
 			model->mNumIndices += meshInstance.indexCount;
 			model->mNumVertices += meshInstance.vertexCount;
 			mMeshInstances.push_back(meshInstance);
 		}
-		for (int i = 0; i < node->mNumChildren; i++) {
+		for (uint32_t i = 0; i < node->mNumChildren; i++) {
 			stack.push(node->mChildren[i]);
 		}
 		model->mNumMeshes += node->mNumMeshes;
 	}
 
-	for (int i = 0; i < scene->mNumMaterials; i++) {
+	for (uint32_t i = 0; i < scene->mNumMaterials; i++) {
 		aiMaterial* aiMat = scene->mMaterials[i];
 		aiColor3D albedo;
 		aiMat->Get(AI_MATKEY_COLOR_DIFFUSE, albedo);
@@ -225,9 +225,9 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 		", nFaces = " + std::to_string(mesh->mNumFaces));
 
 	MeshInstance meshInstance;
-	uint32_t vertexOffset = mVertices.size();
+	auto vertexOffset = static_cast<uint32_t>(mVertices.size());
 
-	for (int i = 0; i < mesh->mNumVertices; i++) {
+	for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
 		MeshVertex vertex;
 		vertex.pos = { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
 		vertex.norm = { mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
@@ -235,18 +235,18 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 		vertex.uvy = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][i].y : 0;
 		mVertices.push_back(vertex);
 	}
-	uint32_t materialOffset = mMaterials.size();
+	auto materialOffset = static_cast<uint32_t>(mMaterials.size());
 
 	if (scene->mNumMaterials > 0 && mesh->mMaterialIndex >= 0) {
 		meshInstance.materialIdx = mesh->mMaterialIndex + materialOffset;
 	}
 	meshInstance.vertexOffset = vertexOffset;
 	meshInstance.vertexCount = mesh->mNumVertices;
-	meshInstance.indexOffset = mIndices.size();
+	meshInstance.indexOffset = static_cast<uint32_t>(mIndices.size());
 
-	for (int i = 0; i < mesh->mNumFaces; i++) {
+	for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
 		aiFace face = mesh->mFaces[i];
-		for (int j = 0; j < face.mNumIndices; j++) {
+		for (uint32_t j = 0; j < face.mNumIndices; j++) {
 			mIndices.push_back(face.mIndices[j] + vertexOffset);
 		}
 		meshInstance.indexCount += face.mNumIndices;

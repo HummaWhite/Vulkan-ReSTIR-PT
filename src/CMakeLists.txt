@@ -78,7 +78,7 @@ foreach(SHADER_SOURCE ${SHADER_SOURCES})
     # TODO: Build shaders on not windows
 endforeach()
 
-target_link_libraries(Vulkan_ReSTIR_PT Vulkan::Vulkan glfw stb assimp pugixml)
+target_link_libraries(Vulkan_ReSTIR_PT Vulkan::Vulkan glfw stb imgui assimp pugixml)
 
 target_include_directories(Vulkan_ReSTIR_PT
 	PRIVATE

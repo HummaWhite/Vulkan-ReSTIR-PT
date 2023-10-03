@@ -101,7 +101,9 @@ void Renderer::initVulkan() {
 		mInstance = std::make_unique<zvk::Instance>(mAppInfo, mMainWindow, DeviceExtensions);
 		mContext = std::make_unique<zvk::Context>(mInstance.get(), DeviceExtensions, featureChain);
 		mSwapchain = std::make_unique<zvk::Swapchain>(mContext.get(), mWidth, mHeight, SWAPCHAIN_FORMAT, false);
+
 		mShaderManager = std::make_unique<zvk::ShaderManager>(mContext->device);
+		mGUIManager = std::make_unique<GUIManager>(mContext.get(), mSwapchain.get(), mMainWindow);
 
 		createCameraBuffer();
 		createRayImage();
@@ -119,6 +121,8 @@ void Renderer::initVulkan() {
 		mGBufferPass = std::make_unique<GBufferPass>(mContext.get(), extent, mScene.resource);
 		mNaiveDIPass = std::make_unique<NaiveDIPass>(mContext.get());
 		mNaiveGIPass = std::make_unique<NaiveGIPass>(mContext.get());
+		mResampledDIPass = std::make_unique<ResampledDIPass>(mContext.get());
+		mResampledGIPass = std::make_unique<ResampledGIPass>(mContext.get());
 		mPostProcPass = std::make_unique<PostProcPassFrag>(mContext.get(), mSwapchain.get());
 
 		Log::newLine();
@@ -151,6 +155,8 @@ void Renderer::createPipeline() {
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager.get(), descLayouts);
 	mNaiveDIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
 	mNaiveGIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
+	mResampledDIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
+	mResampledGIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
 	mPostProcPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
 
@@ -484,6 +490,8 @@ void Renderer::cleanupVulkan() {
 	mGBufferPass.reset();
 	mNaiveDIPass.reset();
 	mNaiveGIPass.reset();
+	mResampledDIPass.reset();
+	mResampledGIPass.reset();
 	mPostProcPass.reset();
 
 	mCameraDescLayout.reset();
@@ -500,6 +508,7 @@ void Renderer::cleanupVulkan() {
 		cmd.reset();
 	}
 
+	mGUIManager.reset();
 	mShaderManager.reset();
 	mContext.reset();
 	mInstance.reset();

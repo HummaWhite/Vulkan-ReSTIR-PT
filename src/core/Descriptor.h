@@ -34,6 +34,10 @@ public:
         const Context* ctx, const vk::ArrayProxy<DescriptorSetLayout*>& layouts, uint32_t numCopies,
         vk::DescriptorPoolCreateFlags flags = vk::DescriptorPoolCreateFlags{ 0 });
 
+    DescriptorPool(
+        const Context* ctx, const vk::ArrayProxy<vk::DescriptorPoolSize>& sizes,
+        vk::DescriptorPoolCreateFlags flags = vk::DescriptorPoolCreateFlags{ 0 });
+
     ~DescriptorPool() { destroy(); }
 
     void destroy() {

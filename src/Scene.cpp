@@ -348,12 +348,10 @@ void DeviceScene::createDescriptor() {
 			textures.size()
 		),
 		zvk::Descriptor::makeBinding(
-			1, vk::DescriptorType::eStorageBuffer,
-			vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | RayTracingShaderStageFlags
+			1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | RayTracingShaderStageFlags
 		),
 		zvk::Descriptor::makeBinding(
-			2, vk::DescriptorType::eStorageBuffer,
-			vk::ShaderStageFlagBits::eVertex | RayTracingShaderStageFlags
+			2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | RayTracingShaderStageFlags
 		),
 		zvk::Descriptor::makeBinding(
 			3, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags

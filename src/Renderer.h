@@ -26,7 +26,10 @@
 #include "GBufferPass.h"
 #include "NaiveDIPass.h"
 #include "NaiveGIPass.h"
+#include "ResampledDIPass.h"
+#include "ResampledGIPass.h"
 #include "PostProcPassFrag.h"
+#include "GUIManager.h"
 
 class Renderer {
 public:
@@ -78,6 +81,8 @@ private:
 	double mLastTime = 0;
 	uint32_t mFrameIndex = 0;
 
+	std::unique_ptr<GUIManager> mGUIManager;
+
 	std::default_random_engine mRng;
 
 	vk::ApplicationInfo mAppInfo;
@@ -108,6 +113,8 @@ private:
 	std::unique_ptr<GBufferPass> mGBufferPass;
 	std::unique_ptr<NaiveDIPass> mNaiveDIPass;
 	std::unique_ptr<NaiveGIPass> mNaiveGIPass;
+	std::unique_ptr<ResampledDIPass> mResampledDIPass;
+	std::unique_ptr<ResampledGIPass> mResampledGIPass;
 	std::unique_ptr<PostProcPassFrag> mPostProcPass;
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;

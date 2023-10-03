@@ -46,6 +46,19 @@ DescriptorPool::DescriptorPool(
     pool = mCtx->device.createDescriptorPool(createInfo);
 }
 
+DescriptorPool::DescriptorPool(
+    const Context* ctx, const vk::ArrayProxy<vk::DescriptorPoolSize>& sizes,
+    vk::DescriptorPoolCreateFlags flags
+) : BaseVkObject(ctx)
+{
+    auto createInfo = vk::DescriptorPoolCreateInfo()
+        .setPoolSizes(sizes)
+        .setFlags(flags)
+        .setMaxSets(1);
+
+    pool = mCtx->device.createDescriptorPool(createInfo);
+}
+
 void DescriptorWrite::add(
     const DescriptorSetLayout* layout,
     vk::DescriptorSet set, uint32_t binding, const vk::DescriptorBufferInfo& bufferInfo
