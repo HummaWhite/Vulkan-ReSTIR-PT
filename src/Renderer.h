@@ -33,6 +33,20 @@
 
 class Renderer {
 public:
+	struct RayTracingMethod {
+		enum _RayTracingMethod {
+			None = 0, Naive = 1, ResampledDI = 2, ResampledGI = 2, ResampledPT = 3
+		};
+	};
+
+	struct Settings {
+		int directMethod = RayTracingMethod::Naive;
+		int indirectMethod = RayTracingMethod::Naive;
+		int toneMapping = 1;
+		bool correctGamma = true;
+		bool accumulate = false;
+	};
+
 	Renderer(const std::string& name, int width, int height) :
 		mName(name), mWidth(width), mHeight(height) {}
 
@@ -82,6 +96,7 @@ private:
 	Timer mRenderTimer;
 	double mLastTime = 0;
 	uint32_t mFrameIndex = 0;
+	Settings mSettings;
 
 	std::unique_ptr<GUIManager> mGUIManager;
 

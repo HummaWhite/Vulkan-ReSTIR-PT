@@ -21,11 +21,7 @@ void GBufferPass::destroy() {
 	destroyFrame();
 }
 
-void GBufferPass::render(
-	vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t frameIdx,
-	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet,
-	vk::Buffer vertexBuffer, vk::Buffer indexBuffer, uint32_t offset, uint32_t count
-) {
+void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t frameIdx, const GBufferRenderParam& param) {
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
@@ -43,23 +39,23 @@ void GBufferPass::render(
 
 	cmd.bindPipeline(bindPoint, mPipeline);
 
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, cameraDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, param.cameraDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, GBufferDrawParamDescSet, mDrawParamDescSet, {});
 
 	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
 
-	cmd.bindVertexBuffers(0, vertexBuffer, vk::DeviceSize(0));
-	cmd.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+	cmd.bindVertexBuffers(0, param.vertexBuffer, vk::DeviceSize(0));
+	cmd.bindIndexBuffer(param.indexBuffer, 0, vk::IndexType::eUint32);
 
-	for (uint32_t i = 0; i < count; i++) {
+	for (uint32_t i = 0; i < param.count; i++) {
 		cmd.pushConstants(
-			mPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(GBufferDrawParam), &mDrawParams[offset + i]
+			mPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(GBufferDrawParam), &mDrawParams[param.offset + i]
 		);
 
 		cmd.drawIndexedIndirect(
-			mDrawCommandBuffer->buffer, (offset + i) * sizeof(vk::DrawIndexedIndirectCommand), 1, sizeof(vk::DrawIndexedIndirectCommand)
+			mDrawCommandBuffer->buffer, (param.offset + i) * sizeof(vk::DrawIndexedIndirectCommand), 1, sizeof(vk::DrawIndexedIndirectCommand)
 		);
 	}
 	cmd.endRenderPass();

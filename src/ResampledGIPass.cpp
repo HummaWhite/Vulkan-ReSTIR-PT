@@ -8,24 +8,20 @@ void ResampledGIPass::destroy() {
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void ResampledGIPass::render(
-	vk::CommandBuffer cmd, uint32_t frameIdx,
-	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet rayImageDescSet, vk::DescriptorSet rayTracingDescSet,
-	vk::Extent2D extent, uint32_t maxDepth
-) {
+void ResampledGIPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
 
 	cmd.bindPipeline(bindPoint, mPipeline);
 
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, cameraDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayImageDescSet, rayImageDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, rayTracingDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, param.cameraDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayImageDescSet, param.rayImageDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, param.rayTracingDescSet, {});
 
 	zvk::ExtFunctions::cmdTraceRaysKHR(
 		cmd,
 		mShaderBindingTable->rayGenRegion, mShaderBindingTable->missRegion, mShaderBindingTable->hitRegion, mShaderBindingTable->callableRegion,
-		extent.width, extent.height, maxDepth
+		extent.width, extent.height, param.maxDepth
 	);
 }
 
@@ -42,7 +38,7 @@ void ResampledGIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t
 	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
 
 	stages[RayGen] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/naiveDIPass.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
+		shaderManager->createShaderModule("shaders/naiveGIPass.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
 	);
 	stages[Miss] = zvk::ShaderManager::shaderStageCreateInfo(
 		shaderManager->createShaderModule("shaders/rayTracingMiss.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR

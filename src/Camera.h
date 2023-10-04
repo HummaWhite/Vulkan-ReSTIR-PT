@@ -42,7 +42,6 @@ public:
 
 	void nextFrame(std::default_random_engine& rng);
 
-private:
 	void update();
 
 private:

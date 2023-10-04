@@ -33,6 +33,15 @@ struct GBufferDrawParam {
 	std140(int32_t, pad2);
 };
 
+struct GBufferRenderParam {
+	vk::DescriptorSet cameraDescSet;
+	vk::DescriptorSet resourceDescSet;
+	vk::Buffer vertexBuffer;
+	vk::Buffer indexBuffer;
+	uint32_t offset;
+	uint32_t count;
+};
+
 class GBufferPass : public zvk::BaseVkObject {
 	constexpr static vk::Format GBufferAFormat = vk::Format::eR32G32B32A32Uint;
 	constexpr static vk::Format GBufferBFormat = vk::Format::eR32G32B32A32Uint;
@@ -52,10 +61,7 @@ public:
 		vk::Extent2D extent, zvk::ShaderManager* shaderManager,
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
-	void render(
-		vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t frameIdx,
-		vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet,
-		vk::Buffer vertexBuffer, vk::Buffer indexBuffer, uint32_t offset, uint32_t count);
+	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t frameIdx, const GBufferRenderParam& param);
 
 	void initDescriptor();
 

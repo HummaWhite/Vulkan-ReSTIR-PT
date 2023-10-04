@@ -8,24 +8,20 @@ void NaiveDIPass::destroy() {
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void NaiveDIPass::render(
-	vk::CommandBuffer cmd, uint32_t frameIdx,
-	vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet rayImageDescSet, vk::DescriptorSet rayTracingDescSet,
-	vk::Extent2D extent, uint32_t maxDepth
-) {
+void NaiveDIPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
 
 	cmd.bindPipeline(bindPoint, mPipeline);
 
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, cameraDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, resourceDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayImageDescSet, rayImageDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, rayTracingDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, param.cameraDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayImageDescSet, param.rayImageDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, param.rayTracingDescSet, {});
 
 	zvk::ExtFunctions::cmdTraceRaysKHR(
 		cmd,
 		mShaderBindingTable->rayGenRegion, mShaderBindingTable->missRegion, mShaderBindingTable->hitRegion, mShaderBindingTable->callableRegion,
-		extent.width, extent.height, maxDepth
+		extent.width, extent.height, param.maxDepth
 	);
 }
 

@@ -8,7 +8,7 @@
 
 #include "core/HostImage.h"
 #include "core/Memory.h"
-#include "core/Descriptor.h""
+#include "core/Descriptor.h"
 #include "core/AccelerationStructure.h"
 #include "Model.h"
 #include "Camera.h"

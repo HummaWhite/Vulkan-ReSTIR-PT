@@ -119,8 +119,11 @@ void PostProcPassFrag::createPipeline(
 		.setDepthBoundsTestEnable(false)
 		.setStencilTestEnable(false);
 
+	vk::PushConstantRange pushConstant(vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstant));
+
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts(descLayouts);
+		.setSetLayouts(descLayouts)
+		.setPushConstantRanges(pushConstant);
 
 	mPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
 
@@ -149,7 +152,10 @@ void PostProcPassFrag::createPipeline(
 	mPipeline = result.value;
 }
 
-void PostProcPassFrag::render(vk::CommandBuffer cmd, uint32_t imageIdx, vk::DescriptorSet rayImageDescSet, vk::Extent2D extent) {
+void PostProcPassFrag::render(
+	vk::CommandBuffer cmd, uint32_t imageIdx,
+	vk::DescriptorSet rayImageDescSet, vk::Extent2D extent, PushConstant param
+) {
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f)
 	};
@@ -167,6 +173,8 @@ void PostProcPassFrag::render(vk::CommandBuffer cmd, uint32_t imageIdx, vk::Desc
 
 	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
+
+	cmd.pushConstants(mPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstant), &param);
 
 	cmd.bindVertexBuffers(0, mQuadVertexBuffer->buffer, vk::DeviceSize(0));
 	cmd.draw(6, 1, 0, 0);
@@ -220,7 +228,7 @@ void PostProcPassFrag::createRenderPass() {
 void PostProcPassFrag::createFramebuffer(const zvk::Swapchain* swapchain) {
 	framebuffers.resize(swapchain->numImages());
 
-	for (int i = 0; i < swapchain->numImages(); i++) {
+	for (uint32_t i = 0; i < swapchain->numImages(); i++) {
 		auto createInfo = vk::FramebufferCreateInfo()
 			.setRenderPass(mRenderPass)
 			.setAttachments(swapchain->imageViews()[i])

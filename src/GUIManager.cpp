@@ -30,7 +30,7 @@ GUIManager::GUIManager(const zvk::Context* ctx, GLFWwindow* window, uint32_t num
 
 	auto queueIdx = zvk::QueueIdx::GeneralUse;
 
-	auto initInfo = ImGui_ImplVulkan_InitInfo{
+	auto initInfo = ImGui_ImplVulkan_InitInfo {
 		.Instance = ctx->instance()->instance(),
 		.PhysicalDevice = ctx->instance()->physicalDevice(),
 		.Device = ctx->device,

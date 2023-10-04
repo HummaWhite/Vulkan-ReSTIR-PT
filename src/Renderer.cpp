@@ -357,12 +357,32 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 	const auto& directOutput = mDirectOutput[mFrameIndex];
 	const auto& indirectOutput = mIndirectOutput[mFrameIndex];
 
+	auto GBufferParam = GBufferRenderParam {
+		.cameraDescSet = mCameraDescSet[mFrameIndex],
+		.resourceDescSet = mDeviceScene->resourceDescSet,
+		.vertexBuffer = mDeviceScene->vertices->buffer,
+		.indexBuffer = mDeviceScene->indices->buffer,
+		.offset = 0,
+		.count = static_cast<uint32_t>(mScene.resource.meshInstances().size())
+	};
+
+	auto rayTracingParam = RayTracingRenderParam {
+		.cameraDescSet = mCameraDescSet[mFrameIndex],
+		.resourceDescSet = mDeviceScene->resourceDescSet,
+		.rayImageDescSet = mRayImageDescSet[mFrameIndex],
+		.rayTracingDescSet = mDeviceScene->rayTracingDescSet,
+		.maxDepth = 1
+	};
+
+	auto postProcPushConstant = PostProcPassFrag::PushConstant {
+		.toneMapping = static_cast<uint32_t>(mSettings.toneMapping),
+		.correctGamma = static_cast<uint32_t>(mSettings.correctGamma),
+		.noDirect = (mSettings.directMethod == RayTracingMethod::None),
+		.noIndirect = (mSettings.indirectMethod == RayTracingMethod::None)
+	};
+
 	cmd.begin(beginInfo); {
-		mGBufferPass->render(
-			cmd, mSwapchain->extent(), mFrameIndex,
-			mCameraDescSet[mFrameIndex], mDeviceScene->resourceDescSet,
-			mDeviceScene->vertices->buffer, mDeviceScene->indices->buffer, 0, mScene.resource.meshInstances().size()
-		);
+		mGBufferPass->render(cmd, mSwapchain->extent(), mFrameIndex, GBufferParam);
 
 		auto GBufferImageBarriers = {
 			GBufferA->getBarrier(GBufferA->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
@@ -376,17 +396,19 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			{}, {}, GBufferImageBarriers
 		);
 
-		mNaiveDIPass->render(
-			cmd, mFrameIndex,
-			mCameraDescSet[mFrameIndex], mDeviceScene->resourceDescSet, mRayImageDescSet[mFrameIndex], mDeviceScene->rayTracingDescSet,
-			mSwapchain->extent(), 1
-		);
+		if (mSettings.directMethod == RayTracingMethod::Naive) {
+			mNaiveDIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+		}
+		else if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
+			mResampledDIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+		}
 
-		mNaiveGIPass->render(
-			cmd, mFrameIndex,
-			mCameraDescSet[mFrameIndex], mDeviceScene->resourceDescSet, mRayImageDescSet[mFrameIndex], mDeviceScene->rayTracingDescSet,
-			mSwapchain->extent(), 1
-		);
+		if (mSettings.indirectMethod == RayTracingMethod::Naive) {
+			mNaiveGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+		}
+		else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
+			mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+		}
 
 		auto rayImageBarriers = {
 			directOutput->getBarrier(directOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
@@ -400,7 +422,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			{}, {}, rayImageBarriers
 		);
 
-		mPostProcPass->render(cmd, imageIdx, mRayImageDescSet[mFrameIndex], mSwapchain->extent());
+		mPostProcPass->render(cmd, imageIdx, mRayImageDescSet[mFrameIndex], mSwapchain->extent(), postProcPushConstant);
 
 		mGUIManager->render(cmd, mPostProcPass->framebuffers[imageIdx], mSwapchain->extent());
 	}
@@ -433,6 +455,7 @@ void Renderer::presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish) {
 		auto presentRes = mContext->queues[zvk::QueueIdx::Present].queue.presentKHR(presentInfo);
 	}
 	catch (const vk::SystemError& e) {
+		Log::line<0>(e.what());
 		recreateFrame();
 	}
 	if (mShouldResetSwapchain) {
@@ -471,7 +494,30 @@ void Renderer::drawFrame() {
 }
 
 void Renderer::processGUI() {
-	ImGui::ShowDemoWindow();
+	bool resetFrame = false;
+
+	if (ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMenu("Settings")) {
+			const char* directMethods[] = { "None", "Naive", "ReSTIR DI" };
+			const char* indirectMethods[] = { "None", "Naive", "ReSTIR GI" };
+
+			resetFrame |= ImGui::Combo("Direct Method", &mSettings.directMethod, directMethods, IM_ARRAYSIZE(directMethods));
+			resetFrame |= ImGui::Combo("Indirect method", &mSettings.indirectMethod, indirectMethods, IM_ARRAYSIZE(indirectMethods));
+			resetFrame |= ImGui::Checkbox("Accumulate", &mSettings.accumulate);
+
+			ImGui::Separator();
+
+			const char* toneMappingMethods[] = { "None", "Filmic", "ACES" };
+
+			ImGui::Combo("Tone mapping", &mSettings.toneMapping, toneMappingMethods, IM_ARRAYSIZE(toneMappingMethods));
+
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
+	}
+	if (resetFrame || !mSettings.accumulate) {
+		mScene.camera.update();
+	}
 }
 
 void Renderer::loop() {

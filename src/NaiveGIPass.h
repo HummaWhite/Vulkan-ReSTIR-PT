@@ -1,30 +1,6 @@
 #pragma once
 
-//#define VK_USE_PLATFORM_WIN32_KHR
-#include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
-
-#undef min
-#undef max
-
-#include <algorithm>
-#include <iostream>
-#include <optional>
-#include <memory>
-#include <limits>
-#include <set>
-
-#include "core/Context.h"
-#include "core/Swapchain.h"
-#include "core/ShaderManager.h"
-#include "core/Memory.h"
-#include "core/Descriptor.h"
-#include "core/AccelerationStructure.h"
-#include "core/ShaderBindingTable.h"
-#include "Scene.h"
-
-#include "util/Error.h"
-#include "util/Timer.h"
+#include "RayTracingCommon.h"
 
 class NaiveGIPass : public zvk::BaseVkObject {
 public:
@@ -34,10 +10,7 @@ public:
 
 	void createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
-	void render(
-		vk::CommandBuffer cmd, uint32_t frameIdx,
-		vk::DescriptorSet cameraDescSet, vk::DescriptorSet resourceDescSet, vk::DescriptorSet rayImageDescSet, vk::DescriptorSet rayTracingDescSet,
-		vk::Extent2D extent, uint32_t maxDepth);
+	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param);
 
 private:
 	vk::Pipeline mPipeline;

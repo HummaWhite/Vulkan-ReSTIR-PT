@@ -26,8 +26,10 @@
 class PostProcPassFrag : public zvk::BaseVkObject {
 public:
 	struct PushConstant {
-		glm::ivec2 frameSize;
 		uint32_t toneMapping;
+		uint32_t correctGamma;
+		uint32_t noDirect;
+		uint32_t noIndirect;
 	};
 
 	PostProcPassFrag(const zvk::Context* ctx, const zvk::Swapchain* swapchain);
@@ -38,7 +40,10 @@ public:
 		zvk::ShaderManager* shaderManager, vk::Extent2D extent,
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
-	void render(vk::CommandBuffer cmd, uint32_t imageIdx, vk::DescriptorSet rayImageDescSet, vk::Extent2D extent);
+	void render(
+		vk::CommandBuffer cmd, uint32_t imageIdx,
+		vk::DescriptorSet rayImageDescSet, vk::Extent2D extent, PushConstant param);
+
 	void recreateFrame(const zvk::Swapchain* swapchain);
 
 private:

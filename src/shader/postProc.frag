@@ -6,6 +6,13 @@
 layout(location = 0) out vec4 FragColor;
 layout(location = 0) in vec2 vTexUV;
 
+layout(push_constant) uniform _PushConstant {
+	uint uToneMapping;
+    uint uCorrectGamma;
+    uint noDirect;
+    uint noIndirect;
+};
+
 vec3 calcFilmic(vec3 c) {
     return (c * (c * 0.22 + 0.03) + 0.002) / (c * (c * 0.22 + 0.3) + 0.06) - 1.0 / 30.0;
 }
@@ -20,13 +27,19 @@ vec3 ACES(vec3 color) {
 
 void main() {
     ivec2 coord = ivec2(vec2(textureSize(uGBufferA, 0) - 1) * vTexUV);
+    vec3 color = vec3(0.0);
 
-    vec3 direct = imageLoad(uDirectOutput, coord).rgb;
-    vec3 indirect = imageLoad(uIndirectOutput, coord).rgb;
-    vec3 color = direct + indirect;
+    if (noDirect == 0) {
+        color += imageLoad(uDirectOutput, coord).rgb;
+    }
+    if (noIndirect == 0) {
+        color += imageLoad(uIndirectOutput, coord).rgb;
+    }
+    color = (uToneMapping == 0) ? color :
+        (uToneMapping == 1) ? filmic(color) : ACES(color);
 
-    //color = filmic(color);
-    color = ACES(color);
-    color = pow(color, vec3(1.0 / 2.2));
+    if (uCorrectGamma != 0) {
+        color = pow(color, vec3(1.0 / 2.2));
+    }
     FragColor = vec4(color, 1.0);
 }
