@@ -95,7 +95,9 @@ private:
 	Timer mFPSTimer;
 	Timer mRenderTimer;
 	double mLastTime = 0;
-	uint32_t mFrameIndex = 0;
+	uint32_t mInFlightFrameIdx = 0;
+	uint32_t mCurFrame = 0;
+
 	Settings mSettings;
 
 	std::unique_ptr<GUIManager> mGUIManager;
@@ -137,6 +139,6 @@ private:
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
 	std::unique_ptr<zvk::DescriptorSetLayout> mRayImageDescLayout;
 	std::unique_ptr<zvk::DescriptorSetLayout> mCameraDescLayout;
-	vk::DescriptorSet mRayImageDescSet[NumFramesInFlight];
+	vk::DescriptorSet mRayImageDescSet[NumFramesInFlight][2];
 	vk::DescriptorSet mCameraDescSet[NumFramesInFlight];
 };

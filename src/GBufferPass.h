@@ -61,7 +61,7 @@ public:
 		vk::Extent2D extent, zvk::ShaderManager* shaderManager,
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
-	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t frameIdx, const GBufferRenderParam& param);
+	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t inFlightIdx, uint32_t curFrame, const GBufferRenderParam& param);
 
 	void initDescriptor();
 
@@ -77,9 +77,9 @@ private:
 	void destroyFrame();
 
 public:
-	std::unique_ptr<zvk::Image> GBufferA[NumFramesInFlight];
-	std::unique_ptr<zvk::Image> GBufferB[NumFramesInFlight];
-	vk::Framebuffer framebuffer[NumFramesInFlight];
+	std::unique_ptr<zvk::Image> GBufferA[NumFramesInFlight][2];
+	std::unique_ptr<zvk::Image> GBufferB[NumFramesInFlight][2];
+	vk::Framebuffer framebuffer[NumFramesInFlight][2];
 
 private:
 	vk::Pipeline mPipeline;
@@ -90,7 +90,7 @@ private:
 	std::unique_ptr<zvk::Buffer> mDrawCommandBuffer;
 	std::unique_ptr<zvk::Buffer> mDrawParamBuffer;
 
-	std::unique_ptr<zvk::Image> mDepthStencil[NumFramesInFlight];
+	std::unique_ptr<zvk::Image> mDepthStencil[NumFramesInFlight][2];
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
 	std::unique_ptr<zvk::DescriptorSetLayout> mDrawParamDescLayout;

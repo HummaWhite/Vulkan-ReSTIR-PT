@@ -15,14 +15,14 @@ layout(location = 1) rayPayloadEXT bool rtShadowed;
 void main() {
     vec2 uv = (vec2(gl_LaunchIDEXT.xy) + 0.5) / vec2(gl_LaunchSizeEXT.xy);
 
-    uvec4 GBufferA = texelFetch(uGBufferA, ivec2(gl_LaunchIDEXT.xy), 0);
-    uvec4 GBufferB = texelFetch(uGBufferB, ivec2(gl_LaunchIDEXT.xy), 0);
+    uvec4 GBufferThisA = texelFetch(uGBufferThisA, ivec2(gl_LaunchIDEXT.xy), 0);
+    uvec4 GBufferThisB = texelFetch(uGBufferThisB, ivec2(gl_LaunchIDEXT.xy), 0);
 
-    vec3 albedo = unpackAlbedo(GBufferA.x);
-    vec3 norm = uintBitsToFloat(GBufferA.yzw);
-    float depth = uintBitsToFloat(GBufferB.x);
-    int matIndex = int(GBufferB.y);
-    // vec2 motion = unpackSnorm2x16(GBufferB.z);
+    vec3 albedo = unpackAlbedo(GBufferThisA.x);
+    vec3 norm = uintBitsToFloat(GBufferThisA.yzw);
+    float depth = uintBitsToFloat(GBufferThisB.x);
+    int matIndex = int(GBufferThisB.y);
+    // vec2 motion = unpackSnorm2x16(GBufferThisB.z);
 
     if (depth == 0.0) {
         imageStore(uDirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(vec3(0.0), 1.0));

@@ -38,7 +38,7 @@ void ResampledGIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t
 	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
 
 	stages[RayGen] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/naiveGIPass.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
+		shaderManager->createShaderModule("shaders/resampledGIPass.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
 	);
 	stages[Miss] = zvk::ShaderManager::shaderStageCreateInfo(
 		shaderManager->createShaderModule("shaders/rayTracingMiss.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR

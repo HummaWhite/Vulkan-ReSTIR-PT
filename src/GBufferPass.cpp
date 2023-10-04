@@ -21,7 +21,7 @@ void GBufferPass::destroy() {
 	destroyFrame();
 }
 
-void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t frameIdx, const GBufferRenderParam& param) {
+void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t inFlightIdx, uint32_t curFrame, const GBufferRenderParam& param) {
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
@@ -30,7 +30,7 @@ void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t fr
 
 	auto renderPassBeginInfo = vk::RenderPassBeginInfo()
 		.setRenderPass(mRenderPass)
-		.setFramebuffer(framebuffer[frameIdx])
+		.setFramebuffer(framebuffer[inFlightIdx][curFrame])
 		.setRenderArea({ { 0, 0 }, extent })
 		.setClearValues(clearValues);
 
@@ -102,31 +102,37 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 
 void GBufferPass::createResource(vk::Extent2D extent) {
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
-		GBufferA[i] = zvk::Memory::createImage2D(
-			mCtx, extent, GBufferAFormat, vk::ImageTiling::eOptimal,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
-			vk::MemoryPropertyFlagBits::eDeviceLocal
-		);
-		GBufferA[i]->createImageView();
-		GBufferA[i]->createSampler(vk::Filter::eNearest);
+		for (int j = 0; j < 2; j++) {
+			GBufferA[i][j] = zvk::Memory::createImage2D(
+				mCtx, extent, GBufferAFormat, vk::ImageTiling::eOptimal,
+				vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
+				vk::MemoryPropertyFlagBits::eDeviceLocal
+			);
+			GBufferA[i][j]->createImageView();
+			GBufferA[i][j]->createSampler(vk::Filter::eNearest);
 
-		zvk::DebugUtils::nameVkObject(mCtx->device, GBufferA[i]->image, "GBufferA[" + std::to_string(i) + "]");
+			zvk::DebugUtils::nameVkObject(
+				mCtx->device, GBufferA[i][j]->image, "GBufferA[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+			);
 
-		GBufferB[i] = zvk::Memory::createImage2D(
-			mCtx, extent, GBufferBFormat, vk::ImageTiling::eOptimal,
-			vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
-			vk::MemoryPropertyFlagBits::eDeviceLocal
-		);
-		GBufferB[i]->createImageView();
-		GBufferB[i]->createSampler(vk::Filter::eNearest);
+			GBufferB[i][j] = zvk::Memory::createImage2D(
+				mCtx, extent, GBufferBFormat, vk::ImageTiling::eOptimal,
+				vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
+				vk::MemoryPropertyFlagBits::eDeviceLocal
+			);
+			GBufferB[i][j]->createImageView();
+			GBufferB[i][j]->createSampler(vk::Filter::eNearest);
 
-		zvk::DebugUtils::nameVkObject(mCtx->device, GBufferB[i]->image, "GBufferB[" + std::to_string(i) + "]");
+			zvk::DebugUtils::nameVkObject(
+				mCtx->device, GBufferB[i][j]->image, "GBufferB[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+			);
 
-		mDepthStencil[i] = zvk::Memory::createImage2D(
-			mCtx, extent, DepthStencilFormat, vk::ImageTiling::eOptimal,
-			vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal
-		);
-		mDepthStencil[i]->createImageView();
+			mDepthStencil[i][j] = zvk::Memory::createImage2D(
+				mCtx, extent, DepthStencilFormat, vk::ImageTiling::eOptimal,
+				vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal
+			);
+			mDepthStencil[i][j]->createImageView();
+		}
 	}
 }
 
@@ -198,16 +204,18 @@ void GBufferPass::createRenderPass(vk::ImageLayout outLayout) {
 
 void GBufferPass::createFramebuffer(vk::Extent2D extent) {
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
-		auto attachments = { GBufferA[i]->view, GBufferB[i]->view, mDepthStencil[i]->view };
+		for (int j = 0; j < 2; j++) {
+			auto attachments = { GBufferA[i][j]->view, GBufferB[i][j]->view, mDepthStencil[i][j]->view };
 
-		auto createInfo = vk::FramebufferCreateInfo()
-			.setRenderPass(mRenderPass)
-			.setAttachments(attachments)
-			.setWidth(extent.width)
-			.setHeight(extent.height)
-			.setLayers(1);
+			auto createInfo = vk::FramebufferCreateInfo()
+				.setRenderPass(mRenderPass)
+				.setAttachments(attachments)
+				.setWidth(extent.width)
+				.setHeight(extent.height)
+				.setLayers(1);
 
-		framebuffer[i] = mCtx->device.createFramebuffer(createInfo);
+			framebuffer[i][j] = mCtx->device.createFramebuffer(createInfo);
+		}
 	}
 }
 
@@ -334,6 +342,7 @@ void GBufferPass::createDescriptor() {
 
 void GBufferPass::destroyFrame() {
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
-		mCtx->device.destroyFramebuffer(framebuffer[i]);
+		mCtx->device.destroyFramebuffer(framebuffer[i][0]);
+		mCtx->device.destroyFramebuffer(framebuffer[i][1]);
 	}
 }
