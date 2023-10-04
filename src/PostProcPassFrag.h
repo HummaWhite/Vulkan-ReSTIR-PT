@@ -38,7 +38,7 @@ public:
 		zvk::ShaderManager* shaderManager, vk::Extent2D extent,
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
-	void render(vk::CommandBuffer cmd, uint32_t frameIdx, uint32_t imageIdx, vk::DescriptorSet rayImageDescSet, vk::Extent2D extent);
+	void render(vk::CommandBuffer cmd, uint32_t imageIdx, vk::DescriptorSet rayImageDescSet, vk::Extent2D extent);
 	void recreateFrame(const zvk::Swapchain* swapchain);
 
 private:
@@ -49,7 +49,6 @@ private:
 	void destroyFrame();
 
 public:
-	uint32_t toneMapping = 0;
 	std::vector<vk::Framebuffer> framebuffers;
 
 private:

@@ -34,6 +34,7 @@ vk::ShaderModule ShaderManager::createShaderModule(const File::path& path, Shade
 		.setCodeSize(buffer.size());
 
 	auto shaderModule = mDevice.createShaderModule(createInfo);
+
 	if (operation == ShaderLoadOp::Normal) {
 		mLoadedShaders[path] = shaderModule;
 	}

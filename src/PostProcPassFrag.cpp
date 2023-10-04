@@ -149,7 +149,7 @@ void PostProcPassFrag::createPipeline(
 	mPipeline = result.value;
 }
 
-void PostProcPassFrag::render(vk::CommandBuffer cmd, uint32_t frameIdx, uint32_t imageIdx, vk::DescriptorSet rayImageDescSet, vk::Extent2D extent) {
+void PostProcPassFrag::render(vk::CommandBuffer cmd, uint32_t imageIdx, vk::DescriptorSet rayImageDescSet, vk::Extent2D extent) {
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f)
 	};
@@ -189,7 +189,7 @@ void PostProcPassFrag::createRenderPass() {
 		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
 		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
 		.setInitialLayout(vk::ImageLayout::eUndefined)
-		.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
+		.setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal);
 
 	auto attachments = { colorDesc };
 

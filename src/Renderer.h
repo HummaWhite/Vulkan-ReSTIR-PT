@@ -66,6 +66,8 @@ private:
 	void presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish);
 	void drawFrame();
 
+	void processGUI();
+
 	void loop();
 
 	void cleanupVulkan();

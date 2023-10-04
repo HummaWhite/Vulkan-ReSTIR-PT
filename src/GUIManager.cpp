@@ -6,7 +6,7 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
-GUIManager::GUIManager(const zvk::Context* ctx, const zvk::Swapchain* swapchain, GLFWwindow* window) :
+GUIManager::GUIManager(const zvk::Context* ctx, GLFWwindow* window, uint32_t numSwapchainImages) :
     BaseVkObject(ctx)
 {
 	createDescriptorPool();
@@ -20,6 +20,11 @@ GUIManager::GUIManager(const zvk::Context* ctx, const zvk::Swapchain* swapchain,
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
 	ImGui::StyleColorsDark();
+	auto& guiStyle = ImGui::GetStyle();
+	guiStyle.FrameRounding = 1.0f;
+	guiStyle.FramePadding.y = 2.0f;
+	guiStyle.ItemSpacing.y = 6.0f;
+	guiStyle.GrabRounding = 1.0f;
 
 	ImGui_ImplGlfw_InitForVulkan(window, true);
 
@@ -35,7 +40,7 @@ GUIManager::GUIManager(const zvk::Context* ctx, const zvk::Swapchain* swapchain,
 		.DescriptorPool = mDescriptorPool->pool,
 		.Subpass = 0,
 		.MinImageCount = 2,
-		.ImageCount = static_cast<uint32_t>(swapchain->numImages()),
+		.ImageCount = numSwapchainImages,
 		.MSAASamples = VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT,
 		.Allocator = nullptr,
 		.CheckVkResultFn = nullptr,
@@ -100,4 +105,30 @@ void GUIManager::destroy() {
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
 	mCtx->device.destroyRenderPass(mRenderPass);
+}
+
+void GUIManager::beginFrame() {
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+}
+
+void GUIManager::render(vk::CommandBuffer cmd, vk::Framebuffer framebuffer, vk::Extent2D extent) {
+	ImGui::Render();
+
+	vk::ClearValue clearValues[] = {
+		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f)
+	};
+
+	auto renderPassBeginInfo = vk::RenderPassBeginInfo()
+		.setRenderPass(mRenderPass)
+		.setFramebuffer(framebuffer)
+		.setRenderArea({ { 0, 0 }, extent })
+		.setClearValues(clearValues);
+
+	cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+
+	cmd.endRenderPass();
 }

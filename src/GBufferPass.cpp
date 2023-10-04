@@ -29,7 +29,7 @@ void GBufferPass::render(
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
-		vk::ClearDepthStencilValue(1.f, 0.f)
+		vk::ClearDepthStencilValue(1.f, 0)
 	};
 
 	auto renderPassBeginInfo = vk::RenderPassBeginInfo()

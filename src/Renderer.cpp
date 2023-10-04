@@ -4,6 +4,7 @@
 #include "core/DebugUtils.h"
 
 #include <sstream>
+#include <imgui.h>
 
 const std::vector<const char*> InstanceExtensions{
 	//VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
@@ -103,7 +104,7 @@ void Renderer::initVulkan() {
 		mSwapchain = std::make_unique<zvk::Swapchain>(mContext.get(), mWidth, mHeight, SWAPCHAIN_FORMAT, false);
 
 		mShaderManager = std::make_unique<zvk::ShaderManager>(mContext->device);
-		mGUIManager = std::make_unique<GUIManager>(mContext.get(), mSwapchain.get(), mMainWindow);
+		mGUIManager = std::make_unique<GUIManager>(mContext.get(), mMainWindow, mSwapchain->numImages());
 
 		createCameraBuffer();
 		createRayImage();
@@ -399,7 +400,9 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			{}, {}, rayImageBarriers
 		);
 
-		mPostProcPass->render(cmd, mFrameIndex, imageIdx, mRayImageDescSet[mFrameIndex], mSwapchain->extent());
+		mPostProcPass->render(cmd, imageIdx, mRayImageDescSet[mFrameIndex], mSwapchain->extent());
+
+		mGUIManager->render(cmd, mPostProcPass->framebuffers[imageIdx], mSwapchain->extent());
 	}
 	cmd.end();
 }
@@ -467,7 +470,13 @@ void Renderer::drawFrame() {
 	mFrameIndex = (mFrameIndex + 1) % NumFramesInFlight;
 }
 
+void Renderer::processGUI() {
+	ImGui::ShowDemoWindow();
+}
+
 void Renderer::loop() {
+	mGUIManager->beginFrame();
+	processGUI();
 	drawFrame();
 	mScene.camera.nextFrame(mRng);
 }

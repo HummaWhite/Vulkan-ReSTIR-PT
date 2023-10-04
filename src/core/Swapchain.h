@@ -25,7 +25,7 @@ public:
 	const std::vector<vk::Image>& images() const { return mImages; }
 	const std::vector<vk::ImageLayout>& imageLayouts() const { return mImageLayouts; }
 	const std::vector<vk::ImageView>& imageViews() const { return mImageViews; }
-	size_t numImages() const { return mImages.size(); }
+	uint32_t numImages() const { return static_cast<uint32_t>(mImages.size()); }
 
 	void changeImageLayoutCmd(
 		vk::CommandBuffer cmd, uint32_t imageIdx, vk::ImageLayout newLayout,
