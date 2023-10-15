@@ -198,7 +198,7 @@ void DeviceScene::destroy() {
 }
 
 void DeviceScene::initDescriptor() {
-	zvk::DescriptorWrite update;
+	zvk::DescriptorWrite update(mCtx);
 
 	update.add(resourceDescLayout.get(), resourceDescSet, 0, zvk::Descriptor::makeImageDescriptorArray(textures));
 	update.add(resourceDescLayout.get(), resourceDescSet, 1, zvk::Descriptor::makeBufferInfo(materials.get()));
@@ -211,7 +211,7 @@ void DeviceScene::initDescriptor() {
 
 	update.add(rayTracingDescLayout.get(), rayTracingDescSet, 0, vk::WriteDescriptorSetAccelerationStructureKHR(topAccelStructure->structure));
 
-	mCtx->device.updateDescriptorSets(update.writes, {});
+	update.flush();
 }
 
 void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueIdx) {

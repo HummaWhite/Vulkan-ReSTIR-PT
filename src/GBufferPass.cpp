@@ -62,9 +62,9 @@ void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t in
 }
 
 void GBufferPass::initDescriptor() {
-	zvk::DescriptorWrite update;
+	zvk::DescriptorWrite update(mCtx);
 	update.add(mDrawParamDescLayout.get(), mDrawParamDescSet, 0, zvk::Descriptor::makeBufferInfo(mDrawParamBuffer.get()));
-	mCtx->device.updateDescriptorSets(update.writes, {});
+	update.flush();
 }
 
 void GBufferPass::recreateFrame(vk::Extent2D extent) {

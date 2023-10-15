@@ -45,6 +45,7 @@ public:
 		int toneMapping = 1;
 		bool correctGamma = true;
 		bool accumulate = false;
+		float frameLimit = 0;
 	};
 
 	Renderer(const std::string& name, int width, int height) :

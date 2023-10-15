@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 #include <map>
+#include <unordered_set>
 
 #include "Context.h"
 #include "Memory.h"
@@ -57,7 +58,10 @@ public:
     vk::DescriptorPool pool;
 };
 
-struct DescriptorWrite {
+class DescriptorWrite : public BaseVkObject {
+public:
+    DescriptorWrite(const Context* ctx) : BaseVkObject(ctx) {}
+
     void add(
         const DescriptorSetLayout* layout, vk::DescriptorSet set, uint32_t binding,
         const vk::DescriptorBufferInfo& bufferInfo);
@@ -74,8 +78,13 @@ struct DescriptorWrite {
         const DescriptorSetLayout* layout, vk::DescriptorSet set, uint32_t binding,
         const vk::WriteDescriptorSetAccelerationStructureKHR& accel);
 
-    std::vector<std::vector<vk::DescriptorImageInfo>> imageArrayInfo;
+    void flush();
+
+public:
     std::vector<vk::WriteDescriptorSet> writes;
+
+private:
+    std::vector<std::vector<vk::DescriptorImageInfo>> mImageArrayInfo;
 };
 
 namespace Descriptor {

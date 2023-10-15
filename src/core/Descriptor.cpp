@@ -35,7 +35,7 @@ DescriptorPool::DescriptorPool(
     std::vector<vk::DescriptorPoolSize> sizes;
 
     for (const auto& count : typeCount) {
-        sizes.push_back(vk::DescriptorPoolSize(count.first, count.second * numCopies));
+        sizes.push_back(vk::DescriptorPoolSize(count.first, count.second));
     }
 
     auto createInfo = vk::DescriptorPoolCreateInfo()
@@ -77,12 +77,12 @@ void DescriptorWrite::add(
     const DescriptorSetLayout* layout, vk::DescriptorSet set, uint32_t binding,
     const std::vector<vk::DescriptorImageInfo>& imageInfo
 ) {
-    imageArrayInfo.push_back(imageInfo);
+    mImageArrayInfo.push_back(imageInfo);
 
     writes.push_back(
         vk::WriteDescriptorSet(
             set, binding, 0, imageInfo.size(), layout->types.at(binding),
-            imageArrayInfo[imageArrayInfo.size() - 1].data(), nullptr, nullptr
+            mImageArrayInfo[mImageArrayInfo.size() - 1].data(), nullptr, nullptr
         )
     );
 }
@@ -92,6 +92,12 @@ void DescriptorWrite::add(
     const vk::WriteDescriptorSetAccelerationStructureKHR& accelInfo
 ) {
     writes.push_back({ set, binding, 0, 1, layout->types.at(binding), nullptr, nullptr, nullptr, &accelInfo });
+}
+
+void DescriptorWrite::flush() {
+    mCtx->device.updateDescriptorSets(writes, {});
+    writes.clear();
+    mImageArrayInfo.clear();
 }
 
 namespace Descriptor {

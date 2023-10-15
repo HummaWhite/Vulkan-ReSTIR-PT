@@ -26,7 +26,7 @@ void main() {
     vec2 motion = unpackSnorm2x16(GBufferThisB.z);
 
     if (depth == 0.0) {
-        imageStore(uDirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(vec3(0.0), 1.0));
+        imageStore(uDirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(vec3(1.0), 1.0));
         return;
     }
     

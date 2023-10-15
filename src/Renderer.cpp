@@ -4,6 +4,7 @@
 #include "core/DebugUtils.h"
 
 #include <sstream>
+#include <format>
 #include <imgui.h>
 
 const std::vector<const char*> InstanceExtensions{
@@ -207,7 +208,8 @@ void Renderer::createCameraBuffer() {
 }
 
 void Renderer::createRayImage() {
-	constexpr auto outputFormat = vk::Format::eR16G16B16A16Sfloat;
+	//constexpr auto outputFormat = vk::Format::eR16G16B16A16Sfloat;
+	constexpr auto outputFormat = vk::Format::eR32G32B32A32Sfloat;
 	const auto extent = mSwapchain->extent();
 
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
@@ -234,7 +236,7 @@ void Renderer::createRayImage() {
 		mIndirectOutput[i]->createImageView();
 		mIndirectOutput[i]->createSampler(vk::Filter::eLinear);
 
-		zvk::DebugUtils::nameVkObject(mContext->device, mDirectOutput[i]->image, "indirectOutput[" + std::to_string(i) + "]");
+		zvk::DebugUtils::nameVkObject(mContext->device, mIndirectOutput[i]->image, "indirectOutput[" + std::to_string(i) + "]");
 
 		vk::DeviceSize DIResvSize = sizeof(DIReservoir) * extent.width * extent.height;
 		vk::DeviceSize GIResvSize = sizeof(GIReservoir) * extent.width * extent.height;
@@ -293,6 +295,8 @@ void Renderer::createDescriptor() {
 
 		mCameraDescSet[i] = mDescriptorPool->allocDescriptorSet(mCameraDescLayout->layout);
 		zvk::DebugUtils::nameVkObject(mContext->device, mCameraDescSet[i], "cameraDescSet[" + std::to_string(i) + "]");
+
+		Log::line("cameraDescSet[" + std::to_string(i) + "] : " + std::format("0x{:x}", std::bit_cast<uint64_t>(mCameraDescSet[i])));
 	}
 }
 
@@ -300,7 +304,7 @@ void Renderer::initDescriptor() {
 	mDeviceScene->initDescriptor();
 	mGBufferPass->initDescriptor();
 
-	zvk::DescriptorWrite update;
+	zvk::DescriptorWrite update(mContext.get());
 
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
 		for (int j = 0; j < 2; j++) {
@@ -320,10 +324,11 @@ void Renderer::initDescriptor() {
 			update.add(rayImageLayout, rayImageSet, 7, zvk::Descriptor::makeBufferInfo(mDIReservoir[i][lastFrame].get()));
 			update.add(rayImageLayout, rayImageSet, 8, zvk::Descriptor::makeBufferInfo(mGIReservoir[i][thisFrame].get()));
 			update.add(rayImageLayout, rayImageSet, 9, zvk::Descriptor::makeBufferInfo(mGIReservoir[i][lastFrame].get()));
+			update.flush();
 		}
 		update.add(mCameraDescLayout.get(), mCameraDescSet[i], 0, vk::DescriptorBufferInfo(mCameraBuffer[i]->buffer, 0, mCameraBuffer[i]->size));
+		update.flush();
 	}
-	mContext->device.updateDescriptorSets(update.writes, {});
 }
 
 void Renderer::updateDescriptor() {
@@ -389,7 +394,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 	auto rayTracingParam = RayTracingRenderParam {
 		.cameraDescSet = mCameraDescSet[mInFlightFrameIdx],
 		.resourceDescSet = mDeviceScene->resourceDescSet,
-		.rayImageDescSet = mRayImageDescSet[mInFlightFrameIdx][curFrame ^ 1],
+		.rayImageDescSet = mRayImageDescSet[mInFlightFrameIdx][curFrame],
 		.rayTracingDescSet = mDeviceScene->rayTracingDescSet,
 		.maxDepth = 1
 	};
@@ -530,8 +535,9 @@ void Renderer::drawFrame() {
 }
 
 void Renderer::initSettings() {
-	mSettings.directMethod = RayTracingMethod::None;
-	mSettings.indirectMethod = RayTracingMethod::ResampledGI;
+	mSettings.directMethod = RayTracingMethod::Naive;
+	mSettings.indirectMethod = RayTracingMethod::None;
+	mSettings.frameLimit = 10000.f;
 }
 
 void Renderer::processGUI() {
@@ -624,6 +630,10 @@ void Renderer::exec() {
 		double FPSTime = mFPSTimer.get();
 
 		glfwPollEvents();
+
+		if (mSettings.frameLimit != 0 && (time - mLastTime < 1000.f / mSettings.frameLimit)) {
+			continue;
+		}
 
 		if (frameCount != std::numeric_limits<size_t>::max()) {
 			WindowInput::setDeltaTime(time - mLastTime);

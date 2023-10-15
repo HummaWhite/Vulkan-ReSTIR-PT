@@ -25,7 +25,7 @@ void PostProcPassComp::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32
 }
 
 void PostProcPassComp::updateDescriptor(zvk::Image* inImage[2], const zvk::Swapchain* swapchain) {
-	zvk::DescriptorWrite update;
+	zvk::DescriptorWrite update(mCtx);
 
 	for (int i = 0; i < 2; i++) {
 		for (uint32_t j = 0; j < swapchain->numImages(); j++) {
@@ -38,8 +38,8 @@ void PostProcPassComp::updateDescriptor(zvk::Image* inImage[2], const zvk::Swapc
 				vk::DescriptorImageInfo(inImage[i]->sampler, inImage[i]->view, inImage[i]->layout)
 			);
 		}
+		update.flush();
 	}
-	mCtx->device.updateDescriptorSets(update.writes, {});
 }
 
 void PostProcPassComp::swap() {

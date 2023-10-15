@@ -2,65 +2,6 @@
 
 NAMESPACE_BEGIN(zvk)
 
-struct LayoutTransitFlags {
-	vk::AccessFlags srcMask;
-	vk::AccessFlags dstMask;
-	vk::PipelineStageFlags srcStage;
-	vk::PipelineStageFlags dstStage;
-};
-
-std::optional<LayoutTransitFlags> findLayoutTransitFlags(vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
-	auto fromTo = [=](vk::ImageLayout old, vk::ImageLayout neo) {
-		return oldLayout == old && newLayout == neo;
-	};
-	vk::AccessFlags dstMask;
-	vk::PipelineStageFlags dstStage;
-
-	// TODO: this may not work for all cases. Still have to manually set the states
-
-	if (oldLayout == vk::ImageLayout::eUndefined) {
-		if (newLayout == vk::ImageLayout::eTransferDstOptimal) {
-			dstMask = vk::AccessFlagBits::eTransferWrite;
-			dstStage = vk::PipelineStageFlagBits::eTransfer;
-		}
-		else if (newLayout == vk::ImageLayout::ePresentSrcKHR) {
-			dstMask = vk::AccessFlagBits::eNone;
-			dstStage = vk::PipelineStageFlagBits::eBottomOfPipe;
-		}
-		else if (newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal) {
-			dstMask = vk::AccessFlagBits::eDepthStencilAttachmentRead |
-				vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-			dstStage = vk::PipelineStageFlagBits::eEarlyFragmentTests;
-		}
-		else if (newLayout == vk::ImageLayout::eColorAttachmentOptimal) {
-			dstMask = vk::AccessFlagBits::eColorAttachmentWrite;
-			dstStage = vk::PipelineStageFlagBits::eFragmentShader;
-		}
-
-		return LayoutTransitFlags{
-			vk::AccessFlagBits::eNone, dstMask,
-			vk::PipelineStageFlagBits::eTopOfPipe, dstStage
-		};
-	}
-	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal) {
-		if (newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
-			dstMask = vk::AccessFlagBits::eShaderRead;
-			dstStage = vk::PipelineStageFlagBits::eFragmentShader |
-				vk::PipelineStageFlagBits::eComputeShader |
-				vk::PipelineStageFlagBits::eRayTracingShaderNV;
-		}
-		else {
-			return std::nullopt;
-		}
-
-		return LayoutTransitFlags{
-			vk::AccessFlagBits::eTransferWrite, dstMask,
-			vk::PipelineStageFlagBits::eTransfer, dstStage
-		};
-	}
-	return std::nullopt;
-}
-
 vk::BufferMemoryBarrier Buffer::getBufferBarrier(
 	vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask,
 	QueueIdx srcQueueFamily, QueueIdx dstQueueFamily

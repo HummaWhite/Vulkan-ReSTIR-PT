@@ -35,8 +35,7 @@ void main() {
     if (noIndirect == 0) {
         color += imageLoad(uIndirectOutput, coord).rgb;
     }
-    color = (uToneMapping == 0) ? color :
-        (uToneMapping == 1) ? filmic(color) : ACES(color);
+    color = (uToneMapping == 0) ? color : (uToneMapping == 1) ? filmic(color) : ACES(color);
 
     if (uCorrectGamma != 0) {
         color = pow(color, vec3(1.0 / 2.2));
