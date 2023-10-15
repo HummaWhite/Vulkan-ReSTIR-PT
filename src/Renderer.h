@@ -63,7 +63,6 @@ private:
 	void initScene();
 	void createCameraBuffer();
 	void createRayImage();
-	void initImageLayout();
 
 	void createDescriptor();
 	void initDescriptor();
@@ -79,6 +78,8 @@ private:
 	uint32_t acquireFrame(vk::Semaphore signalFrameReady);
 	void presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish);
 	void drawFrame();
+
+	void initSettings();
 
 	void processGUI();
 
@@ -96,7 +97,7 @@ private:
 	Timer mRenderTimer;
 	double mLastTime = 0;
 	uint32_t mInFlightFrameIdx = 0;
-	uint32_t mCurFrame = 0;
+	uint32_t mCurFrame[NumFramesInFlight] = { 0, 0 };
 
 	Settings mSettings;
 

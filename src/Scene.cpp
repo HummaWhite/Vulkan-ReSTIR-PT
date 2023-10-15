@@ -281,8 +281,10 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 	for (auto hostImage : images) {
 		auto image = zvk::Memory::createTexture2D(
 			mCtx, queueIdx, hostImage,
-			vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
-			vk::ImageLayout::eShaderReadOnlyOptimal, vk::MemoryPropertyFlagBits::eDeviceLocal
+			vk::ImageTiling::eOptimal,
+			vk::ImageLayout::eShaderReadOnlyOptimal,
+			vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 		image->createSampler(vk::Filter::eLinear);
 		textures.push_back(std::move(image));
@@ -370,7 +372,6 @@ void DeviceScene::createDescriptor() {
 		),
 	};
 
-
 	std::vector<vk::DescriptorSetLayoutBinding> accelStructBindings = {
 		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eAccelerationStructureKHR, RayTracingShaderStageFlags)
 	};
@@ -384,5 +385,8 @@ void DeviceScene::createDescriptor() {
 	);
 
 	resourceDescSet = mDescriptorPool->allocDescriptorSet(resourceDescLayout->layout);
+	zvk::DebugUtils::nameVkObject(mCtx->device, resourceDescSet, "resourceDescSet");
+
 	rayTracingDescSet = mDescriptorPool->allocDescriptorSet(rayTracingDescLayout->layout);
+	zvk::DebugUtils::nameVkObject(mCtx->device, rayTracingDescSet, "rayTracingDescSet");
 }

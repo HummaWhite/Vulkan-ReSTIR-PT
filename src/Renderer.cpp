@@ -23,14 +23,14 @@ const std::vector<const char*> DeviceExtensions = {
 };
 
 struct DIPathSample {
-	glm::vec3 Li;
+	glm::vec3 radiance;
 	float pHat;
 	glm::vec3 wi;
 	float dist;
 };
 
 struct GIPathSample {
-	glm::vec3 Li;
+	glm::vec3 radiance;
 	float pad0;
 	glm::vec3 visiblePos;
 	float pad1;
@@ -162,8 +162,9 @@ void Renderer::initVulkan() {
 		createCommandBuffer();
 		createSyncObject();
 
-		initImageLayout();
 		initDescriptor();
+
+		initSettings();
 	}
 	catch (const std::exception& e) {
 		Log::line<0>("Error:" + std::string(e.what()));
@@ -206,11 +207,15 @@ void Renderer::createCameraBuffer() {
 }
 
 void Renderer::createRayImage() {
-	auto extent = mSwapchain->extent();
+	constexpr auto outputFormat = vk::Format::eR16G16B16A16Sfloat;
+	const auto extent = mSwapchain->extent();
 
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
-		mDirectOutput[i] = zvk::Memory::createImage2D(
-			mContext.get(), extent, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal,
+
+		mDirectOutput[i] = zvk::Memory::createImage2DAndInitLayout(
+			mContext.get(), zvk::QueueIdx::GeneralUse, extent, outputFormat,
+			vk::ImageTiling::eOptimal,
+			vk::ImageLayout::eGeneral,
 			vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
@@ -219,8 +224,10 @@ void Renderer::createRayImage() {
 
 		zvk::DebugUtils::nameVkObject(mContext->device, mDirectOutput[i]->image, "directOutput[" + std::to_string(i) + "]");
 
-		mIndirectOutput[i] = zvk::Memory::createImage2D(
-			mContext.get(), extent, vk::Format::eR32G32B32A32Sfloat, vk::ImageTiling::eOptimal,
+		mIndirectOutput[i] = zvk::Memory::createImage2DAndInitLayout(
+			mContext.get(), zvk::QueueIdx::GeneralUse, extent, outputFormat,
+			vk::ImageTiling::eOptimal,
+			vk::ImageLayout::eGeneral,
 			vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
@@ -250,59 +257,22 @@ void Renderer::createRayImage() {
 	}
 }
 
-void Renderer::initImageLayout() {
-	auto cmd = zvk::Command::createOneTimeSubmit(mContext.get(), zvk::QueueIdx::GeneralUse);
-	std::vector<vk::ImageMemoryBarrier> barriers;
-
-	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
-		barriers.push_back(
-			mDirectOutput[i]->getBarrier(
-				vk::ImageLayout::eGeneral, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite
-			)
-		);
-		barriers.push_back(
-			mIndirectOutput[i]->getBarrier(
-				vk::ImageLayout::eGeneral, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite
-			)
-		);
-
-		for (int j = 0; j < 2; j++) {
-			barriers.push_back(
-				mGBufferPass->GBufferA[i][j]->getBarrier(
-					vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderWrite
-				)
-			);
-			barriers.push_back(
-				mGBufferPass->GBufferB[i][j]->getBarrier(
-					vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eShaderWrite
-				)
-			);
-		}
-	}
-	cmd->cmd.pipelineBarrier(
-		vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eFragmentShader,
-		vk::DependencyFlags{ 0 }, {}, {}, barriers
-	);
-
-	cmd->submitAndWait();
-}
-
 void Renderer::createDescriptor() {
-	auto imageOutFlags = RayTracingShaderStageFlags | vk::ShaderStageFlagBits::eFragment;
+	auto rayImageFlags = RayTracingShaderStageFlags | vk::ShaderStageFlagBits::eFragment;
 
-	std::vector<vk::DescriptorSetLayoutBinding> imageOutBindings = {
-		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eStorageImage, imageOutFlags),
-		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eStorageImage, imageOutFlags),
-		zvk::Descriptor::makeBinding(2, vk::DescriptorType::eCombinedImageSampler, imageOutFlags),
-		zvk::Descriptor::makeBinding(3, vk::DescriptorType::eCombinedImageSampler, imageOutFlags),
-		zvk::Descriptor::makeBinding(4, vk::DescriptorType::eCombinedImageSampler, imageOutFlags),
-		zvk::Descriptor::makeBinding(5, vk::DescriptorType::eCombinedImageSampler, imageOutFlags),
-		zvk::Descriptor::makeBinding(6, vk::DescriptorType::eStorageBuffer, imageOutFlags),
-		zvk::Descriptor::makeBinding(7, vk::DescriptorType::eStorageBuffer, imageOutFlags),
-		zvk::Descriptor::makeBinding(8, vk::DescriptorType::eStorageBuffer, imageOutFlags),
-		zvk::Descriptor::makeBinding(9, vk::DescriptorType::eStorageBuffer, imageOutFlags),
+	std::vector<vk::DescriptorSetLayoutBinding> rayImageBindings = {
+		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eStorageImage, rayImageFlags),
+		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eStorageImage, rayImageFlags),
+		zvk::Descriptor::makeBinding(2, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
+		zvk::Descriptor::makeBinding(3, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
+		zvk::Descriptor::makeBinding(4, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
+		zvk::Descriptor::makeBinding(5, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
+		zvk::Descriptor::makeBinding(6, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags),
+		zvk::Descriptor::makeBinding(7, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags),
+		zvk::Descriptor::makeBinding(8, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags),
+		zvk::Descriptor::makeBinding(9, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags),
 	};
-	mRayImageDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), imageOutBindings);
+	mRayImageDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), rayImageBindings);
 
 	std::vector<vk::DescriptorSetLayoutBinding> cameraBindings = {
 		zvk::Descriptor::makeBinding(
@@ -318,7 +288,11 @@ void Renderer::createDescriptor() {
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
 		mRayImageDescSet[i][0] = mDescriptorPool->allocDescriptorSet(mRayImageDescLayout->layout);
 		mRayImageDescSet[i][1] = mDescriptorPool->allocDescriptorSet(mRayImageDescLayout->layout);
+		zvk::DebugUtils::nameVkObject(mContext->device, mRayImageDescSet[i][0], "rayImageDescSet[" + std::to_string(i) + ", 0]");
+		zvk::DebugUtils::nameVkObject(mContext->device, mRayImageDescSet[i][1], "rayImageDescSet[" + std::to_string(i) + ", 1]");
+
 		mCameraDescSet[i] = mDescriptorPool->allocDescriptorSet(mCameraDescLayout->layout);
+		zvk::DebugUtils::nameVkObject(mContext->device, mCameraDescSet[i], "cameraDescSet[" + std::to_string(i) + "]");
 	}
 }
 
@@ -333,16 +307,19 @@ void Renderer::initDescriptor() {
 			auto rayImageLayout = mRayImageDescLayout.get();
 			auto rayImageSet = mRayImageDescSet[i][j];
 
+			uint32_t thisFrame = j;
+			uint32_t lastFrame = j ^ 1;
+
 			update.add(rayImageLayout, rayImageSet, 0, zvk::Descriptor::makeImageInfo(mDirectOutput[i].get()));
 			update.add(rayImageLayout, rayImageSet, 1, zvk::Descriptor::makeImageInfo(mIndirectOutput[i].get()));
-			update.add(rayImageLayout, rayImageSet, 2, zvk::Descriptor::makeImageInfo(mGBufferPass->GBufferA[i][j].get()));
-			update.add(rayImageLayout, rayImageSet, 3, zvk::Descriptor::makeImageInfo(mGBufferPass->GBufferA[i][j ^ 1].get()));
-			update.add(rayImageLayout, rayImageSet, 4, zvk::Descriptor::makeImageInfo(mGBufferPass->GBufferB[i][j].get()));
-			update.add(rayImageLayout, rayImageSet, 5, zvk::Descriptor::makeImageInfo(mGBufferPass->GBufferB[i][j ^ 1].get()));
-			update.add(rayImageLayout, rayImageSet, 6, zvk::Descriptor::makeBufferInfo(mDIReservoir[i][j].get()));
-			update.add(rayImageLayout, rayImageSet, 7, zvk::Descriptor::makeBufferInfo(mDIReservoir[i][j ^ 1].get()));
-			update.add(rayImageLayout, rayImageSet, 8, zvk::Descriptor::makeBufferInfo(mGIReservoir[i][j].get()));
-			update.add(rayImageLayout, rayImageSet, 9, zvk::Descriptor::makeBufferInfo(mGIReservoir[i][j ^ 1].get()));
+			update.add(rayImageLayout, rayImageSet, 2, zvk::Descriptor::makeImageInfo(mGBufferPass->GBufferA[i][thisFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 3, zvk::Descriptor::makeImageInfo(mGBufferPass->GBufferA[i][lastFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 4, zvk::Descriptor::makeImageInfo(mGBufferPass->GBufferB[i][thisFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 5, zvk::Descriptor::makeImageInfo(mGBufferPass->GBufferB[i][lastFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 6, zvk::Descriptor::makeBufferInfo(mDIReservoir[i][thisFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 7, zvk::Descriptor::makeBufferInfo(mDIReservoir[i][lastFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 8, zvk::Descriptor::makeBufferInfo(mGIReservoir[i][thisFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 9, zvk::Descriptor::makeBufferInfo(mGIReservoir[i][lastFrame].get()));
 		}
 		update.add(mCameraDescLayout.get(), mCameraDescSet[i], 0, vk::DescriptorBufferInfo(mCameraBuffer[i]->buffer, 0, mCameraBuffer[i]->size));
 	}
@@ -379,7 +356,7 @@ void Renderer::createSyncObject() {
 	auto fenceCreateInfo = vk::FenceCreateInfo()
 		.setFlags(vk::FenceCreateFlagBits::eSignaled);
 
-	for (int i = 0; i < NumFramesInFlight; i++) {
+	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
 		mInFlightFences[i] = mContext->device.createFence(fenceCreateInfo);
 		mFrameReadySemaphores[i] = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
 		mRenderFinishSemaphores[i] = mContext->device.createSemaphore(vk::SemaphoreCreateInfo());
@@ -387,14 +364,18 @@ void Renderer::createSyncObject() {
 }
 
 void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
+	uint32_t curFrame = mCurFrame[mInFlightFrameIdx];
+
 	auto beginInfo = vk::CommandBufferBeginInfo()
 		.setFlags(vk::CommandBufferUsageFlagBits{})
 		.setPInheritanceInfo(nullptr);
 
-	const auto& GBufferA = mGBufferPass->GBufferA[mInFlightFrameIdx][mCurFrame];
-	const auto& GBufferB = mGBufferPass->GBufferB[mInFlightFrameIdx][mCurFrame];
-	const auto& directOutput = mDirectOutput[mInFlightFrameIdx];
-	const auto& indirectOutput = mIndirectOutput[mInFlightFrameIdx];
+	auto& GBufferA = mGBufferPass->GBufferA[mInFlightFrameIdx][curFrame];
+	auto& GBufferB = mGBufferPass->GBufferB[mInFlightFrameIdx][curFrame];
+	auto& directOutput = mDirectOutput[mInFlightFrameIdx];
+	auto& indirectOutput = mIndirectOutput[mInFlightFrameIdx];
+	auto& directReservoir = mDIReservoir[mInFlightFrameIdx][curFrame];
+	auto& indirectReservoir = mGIReservoir[mInFlightFrameIdx][curFrame];
 
 	auto GBufferParam = GBufferRenderParam {
 		.cameraDescSet = mCameraDescSet[mInFlightFrameIdx],
@@ -408,7 +389,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 	auto rayTracingParam = RayTracingRenderParam {
 		.cameraDescSet = mCameraDescSet[mInFlightFrameIdx],
 		.resourceDescSet = mDeviceScene->resourceDescSet,
-		.rayImageDescSet = mRayImageDescSet[mInFlightFrameIdx][mCurFrame],
+		.rayImageDescSet = mRayImageDescSet[mInFlightFrameIdx][curFrame ^ 1],
 		.rayTracingDescSet = mDeviceScene->rayTracingDescSet,
 		.maxDepth = 1
 	};
@@ -421,49 +402,63 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 	};
 
 	cmd.begin(beginInfo); {
-		mGBufferPass->render(cmd, mSwapchain->extent(), mInFlightFrameIdx, mCurFrame, GBufferParam);
+		std::string gbufferLabel = "G-buffer Pass [" + std::to_string(mInFlightFrameIdx) + ", " + std::to_string(curFrame) + "]";
+
+		zvk::DebugUtils::cmdBeginLabel(cmd, gbufferLabel, { 1.f, .5f, .3f, 1.f }); {
+			mGBufferPass->render(cmd, mSwapchain->extent(), mInFlightFrameIdx, curFrame, GBufferParam);
+		}
+		zvk::DebugUtils::cmdEndLabel(cmd);
 
 		auto GBufferImageBarriers = {
-			GBufferA->getBarrier(GBufferA->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
-			GBufferB->getBarrier(GBufferB->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
+			GBufferA->getImageBarrierAndSetLayout(GBufferA->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
+			GBufferB->getImageBarrierAndSetLayout(GBufferB->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
 		};
 
 		cmd.pipelineBarrier(
-			vk::PipelineStageFlagBits::eColorAttachmentOutput,
-			vk::PipelineStageFlagBits::eRayTracingShaderKHR,
-			vk::DependencyFlags{ 0 },
-			{}, {}, GBufferImageBarriers
+			vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eRayTracingShaderKHR,
+			vk::DependencyFlags{ 0 }, {}, {}, GBufferImageBarriers
 		);
 
-		if (mSettings.directMethod == RayTracingMethod::Naive) {
-			mNaiveDIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
-		}
-		else if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
-			mResampledDIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
-		}
+		zvk::DebugUtils::cmdBeginLabel(cmd, "Direct Lighting", { .5f, .3f, 1.f, 1.f }); {
 
-		if (mSettings.indirectMethod == RayTracingMethod::Naive) {
-			mNaiveGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+			if (mSettings.directMethod == RayTracingMethod::Naive) {
+				mNaiveDIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+			}
+			else if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
+				mResampledDIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+			}
 		}
-		else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
-			mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+		zvk::DebugUtils::cmdEndLabel(cmd);
+
+		zvk::DebugUtils::cmdBeginLabel(cmd, "Indirect Lighting", { .6f, .3f, 9.f, 1.f }); {
+			if (mSettings.indirectMethod == RayTracingMethod::Naive) {
+				mNaiveGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+			}
+			else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
+				mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+			}
 		}
+		zvk::DebugUtils::cmdEndLabel(cmd);
 
 		auto rayImageBarriers = {
-			directOutput->getBarrier(directOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
-			indirectOutput->getBarrier(indirectOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
+			directOutput->getImageBarrierAndSetLayout(directOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
+			indirectOutput->getImageBarrierAndSetLayout(indirectOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
 		};
 
 		cmd.pipelineBarrier(
-			vk::PipelineStageFlagBits::eRayTracingShaderKHR,
-			vk::PipelineStageFlagBits::eFragmentShader,
-			vk::DependencyFlags{ 0 },
-			{}, {}, rayImageBarriers
+			vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::PipelineStageFlagBits::eFragmentShader,
+			vk::DependencyFlags{ 0 }, {}, {}, rayImageBarriers
 		);
 
-		mPostProcPass->render(cmd, imageIdx, mRayImageDescSet[mInFlightFrameIdx][mCurFrame], mSwapchain->extent(), postProcPushConstant);
+		zvk::DebugUtils::cmdBeginLabel(cmd, "Post Processing", { .8f, .3f, .5f, 1.f }); {
+			mPostProcPass->render(cmd, imageIdx, mRayImageDescSet[mInFlightFrameIdx][curFrame], mSwapchain->extent(), postProcPushConstant);
+		}
+		zvk::DebugUtils::cmdEndLabel(cmd);
 
-		mGUIManager->render(cmd, mPostProcPass->framebuffers[imageIdx], mSwapchain->extent());
+		zvk::DebugUtils::cmdBeginLabel(cmd, "GUI", { .3f, .8f, .5f, 1.f }); {
+			mGUIManager->render(cmd, mPostProcPass->framebuffers[imageIdx], mSwapchain->extent());
+		}
+		zvk::DebugUtils::cmdEndLabel(cmd);
 	}
 	cmd.end();
 }
@@ -529,8 +524,14 @@ void Renderer::drawFrame() {
 		Log::line<0>(e.what());
 	}
 	presentFrame(imageIdx, mRenderFinishSemaphores[mInFlightFrameIdx]);
+
+	mCurFrame[mInFlightFrameIdx] ^= 1;
 	mInFlightFrameIdx = (mInFlightFrameIdx + 1) % NumFramesInFlight;
-	mCurFrame = mCurFrame ^ 1;
+}
+
+void Renderer::initSettings() {
+	mSettings.directMethod = RayTracingMethod::None;
+	mSettings.indirectMethod = RayTracingMethod::ResampledGI;
 }
 
 void Renderer::processGUI() {
@@ -550,6 +551,7 @@ void Renderer::processGUI() {
 			const char* toneMappingMethods[] = { "None", "Filmic", "ACES" };
 
 			ImGui::Combo("Tone mapping", &mSettings.toneMapping, toneMappingMethods, IM_ARRAYSIZE(toneMappingMethods));
+			ImGui::Checkbox("Correct gamma", &mSettings.correctGamma);
 
 			ImGui::EndMenu();
 		}

@@ -54,7 +54,7 @@ void Camera::setAngle(glm::vec3 angle) {
 	update();
 }
 
-void Camera::setFilmSize(glm::ivec2 size) {
+void Camera::setFilmSize(glm::uvec2 size) {
 	mFilmSize = size;
 	update();
 }

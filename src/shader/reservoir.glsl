@@ -6,7 +6,7 @@
 
 GIPathSample GIPathSampleInit() {
 	GIPathSample pathSample;
-	pathSample.Li = vec3(0.0);
+	pathSample.radiance = vec3(0.0);
 	pathSample.sampledNorm = vec3(100.0);
 	return pathSample;
 }
@@ -58,7 +58,7 @@ void GIReservoirCapSample(inout GIReservoir resv, uint cap) {
 }
 
 float GIPathSamplePHat(GIPathSample pathSample) {
-	return luminance(pathSample.Li);
+	return luminance(pathSample.radiance);
 }
 
 #endif

@@ -171,9 +171,16 @@ QueueFamilies Instance::getQueueFamilies(vk::PhysicalDevice device) {
 bool Instance::hasDeviceExtensions(vk::PhysicalDevice device, const std::vector<const char*>& extensions) {
 	auto extensionProps = device.enumerateDeviceExtensionProperties();
 	std::set<std::string> requiredExtensions(extensions.begin(), extensions.end());
+	// Log::line<2>("Supported extensions");
 
 	for (const auto& e : extensionProps) {
 		requiredExtensions.erase(e.extensionName);
+		// Log::line<3>(e.extensionName);
+	}
+	Log::line<2>("Not supported");
+
+	for (const auto& e : requiredExtensions) {
+		Log::line<3>(e);
 	}
 	return requiredExtensions.empty();
 }

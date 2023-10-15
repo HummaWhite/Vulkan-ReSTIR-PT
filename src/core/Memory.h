@@ -45,6 +45,10 @@ public:
 		mCtx->device.freeMemory(memory);
 	}
 
+	vk::BufferMemoryBarrier getBufferBarrier(
+		vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask,
+		QueueIdx srcQueueFamily = QueueIdx::Ignored, QueueIdx dstQueueFamily = QueueIdx::Ignored);
+
 	bool isHostVisible() const {
 		return hasFlagBit(properties, vk::MemoryPropertyFlagBits::eHostVisible);
 	}
@@ -84,15 +88,9 @@ public:
 		mCtx->device.destroyImage(image);
 	}
 
-	vk::ImageMemoryBarrier getBarrier(
+	vk::ImageMemoryBarrier getImageBarrierAndSetLayout(
 		vk::ImageLayout newLayout,
 		vk::AccessFlags srcAccessMask, vk::AccessFlags dstAccessMask,
-		QueueIdx srcQueueFamily = QueueIdx::Ignored, QueueIdx dstQueueFamily = QueueIdx::Ignored);
-
-	vk::ImageMemoryBarrier2 getBarrier2(
-		vk::ImageLayout newLayout,
-		vk::AccessFlags2 srcAccessMask, vk::AccessFlags2 dstAccessMask,
-		vk::PipelineStageFlags2 srcStageMask, vk::PipelineStageFlags2 dstStageMask,
 		QueueIdx srcQueueFamily = QueueIdx::Ignored, QueueIdx dstQueueFamily = QueueIdx::Ignored);
 
 	void changeLayoutCmd(
@@ -104,10 +102,6 @@ public:
 		vk::ImageLayout newLayout,
 		vk::PipelineStageFlags srcStage, vk::AccessFlags srcAccessMask,
 		vk::PipelineStageFlags dstStage, vk::AccessFlags dstAccessMask);
-
-	void changeLayoutCmd(vk::CommandBuffer cmd, vk::ImageLayout newLayout);
-
-	void changeLayout(vk::ImageLayout newLayout);
 
 	vk::SamplerCreateInfo samplerCreateInfo(vk::Filter filter, bool anisotropyIfPossible = false);
 
@@ -139,42 +133,13 @@ public:
 };
 
 namespace Memory {
-	std::optional<uint32_t> findMemoryType(
-		const Context& context,
-		vk::MemoryRequirements requirements,
-		vk::MemoryPropertyFlags requestedProps);
-
-	vk::Buffer createBuffer(
-		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
-		vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::DeviceMemory& memory,
-		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 });
-
 	std::unique_ptr<Buffer> createBuffer(
 		const Context* ctx, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
 		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 });
 
 	void copyBufferCmd(vk::CommandBuffer cmd, vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size);
 
-	void copyBuffer(
-		vk::Device device, vk::CommandPool cmdPool, vk::Queue queue,
-		vk::Buffer dstBuffer, vk::Buffer srcBuffer, vk::DeviceSize size);
-
-	vk::Buffer createTransferBuffer(
-		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
-		vk::DeviceSize size, vk::DeviceMemory& memory);
-
 	std::unique_ptr<Buffer> createTransferBuffer(const Context* ctx, vk::DeviceSize size);
-
-	vk::Buffer createBufferFromHost(
-		vk::Device device, const vk::PhysicalDeviceMemoryProperties& memProps,
-		vk::CommandPool cmdPool, vk::Queue queue,
-		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage, vk::DeviceMemory& memory,
-		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 });
-
-	std::unique_ptr<Buffer> createBufferFromHostCmd(
-		vk::CommandBuffer cmd, const Context* ctx,
-		const void* data, vk::DeviceSize size, vk::BufferUsageFlags usage,
-		vk::MemoryAllocateFlags allocFlags = vk::MemoryAllocateFlags{ 0 });
 
 	std::unique_ptr<Buffer> createBufferFromHost(
 		const Context* ctx, QueueIdx queueIdx,
@@ -190,24 +155,29 @@ namespace Memory {
 		return createBufferFromHost(ctx, queueIdx, data.data(), sizeof(T) * data.size(), usage, allocFlags);
 	}
 
-	vk::Image createImage2D(
-		const Context* ctx, vk::Extent2D extent, vk::Format format,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
-		vk::DeviceMemory& memory, uint32_t nMipLevels = 1);
-
 	std::unique_ptr<Image> createImage2D(
-		const Context* ctx, vk::Extent2D extent, vk::Format format,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,
+		const Context* ctx, vk::Extent2D extent,
+		vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage,
+		vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels = 1);
 
-	std::unique_ptr<Image> createTexture2DCmd(
-		vk::CommandBuffer cmd, const Context* ctx, const HostImage* hostImg,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
+	std::unique_ptr<Image> createImage2DAndInitLayoutCmd(
+		const Context* ctx, vk::CommandBuffer cmd, vk::Extent2D extent,
+		vk::Format format, vk::ImageTiling tiling, vk::ImageLayout layout, vk::ImageUsageFlags usage,
+		vk::MemoryPropertyFlags properties,
+		uint32_t nMipLevels = 1);
+
+	std::unique_ptr<Image> createImage2DAndInitLayout(
+		const Context* ctx, QueueIdx queueIdx, vk::Extent2D extent,
+		vk::Format format, vk::ImageTiling tiling, vk::ImageLayout layout, vk::ImageUsageFlags usage,
+		vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels = 1);
 
 	std::unique_ptr<Image> createTexture2D(
-		const Context* ctx, QueueIdx queueIdx, const HostImage* hostImg,
-		vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::ImageLayout layout, vk::MemoryPropertyFlags properties,
+		const Context* ctx, QueueIdx queueIdx,
+		const HostImage* hostImg,
+		vk::ImageTiling tiling, vk::ImageLayout layout, vk::ImageUsageFlags usage,
+		vk::MemoryPropertyFlags properties,
 		uint32_t nMipLevels = 1);
 
 	void copyBufferToImageCmd(vk::CommandBuffer cmd, const Buffer* buffer, Image* image);

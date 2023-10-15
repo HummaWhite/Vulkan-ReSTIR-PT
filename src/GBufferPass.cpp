@@ -102,34 +102,56 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 
 void GBufferPass::createResource(vk::Extent2D extent) {
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
+
 		for (int j = 0; j < 2; j++) {
-			GBufferA[i][j] = zvk::Memory::createImage2D(
-				mCtx, extent, GBufferAFormat, vk::ImageTiling::eOptimal,
+
+			GBufferA[i][j] = zvk::Memory::createImage2DAndInitLayout(
+				mCtx, zvk::QueueIdx::GeneralUse, extent, GBufferAFormat,
+				vk::ImageTiling::eOptimal,
+				vk::ImageLayout::eShaderReadOnlyOptimal,
 				vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
 				vk::MemoryPropertyFlagBits::eDeviceLocal
 			);
+
 			GBufferA[i][j]->createImageView();
 			GBufferA[i][j]->createSampler(vk::Filter::eNearest);
 
 			zvk::DebugUtils::nameVkObject(
 				mCtx->device, GBufferA[i][j]->image, "GBufferA[" + std::to_string(i) + ", " + std::to_string(j) + "]"
 			);
+			zvk::DebugUtils::nameVkObject(
+				mCtx->device, GBufferA[i][j]->view, "GBufferA.imageView[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+			);
+			zvk::DebugUtils::nameVkObject(
+				mCtx->device, GBufferA[i][j]->sampler, "GBufferA.sampler[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+			);
 
-			GBufferB[i][j] = zvk::Memory::createImage2D(
-				mCtx, extent, GBufferBFormat, vk::ImageTiling::eOptimal,
+			GBufferB[i][j] = zvk::Memory::createImage2DAndInitLayout(
+				mCtx, zvk::QueueIdx::GeneralUse, extent, GBufferBFormat,
+				vk::ImageTiling::eOptimal,
+				vk::ImageLayout::eShaderReadOnlyOptimal,
 				vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
 				vk::MemoryPropertyFlagBits::eDeviceLocal
 			);
+
 			GBufferB[i][j]->createImageView();
 			GBufferB[i][j]->createSampler(vk::Filter::eNearest);
 
 			zvk::DebugUtils::nameVkObject(
 				mCtx->device, GBufferB[i][j]->image, "GBufferB[" + std::to_string(i) + ", " + std::to_string(j) + "]"
 			);
+			zvk::DebugUtils::nameVkObject(
+				mCtx->device, GBufferB[i][j]->view, "GBufferB.imageView[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+			);
+			zvk::DebugUtils::nameVkObject(
+				mCtx->device, GBufferB[i][j]->sampler, "GBufferB.sampler[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+			);
 
 			mDepthStencil[i][j] = zvk::Memory::createImage2D(
-				mCtx, extent, DepthStencilFormat, vk::ImageTiling::eOptimal,
-				vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal
+				mCtx, extent, DepthStencilFormat,
+				vk::ImageTiling::eOptimal,
+				vk::ImageUsageFlagBits::eDepthStencilAttachment,
+				vk::MemoryPropertyFlagBits::eDeviceLocal
 			);
 			mDepthStencil[i][j]->createImageView();
 		}

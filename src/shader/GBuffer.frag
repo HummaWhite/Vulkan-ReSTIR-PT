@@ -37,7 +37,6 @@ void main() {
 
 	vec4 lastCoord = uCamera.lastProjView * vec4(fsIn.pos, 1.0);
 	lastCoord /= lastCoord.w;
-	lastCoord.y = -lastCoord.y;
 	lastCoord = lastCoord * 0.5 + 0.5;
 
 	vec2 thisCoord = gl_FragCoord.xy / uCamera.filmSize;

@@ -21,7 +21,7 @@ public:
 	void setDir(glm::vec3 dir);
 	void setPos(glm::vec3 pos);
 	void setAngle(glm::vec3 angle);
-	void setFilmSize(glm::ivec2 size);
+	void setFilmSize(glm::uvec2 size);
 	void setPlanes(float nearZ, float farZ);
 	void setLensRadius(float radius) { mLensRadius = radius; }
 	void setFocalDist(float dist) { mFocalDist = dist; }
@@ -69,7 +69,7 @@ private:
 	std140(glm::vec3, mUp) = glm::vec3(0.0f, 0.0f, 1.0f);
 	std140(float, mFocalDist) = 1.0f;
 
-	std140(glm::ivec2, mFilmSize);
+	std140(glm::uvec2, mFilmSize);
 	std140(uint32_t, mFrameIndex) = 0;
 	std140(uint32_t, seed);
 };

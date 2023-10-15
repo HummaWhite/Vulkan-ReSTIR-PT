@@ -48,7 +48,7 @@ struct Camera {
 	vec3 up;
 	float focalDist;
 
-	ivec2 filmSize;
+	uvec2 filmSize;
 	uint frameIndex;
 	uint seed;
 };
@@ -95,14 +95,14 @@ struct LightSampleTableElement {
 };
 
 struct DIPathSample {
-	vec3 Li;
+	vec3 radiance;
 	float pHat;
 	vec3 wi;
 	float dist;
 };
 
 struct GIPathSample {
-	vec3 Li;
+	vec3 radiance;
 	float pad0;
 	vec3 visiblePos;
 	float pad1;

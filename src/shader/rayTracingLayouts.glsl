@@ -24,6 +24,10 @@ struct SurfaceInfo {
 
 layout(set = RayTracingDescSet, binding = 0) uniform accelerationStructureEXT uTLAS;
 
+uint index1D(uvec2 index) {
+    return uCamera.filmSize.x * index.y + index.x;
+}
+
 void loadSurfaceInfo(Intersection isec, out SurfaceInfo info) {
     ObjectInstance instance = uObjectInstances[isec.instanceIdx];
 
@@ -63,6 +67,13 @@ void loadSurfaceInfo(Intersection isec, out SurfaceInfo info) {
         info.albedo = texture(uTextures[nonuniformEXT(texIdx)], vec2(uvx, uvy)).rgb;
     }
     info.matIndex = info.matIndex;
+}
+
+vec3 fixRadiance(vec3 radiance) {
+    if (isnan(radiance.x) || isnan(radiance.y) || isnan(radiance.z)) {
+        return vec3(0.0);
+    }
+    return radiance;
 }
 
 #endif
