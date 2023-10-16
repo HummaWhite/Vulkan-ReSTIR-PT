@@ -98,7 +98,7 @@ private:
 	Timer mRenderTimer;
 	double mLastTime = 0;
 	uint32_t mInFlightFrameIdx = 0;
-	uint32_t mCurFrame[NumFramesInFlight] = { 0, 0 };
+	uint32_t mCurFrame[NumFramesInFlight] = { 0 };
 
 	Settings mSettings;
 
@@ -122,6 +122,8 @@ private:
 	vk::Fence mInFlightFences[NumFramesInFlight];
 
 	Scene mScene;
+	Camera mCamera;
+	Camera mPrevCamera;
 	std::unique_ptr<DeviceScene> mDeviceScene;
 	std::unique_ptr<zvk::Buffer> mCameraBuffer[NumFramesInFlight];
 

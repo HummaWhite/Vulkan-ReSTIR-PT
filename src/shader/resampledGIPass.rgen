@@ -12,6 +12,30 @@
 layout(location = 0) rayPayloadEXT Intersection rtIsec;
 layout(location = 1) rayPayloadEXT bool rtShadowed;
 
+bool findPreviousReservoir(vec2 uv, vec3 pos, vec3 normal, vec3 albedo, int matId, out GIReservoir resv) {
+    if (uv.x < 0 || uv.y < 0 || uv.x > 1.0 || uv.y > 1.0) {
+        return false;
+    }
+    ivec2 pixelId = ivec2(uv * vec2(gl_LaunchSizeEXT.xy));
+
+    uvec4 GBufferPrevA = texelFetch(uGBufferPrevA, pixelId, 0);
+    uvec4 GBufferPrevB = texelFetch(uGBufferPrevB, pixelId, 0);
+
+    vec3 albedoPrev = unpackAlbedo(GBufferPrevA.x);
+    vec3 normalPrev = uintBitsToFloat(GBufferPrevA.yzw);
+    float depthPrev = uintBitsToFloat(GBufferPrevB.x);
+    int matIdPrev = int(GBufferPrevB.y);
+
+    Ray ray = pinholeCameraSampleRay(uPrevCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
+    vec3 posPrev = ray.ori + ray.dir * (depthPrev - 1e-4);
+
+    if (matIdPrev != matId || dot(normalPrev, normal) < 0.9 || distance(posPrev, pos) > 1.0) {
+        return false;
+    }
+    resv = uGIReservoirPrev[index1D(uvec2(pixelId))];
+    return true;
+}
+
 void main() {
     const int MaxTracingDepth = 3;
     uvec2 index = gl_LaunchIDEXT.xy;
@@ -29,6 +53,7 @@ void main() {
 
     if (depth == 0.0) {
         imageStore(uIndirectOutput, ivec2(index), vec4(vec3(0.0), 1.0));
+        GIReservoirReset(uGIReservoirThis[index1D(index)]);
         return;
     }
 
@@ -36,14 +61,15 @@ void main() {
     vec3 albedoPrev = unpackAlbedo(GBufferPrevA.x);
     
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.frameIndex, uCamera.seed, hash2(index.x) + index.y);
+    //uint rng = makeSeed(uCamera.frameIndex, uCamera.seed, hash2(index.x) + index.y);
+    uint rng = makeSeed(uCamera.seed + gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
 
     vec3 throughput = vec3(1.0);
     vec3 lastPos;
     float lastBsdfPdf;
 
     SurfaceInfo surf;
-    surf.pos = ray.ori + ray.dir * depth;
+    surf.pos = ray.ori + ray.dir * (depth - 1e-4);
     surf.norm = norm;
     surf.albedo = albedo;
     surf.lightIndex = InvalidResourceIdx;
@@ -53,6 +79,7 @@ void main() {
     pathSample.visiblePos = surf.pos;
     pathSample.visibleNorm = surf.norm;
     
+    vec3 primaryPos = surf.pos;
     vec3 primaryWo = -ray.dir;
     vec3 primaryAlbedo = albedo;
     float primaryPdf;
@@ -70,16 +97,16 @@ void main() {
                 /* ray attribs         */ ray.ori, MinRayDistance, ray.dir, MaxRayDistance,
                 /* payload location    */ 0
             );
+
+            if (!rtIsec.hit) {
+                break;
+            }
             loadSurfaceInfo(rtIsec, surf);
 
             if (bounce == 1) {
                 pathSample.sampledPos = surf.pos;
                 pathSample.sampledNorm = surf.norm;
             }
-        }
-
-        if (!rtIsec.hit) {
-            break;
         }
 
         if (surf.lightIndex != InvalidResourceIdx) {
@@ -99,7 +126,7 @@ void main() {
             break;
         }
 
-        if (/* sample direct lighting */ bounce > 0)
+        if (/* sample light sources */ bounce > 0)
         {
             const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
@@ -129,7 +156,7 @@ void main() {
 
         if (bounce == 0) {
             primaryPdf = dot(surf.norm, ray.dir) * PiInv;
-            //surf.albedo = vec3(1.0);
+            surf.albedo = vec3(1.0);
         }
 
         throughput *= surf.albedo;
@@ -137,46 +164,33 @@ void main() {
         lastPos = surf.pos;
     }
     vec3 radiance = pathSample.radiance;
-    
-    /*
-    {
-        GIReservoir resv = uGIReservoirPrev[index1D(index)];
 
+    GIReservoir resv;
+    GIReservoirReset(resv);
+    
+    if (findPreviousReservoir(uv + motion, primaryPos, norm, albedo, matId, resv)) {
         float sampleWeight = 0.0;
 
         if (GIPathSampleIsValid(pathSample) && primaryPdf > 1e-6) {
-            pathSample.pHat = GIPathSamplePHat(pathSample);
-            sampleWeight = pathSample.pHat / primaryPdf;
+            float pHat = GIPathSamplePHat(pathSample);
+            sampleWeight = pHat / primaryPdf;
 
             if (isnan(sampleWeight) || sampleWeight < 0.0) {
                 sampleWeight = 0.0;
             }
+            GIReservoirAddSample(resv, pathSample, pHat, sampleWeight, sample1f(rng));
         }
-        GIReservoirAddSample(resv, pathSample, sampleWeight, sample1f(rng));
         GIReservoirResetIfInvalid(resv);
         GIReservoirCapSample(resv, 40);
 
-        uGIReservoirThis[index1D(index)] = resv;
-
-        pathSample = resv.pathSample;
-
-        if (GIPathSampleIsValid(pathSample) && GIReservoirIsValid(resv)) {
-            vec3 primaryWi = normalize(pathSample.sampledPos - pathSample.visiblePos);
-            //radiance = pathSample.radiance / pathSample.pHat * resv.resampleWeight / float(resv.sampleCount);
+        if (GIReservoirIsValid(resv) && resv.sampleCount > 0 && resv.pHat > 1e-6) {
+            vec3 primaryWi = normalize(resv.sampledPos - resv.visiblePos);
+            radiance = resv.radiance / resv.pHat * resv.resampleWeight / float(resv.sampleCount);
         }
-        //radiance = pathSample.radiance;
     }
-    */
+    uGIReservoirThis[index1D(index)] = resv;
 
-    uGIReservoirThis[index1D(index)].sampleCount = uGIReservoirPrev[index1D(index)].sampleCount + 1;
-    radiance = vec3(uGIReservoirThis[index1D(index)].sampleCount) / 1000.0;
-    //radiance = vec3(uGIReservoirThis[index1D(index)].sampleCount++) / 1000.0;
-    //radiance = abs(albedo - albedoPrev);
-    //radiance = vec3(motion, 0.0);
-    //radiance = albedo;
-
-    vec3 prevRadiance = imageLoad(uIndirectOutput, ivec2(index)).rgb;
-    radiance = (prevRadiance * float(uCamera.frameIndex) + radiance) / (float(uCamera.frameIndex) + 1.0);
-
+    radiance *= albedo;
+    radiance = clampColor(radiance);
     imageStore(uIndirectOutput, ivec2(index), vec4(radiance, 1.0));
 }

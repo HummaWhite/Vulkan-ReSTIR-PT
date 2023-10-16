@@ -4,7 +4,7 @@
 #ifdef __cplusplus
   #include <vulkan/vulkan.hpp>
 
-  constexpr uint32_t NumFramesInFlight = 2;
+  constexpr uint32_t NumFramesInFlight = 1;
 
   #define ENUM_BEGIN(x) enum x {
   #define ENUM_END(x) }

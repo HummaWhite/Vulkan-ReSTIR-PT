@@ -103,15 +103,10 @@ struct DIPathSample {
 
 struct GIPathSample {
 	vec3 radiance;
-	float pad0;
 	vec3 visiblePos;
-	float pad1;
 	vec3 visibleNorm;
-	float pad2;
 	vec3 sampledPos;
-	float pad3;
 	vec3 sampledNorm;
-	float pHat;
 };
 
 struct DIReservoir {
@@ -123,18 +118,24 @@ struct DIReservoir {
 };
 
 struct GIReservoir {
-	GIPathSample pathSample;
+	vec3 radiance;
 	uint sampleCount;
+	vec3 visiblePos;
 	float resampleWeight;
+	vec3 visibleNorm;
 	float contribWeight;
-	float pad0;
+	vec3 sampledPos;
+	float pHat;
 };
 
 struct PTReservoir {
 	uint pad;
 };
 
-layout(set = CameraDescSet, binding = 0) uniform _Camera { Camera uCamera; };
+layout(set = CameraDescSet, binding = 0) uniform _Camera {
+	Camera uCamera;
+	Camera uPrevCamera;
+};
 
 layout(set = GBufferDrawParamDescSet, binding = 0, std140) readonly buffer _GBufferDrawParam { GBufferDrawParam uGBufferDrawParams[]; };
 
@@ -157,7 +158,6 @@ layout(set = RayImageDescSet, binding = 6) buffer _DIReservoirThis { DIReservoir
 layout(set = RayImageDescSet, binding = 7) buffer _DIReservoirPrev { DIReservoir uDIReservoirPrev[]; };
 layout(set = RayImageDescSet, binding = 8) buffer _GIReservoirThis { GIReservoir uGIReservoirThis[]; };
 layout(set = RayImageDescSet, binding = 9) buffer _GIReservoirPrev { GIReservoir uGIReservoirPrev[]; };
-
 
 // in ratTraceLayouts.glsl
 // layout(set = RayTracingDescSet, binding = 0) uniform accelerationStructureEXT uTLAS;

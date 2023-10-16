@@ -69,8 +69,8 @@ public:
 public:
 	vk::Buffer buffer;
 	vk::DeviceMemory memory;
-	vk::DeviceSize size;
-	vk::DeviceSize realSize;
+	vk::DeviceSize size = 0;
+	vk::DeviceSize realSize = 0;
 	vk::MemoryPropertyFlags properties;
 	vk::BufferUsageFlags usage;
 	void* data = nullptr;

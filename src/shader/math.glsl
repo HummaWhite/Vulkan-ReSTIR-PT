@@ -179,6 +179,13 @@ bool hasInf(vec3 color) {
 	return isinf(color.x) || isinf(color.y) || isinf(color.z);
 }
 
+vec3 clampColor(vec3 color) {
+	if (hasNan(color)) {
+		return vec3(0.0);
+	}
+	return clamp(color, vec3(0.0), vec3(1e4));
+}
+
 vec3 colorWheel(float x) {
 	const float Div = 1.0 / 4.0;
 
@@ -217,6 +224,10 @@ uint hash2(uint seed) {
 
 uint makeSeed(uint seed0, uint seed1, uint index) {
 	return hash2((1u << 31u) | (seed1 << 22) | seed0) ^ hash2(index);
+}
+
+uint makeSeed(uint rand, uint index) {
+	return hash2(rand) + hash2(index);
 }
 
 uint urand(inout uint rng) {

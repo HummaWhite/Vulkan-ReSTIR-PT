@@ -12,7 +12,7 @@ layout(location = 0) rayPayloadEXT Intersection rtIsec;
 layout(location = 1) rayPayloadEXT bool rtShadowed;
 
 void main() {
-    const int MaxTracingDepth = 4;
+    const int MaxTracingDepth = 3;
 
     vec2 uv = (vec2(gl_LaunchIDEXT.xy) + 0.5) / vec2(gl_LaunchSizeEXT.xy);
 
@@ -23,7 +23,6 @@ void main() {
     vec3 norm = uintBitsToFloat(GBufferThisA.yzw);
     float depth = uintBitsToFloat(GBufferThisB.x);
     int matIndex = int(GBufferThisB.y);
-    // vec2 motion = unpackSnorm2x16(GBufferThisB.z);
 
     if (depth == 0.0) {
         imageStore(uIndirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(vec3(0.0), 1.0));
@@ -31,7 +30,7 @@ void main() {
     }
     
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.frameIndex, uCamera.seed, hash2(gl_LaunchIDEXT.x) + gl_LaunchIDEXT.y);
+    uint rng = makeSeed(uCamera.seed + gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
 
     vec3 radiance = vec3(0.0);
     vec3 throughput = vec3(1.0);
@@ -39,7 +38,7 @@ void main() {
     float lastBsdfPdf;
 
     SurfaceInfo surf;
-    surf.pos = ray.ori + ray.dir * depth;
+    surf.pos = ray.ori + ray.dir * (depth - 1e-4);
     surf.norm = norm;
     surf.albedo = albedo;
     surf.lightIndex = InvalidResourceIdx;
@@ -57,11 +56,11 @@ void main() {
                 /* ray attribs         */ ray.ori, MinRayDistance, ray.dir, MaxRayDistance,
                 /* payload location    */ 0
             );
-            loadSurfaceInfo(rtIsec, surf);
-        }
 
-        if (!rtIsec.hit) {
-            break;
+            if (!rtIsec.hit) {
+                break;
+            }
+            loadSurfaceInfo(rtIsec, surf);
         }
 
         if (surf.lightIndex != InvalidResourceIdx) {
@@ -112,8 +111,5 @@ void main() {
         lastBsdfPdf = absDot(surf.norm, ray.dir) * PiInv;
         lastPos = surf.pos;
     }
-    vec3 prevRadiance = imageLoad(uIndirectOutput, ivec2(gl_LaunchIDEXT.xy)).rgb;
-    radiance = (prevRadiance * float(uCamera.frameIndex) + radiance) / (float(uCamera.frameIndex) + 1.0);
-
     imageStore(uIndirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
 }

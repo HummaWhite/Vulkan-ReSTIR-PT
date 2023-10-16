@@ -83,6 +83,12 @@ void Scene::load(const File::path& path) {
 	Log::newLine();
 }
 
+void Scene::clear() {
+	resource.destroy();
+	objectInstances.clear();
+	lightInstances.clear();
+}
+
 void Scene::loadXML(pugi::xml_node sceneNode) {
 	if (!sceneNode) {
 		throw std::runtime_error("Scene: failed to load");

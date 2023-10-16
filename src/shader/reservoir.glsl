@@ -35,19 +35,17 @@ void GIReservoirUpdateContrib(inout GIReservoir resv, float pHat) {
 	resv.contribWeight = resv.resampleWeight / (float(resv.sampleCount) * pHat);
 }
 
-void GIReservoirAddSample(inout GIReservoir resv, GIPathSample pathSample, float resampleWeight, float r) {
+void GIReservoirAddSample(inout GIReservoir resv, GIPathSample pathSample, float pHat, float resampleWeight, float r) {
 	resv.resampleWeight += resampleWeight;
 	resv.sampleCount++;
 
 	if (r * resv.resampleWeight < resampleWeight) {
-		resv.pathSample = pathSample;
+		resv.radiance = pathSample.radiance;
+		resv.visiblePos = pathSample.visiblePos;
+		resv.visibleNorm = pathSample.visibleNorm;
+		resv.sampledPos = pathSample.sampledPos;
+		resv.pHat = pHat;
 	}
-}
-
-void GIReservoirMerge(inout GIReservoir resv, GIReservoir rhs, float pHat, float rand) {
-	uint sampleCount = resv.sampleCount;
-	GIReservoirAddSample(resv, rhs.pathSample, rhs.contribWeight * pHat * float(rhs.sampleCount), rand);
-	resv.sampleCount += rhs.sampleCount;
 }
 
 void GIReservoirCapSample(inout GIReservoir resv, uint cap) {

@@ -23,7 +23,7 @@ class Scene
 {
 public:
 	void load(const File::path& path);
-	//void clear();
+	void clear();
 
 private:
 	void loadXML(pugi::xml_node sceneNode);

@@ -30,19 +30,6 @@ struct DIPathSample {
 	float dist;
 };
 
-struct GIPathSample {
-	glm::vec3 radiance;
-	float pad0;
-	glm::vec3 visiblePos;
-	float pad1;
-	glm::vec3 visibleNorm;
-	float pad2;
-	glm::vec3 sampledPos;
-	float pad3;
-	glm::vec3 sampledNorm;
-	float pHat;
-};
-
 struct DIReservoir {
 	DIPathSample pathSample;
 	uint32_t sampleCount;
@@ -52,11 +39,14 @@ struct DIReservoir {
 };
 
 struct GIReservoir {
-	GIPathSample pathSample;
+	glm::vec3 radiance;
 	uint32_t sampleCount;
+	glm::vec3 visiblePos;
 	float resampleWeight;
+	glm::vec3 visibleNorm;
 	float contribWeight;
-	float pad0;
+	glm::vec3 sampledPos;
+	float pHat;
 };
 
 struct PTReservoir {
@@ -90,7 +80,7 @@ void Renderer::initWindow() {
 	glfwSetKeyCallback(mMainWindow, WindowInput::keyCallback);
 	glfwSetCursorPosCallback(mMainWindow, WindowInput::cursorCallback);
 	glfwSetScrollCallback(mMainWindow, WindowInput::scrollCallback);
-	WindowInput::setCamera(mScene.camera);
+	WindowInput::setCamera(mCamera);
 
 	glfwMakeContextCurrent(mMainWindow);
 }
@@ -140,11 +130,12 @@ void Renderer::initVulkan() {
 
 		initScene();
 
-		mScene.camera.setFilmSize({ mWidth, mHeight });
-		mScene.camera.setPlanes(1e-3f, 500.f);
-		mScene.camera.nextFrame(mRng);
-
 		mDeviceScene = std::make_unique<DeviceScene>(mContext.get(), mScene, zvk::QueueIdx::GeneralUse);
+
+		mCamera = mScene.camera;
+		mCamera.setFilmSize({ mWidth, mHeight });
+		mCamera.setPlanes(0.001f, 200.f);
+		mPrevCamera = mCamera;
 
 		auto extent = mSwapchain->extent();
 
@@ -154,6 +145,8 @@ void Renderer::initVulkan() {
 		mResampledDIPass = std::make_unique<ResampledDIPass>(mContext.get());
 		mResampledGIPass = std::make_unique<ResampledGIPass>(mContext.get());
 		mPostProcPass = std::make_unique<PostProcPassFrag>(mContext.get(), mSwapchain.get());
+
+		mScene.clear();
 
 		Log::newLine();
 
@@ -198,7 +191,7 @@ void Renderer::initScene() {
 void Renderer::createCameraBuffer() {
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
 		mCameraBuffer[i] = zvk::Memory::createBuffer(
-			mContext.get(), sizeof(Camera),
+			mContext.get(), sizeof(Camera) * 2,
 			vk::BufferUsageFlagBits::eUniformBuffer,
 			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 		);
@@ -208,8 +201,7 @@ void Renderer::createCameraBuffer() {
 }
 
 void Renderer::createRayImage() {
-	//constexpr auto outputFormat = vk::Format::eR16G16B16A16Sfloat;
-	constexpr auto outputFormat = vk::Format::eR32G32B32A32Sfloat;
+	constexpr auto outputFormat = vk::Format::eR16G16B16A16Sfloat;
 	const auto extent = mSwapchain->extent();
 
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
@@ -335,7 +327,10 @@ void Renderer::updateDescriptor() {
 }
 
 void Renderer::updateCameraUniform() {
-	memcpy(mCameraBuffer[mInFlightFrameIdx]->data, &mScene.camera, sizeof(Camera));
+	mCamera.nextFrame(mRng);
+	Camera write[] = { mCamera, mPrevCamera };
+	memcpy(mCameraBuffer[mInFlightFrameIdx]->data, write, sizeof(write));
+	mPrevCamera = mCamera;
 }
 
 void Renderer::recreateFrame() {
@@ -414,14 +409,11 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		}
 		zvk::DebugUtils::cmdEndLabel(cmd);
 
-		auto GBufferImageBarriers = {
-			GBufferA->getImageBarrierAndSetLayout(GBufferA->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
-			GBufferB->getImageBarrierAndSetLayout(GBufferB->layout, vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead),
-		};
+		auto GBufferMemoryBarrier = vk::MemoryBarrier(vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead);
 
 		cmd.pipelineBarrier(
 			vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eRayTracingShaderKHR,
-			vk::DependencyFlags{ 0 }, {}, {}, GBufferImageBarriers
+			vk::DependencyFlags{ 0 }, GBufferMemoryBarrier, {}, {}
 		);
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "Direct Lighting", { .5f, .3f, 1.f, 1.f }); {
@@ -445,14 +437,11 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		}
 		zvk::DebugUtils::cmdEndLabel(cmd);
 
-		auto rayImageBarriers = {
-			directOutput->getImageBarrierAndSetLayout(directOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
-			indirectOutput->getImageBarrierAndSetLayout(indirectOutput->layout, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead),
-		};
+		auto rayImageMemoryBarrier = vk::MemoryBarrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
 
 		cmd.pipelineBarrier(
 			vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::PipelineStageFlagBits::eFragmentShader,
-			vk::DependencyFlags{ 0 }, {}, {}, rayImageBarriers
+			vk::DependencyFlags{ 0 }, rayImageMemoryBarrier, {}, {}
 		);
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "Post Processing", { .8f, .3f, .5f, 1.f }); {
@@ -535,9 +524,9 @@ void Renderer::drawFrame() {
 }
 
 void Renderer::initSettings() {
-	mSettings.directMethod = RayTracingMethod::Naive;
-	mSettings.indirectMethod = RayTracingMethod::None;
-	mSettings.frameLimit = 10000.f;
+	mSettings.directMethod = RayTracingMethod::None;
+	mSettings.indirectMethod = RayTracingMethod::ResampledGI;
+	mSettings.frameLimit = 0;
 }
 
 void Renderer::processGUI() {
@@ -564,7 +553,7 @@ void Renderer::processGUI() {
 		ImGui::EndMainMenuBar();
 	}
 	if (resetFrame || !mSettings.accumulate) {
-		mScene.camera.update();
+		mCamera.update();
 	}
 }
 
@@ -572,7 +561,6 @@ void Renderer::loop() {
 	mGUIManager->beginFrame();
 	processGUI();
 	drawFrame();
-	mScene.camera.nextFrame(mRng);
 }
 
 void Renderer::cleanupVulkan() {
