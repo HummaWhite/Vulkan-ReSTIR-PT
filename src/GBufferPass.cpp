@@ -25,6 +25,7 @@ void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t in
 	vk::ClearValue clearValues[] = {
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
 		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
+		vk::ClearColorValue(0.f, 0.f, 0.f, 1.f),
 		vk::ClearDepthStencilValue(1.f, 0)
 	};
 
@@ -76,6 +77,8 @@ void GBufferPass::recreateFrame(vk::Extent2D extent) {
 void GBufferPass::createDrawBuffer(const Resource& resource) {
 	std::vector<vk::DrawIndexedIndirectCommand> commands;
 
+	int32_t meshIdx = 0;
+
 	for (const auto& model : resource.modelInstances()) {
 		glm::mat4 modelMatrix = model->modelMatrix();
 		glm::mat4 modelInvT(glm::transpose(glm::inverse(modelMatrix)));
@@ -83,7 +86,7 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 		for (uint32_t i = 0; i < model->numMeshes(); i++) {
 			const auto& mesh = resource.meshInstances()[model->meshOffset() + i];
 			commands.push_back({ mesh.indexCount, 1, mesh.indexOffset, 0, 0 });
-			mDrawParams.push_back({ modelMatrix, modelInvT, mesh.materialIdx });
+			mDrawParams.push_back({ modelMatrix, modelInvT, mesh.materialIdx, meshIdx++ });
 		}
 	}
 
@@ -101,50 +104,50 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 }
 
 void GBufferPass::createResource(vk::Extent2D extent) {
+	auto imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage |
+		vk::ImageUsageFlagBits::eSampled;
+
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
+		motionVector[i] = zvk::Memory::createImage2DAndInitLayout(
+			mCtx, zvk::QueueIdx::GeneralUse, extent, MotionVectorFormat,
+			vk::ImageTiling::eOptimal,
+			vk::ImageLayout::eShaderReadOnlyOptimal,
+			imageUsage,
+			vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+		motionVector[i]->createImageView();
+		motionVector[i]->createSampler(vk::Filter::eLinear);
+
+		zvk::DebugUtils::nameVkObject(mCtx->device, motionVector[i]->image, "motionVector[" + std::to_string(i) + "]");
 
 		for (int j = 0; j < 2; j++) {
 
-			GBufferA[i][j] = zvk::Memory::createImage2DAndInitLayout(
-				mCtx, zvk::QueueIdx::GeneralUse, extent, GBufferAFormat,
+			depthNormal[i][j] = zvk::Memory::createImage2DAndInitLayout(
+				mCtx, zvk::QueueIdx::GeneralUse, extent, DepthNormalFormat,
 				vk::ImageTiling::eOptimal,
 				vk::ImageLayout::eShaderReadOnlyOptimal,
-				vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
+				imageUsage,
 				vk::MemoryPropertyFlagBits::eDeviceLocal
 			);
-
-			GBufferA[i][j]->createImageView();
-			GBufferA[i][j]->createSampler(vk::Filter::eNearest);
+			depthNormal[i][j]->createImageView();
+			depthNormal[i][j]->createSampler(vk::Filter::eLinear);
 
 			zvk::DebugUtils::nameVkObject(
-				mCtx->device, GBufferA[i][j]->image, "GBufferA[" + std::to_string(i) + ", " + std::to_string(j) + "]"
-			);
-			zvk::DebugUtils::nameVkObject(
-				mCtx->device, GBufferA[i][j]->view, "GBufferA.imageView[" + std::to_string(i) + ", " + std::to_string(j) + "]"
-			);
-			zvk::DebugUtils::nameVkObject(
-				mCtx->device, GBufferA[i][j]->sampler, "GBufferA.sampler[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+				mCtx->device, depthNormal[i][j]->image, "depthNormal[" + std::to_string(i) + ", " + std::to_string(j) + "]"
 			);
 
-			GBufferB[i][j] = zvk::Memory::createImage2DAndInitLayout(
-				mCtx, zvk::QueueIdx::GeneralUse, extent, GBufferBFormat,
+			albedoMatId[i][j] = zvk::Memory::createImage2DAndInitLayout(
+				mCtx, zvk::QueueIdx::GeneralUse, extent, AlbedoMatIdFormat,
 				vk::ImageTiling::eOptimal,
 				vk::ImageLayout::eShaderReadOnlyOptimal,
-				vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
+				imageUsage,
 				vk::MemoryPropertyFlagBits::eDeviceLocal
 			);
+			albedoMatId[i][j]->createImageView();
+			albedoMatId[i][j]->createSampler(vk::Filter::eNearest);
 
-			GBufferB[i][j]->createImageView();
-			GBufferB[i][j]->createSampler(vk::Filter::eNearest);
-
 			zvk::DebugUtils::nameVkObject(
-				mCtx->device, GBufferB[i][j]->image, "GBufferB[" + std::to_string(i) + ", " + std::to_string(j) + "]"
-			);
-			zvk::DebugUtils::nameVkObject(
-				mCtx->device, GBufferB[i][j]->view, "GBufferB.imageView[" + std::to_string(i) + ", " + std::to_string(j) + "]"
-			);
-			zvk::DebugUtils::nameVkObject(
-				mCtx->device, GBufferB[i][j]->sampler, "GBufferB.sampler[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+				mCtx->device, albedoMatId[i][j]->image, "albedoMatId[" + std::to_string(i) + ", " + std::to_string(j) + "]"
 			);
 
 			mDepthStencil[i][j] = zvk::Memory::createImage2D(
@@ -159,43 +162,38 @@ void GBufferPass::createResource(vk::Extent2D extent) {
 }
 
 void GBufferPass::createRenderPass(vk::ImageLayout outLayout) {
-	auto depthNormalDesc = vk::AttachmentDescription()
-		.setFormat(GBufferAFormat)
+	auto attachmentDesc = vk::AttachmentDescription()
 		.setSamples(vk::SampleCountFlagBits::e1)
 		.setLoadOp(vk::AttachmentLoadOp::eClear)
 		.setStoreOp(vk::AttachmentStoreOp::eStore)
 		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
 		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-		.setInitialLayout(vk::ImageLayout::eUndefined)
+		.setInitialLayout(vk::ImageLayout::eUndefined);
+
+	auto depthNormalDesc = attachmentDesc
+		.setFormat(DepthNormalFormat)
 		.setFinalLayout(outLayout);
 
-	auto albedoMatIdxDesc = vk::AttachmentDescription()
-		.setFormat(GBufferBFormat)
-		.setSamples(vk::SampleCountFlagBits::e1)
-		.setLoadOp(vk::AttachmentLoadOp::eClear)
-		.setStoreOp(vk::AttachmentStoreOp::eStore)
-		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-		.setInitialLayout(vk::ImageLayout::eUndefined)
+	auto albedoMatIdxDesc = attachmentDesc
+		.setFormat(AlbedoMatIdFormat)
 		.setFinalLayout(outLayout);
 
-	auto depthStencilDesc = vk::AttachmentDescription()
+	auto motionVectorDesc = attachmentDesc
+		.setFormat(MotionVectorFormat)
+		.setFinalLayout(outLayout);
+
+	auto depthStencilDesc = attachmentDesc
 		.setFormat(vk::Format::eD32Sfloat)
-		.setSamples(vk::SampleCountFlagBits::e1)
-		.setLoadOp(vk::AttachmentLoadOp::eClear)
-		.setStoreOp(vk::AttachmentStoreOp::eDontCare)
-		.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-		.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-		.setInitialLayout(vk::ImageLayout::eUndefined)
 		.setFinalLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
-	auto attachments = { depthNormalDesc, albedoMatIdxDesc, depthStencilDesc };
+	auto attachments = { depthNormalDesc, albedoMatIdxDesc, motionVectorDesc, depthStencilDesc };
 
 	vk::AttachmentReference depthNormalRef(0, vk::ImageLayout::eColorAttachmentOptimal);
-	vk::AttachmentReference albedoMatIdxRef(1, vk::ImageLayout::eColorAttachmentOptimal);
-	vk::AttachmentReference depthStencilRef(2, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+	vk::AttachmentReference albedoMatIdRef(1, vk::ImageLayout::eColorAttachmentOptimal);
+	vk::AttachmentReference motionVectorRef(2, vk::ImageLayout::eColorAttachmentOptimal);
+	vk::AttachmentReference depthStencilRef(3, vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
-	auto colorRefs = { depthNormalRef, albedoMatIdxRef };
+	auto colorRefs = { depthNormalRef, albedoMatIdRef, motionVectorRef };
 
 	auto subpass = vk::SubpassDescription()
 		.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
@@ -227,7 +225,9 @@ void GBufferPass::createRenderPass(vk::ImageLayout outLayout) {
 void GBufferPass::createFramebuffer(vk::Extent2D extent) {
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
 		for (int j = 0; j < 2; j++) {
-			auto attachments = { GBufferA[i][j]->view, GBufferB[i][j]->view, mDepthStencil[i][j]->view };
+			auto attachments = {
+				depthNormal[i][j]->view, albedoMatId[i][j]->view, motionVector[i]->view, mDepthStencil[i][j]->view
+			};
 
 			auto createInfo = vk::FramebufferCreateInfo()
 				.setRenderPass(mRenderPass)
@@ -246,12 +246,12 @@ void GBufferPass::createPipeline(
 	const std::vector<vk::DescriptorSetLayout>& descLayouts
 ) {
 	auto vertStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/GBuffer.vert.spv"),
+		shaderManager->createShaderModule("shaders/gbuffer.vert.spv"),
 		vk::ShaderStageFlagBits::eVertex
 	);
 
 	auto fragStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/GBuffer.frag.spv"),
+		shaderManager->createShaderModule("shaders/gBuffer.frag.spv"),
 		vk::ShaderStageFlagBits::eFragment
 	);
 
@@ -304,7 +304,7 @@ void GBufferPass::createPipeline(
 			vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
 			vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
 
-	auto blendAttachments = { blendAttachment, blendAttachment };
+	auto blendAttachments = { blendAttachment, blendAttachment, blendAttachment };
 
 	auto colorBlendStateInfo = vk::PipelineColorBlendStateCreateInfo()
 		.setLogicOpEnable(false)

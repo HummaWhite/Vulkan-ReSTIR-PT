@@ -29,17 +29,4 @@ vec2 unpackMotionVector(uint packed) {
     return unpackSnorm2x16(packed);
 }
 
-void packGBuffer(
-    out uvec4 GBufferA, out uvec4 GBufferB,
-    vec3 albedo, vec3 normal, float depth,
-    vec2 motion, int materialIdx
-) {
-    GBufferA.x = packAlbedo(albedo);
-    GBufferA.yzw = floatBitsToUint(normal);
-
-    GBufferB.x = floatBitsToUint(depth);
-    GBufferB.y = uint(materialIdx);
-    GBufferB.z = packMotionVector(motion);
-}
-
 #endif

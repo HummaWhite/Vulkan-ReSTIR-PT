@@ -57,9 +57,9 @@ struct GBufferDrawParam {
 	mat4 model;
 	mat4 modelInvT;
 	int matIdx;
+	int meshIdx;
 	int pad0;
 	int pad1;
-	int pad2;
 };
 
 struct Ray {
@@ -148,16 +148,17 @@ layout(set = ResourceDescSet, binding = 5) readonly buffer _ObjectInstances { Ob
 layout(set = ResourceDescSet, binding = 6) readonly buffer _LightInstances { LightInstance uLightInstances[]; };
 layout(set = ResourceDescSet, binding = 7) readonly buffer _LightSampleTable { LightSampleTableElement uLightSampleTable[]; };
 
-layout(set = RayImageDescSet, binding = 0, rgba32f) uniform image2D uDirectOutput;
-layout(set = RayImageDescSet, binding = 1, rgba32f) uniform image2D uIndirectOutput;
-layout(set = RayImageDescSet, binding = 2) uniform usampler2D uGBufferThisA;
-layout(set = RayImageDescSet, binding = 3) uniform usampler2D uGBufferPrevA;
-layout(set = RayImageDescSet, binding = 4) uniform usampler2D uGBufferThisB;
-layout(set = RayImageDescSet, binding = 5) uniform usampler2D uGBufferPrevB;
-layout(set = RayImageDescSet, binding = 6) buffer _DIReservoirThis { DIReservoir uDIReservoirThis[]; };
+layout(set = RayImageDescSet, binding = 0, rgba16f) uniform image2D uDirectOutput;
+layout(set = RayImageDescSet, binding = 1, rgba16f) uniform image2D uIndirectOutput;
+layout(set = RayImageDescSet, binding = 2) uniform sampler2D uDepthNormal;
+layout(set = RayImageDescSet, binding = 3) uniform sampler2D uDepthNormalPrev;
+layout(set = RayImageDescSet, binding = 4) uniform usampler2D uAlbedoMatId;
+layout(set = RayImageDescSet, binding = 5) uniform usampler2D uAlbedoMatIdPrev;
+layout(set = RayImageDescSet, binding = 6) buffer _DIReservoirThis { DIReservoir uDIReservoir[]; };
 layout(set = RayImageDescSet, binding = 7) buffer _DIReservoirPrev { DIReservoir uDIReservoirPrev[]; };
-layout(set = RayImageDescSet, binding = 8) buffer _GIReservoirThis { GIReservoir uGIReservoirThis[]; };
+layout(set = RayImageDescSet, binding = 8) buffer _GIReservoirThis { GIReservoir uGIReservoir[]; };
 layout(set = RayImageDescSet, binding = 9) buffer _GIReservoirPrev { GIReservoir uGIReservoirPrev[]; };
+layout(set = RayImageDescSet, binding = 10) uniform sampler2D uMotionVector;
 
 // in ratTraceLayouts.glsl
 // layout(set = RayTracingDescSet, binding = 0) uniform accelerationStructureEXT uTLAS;

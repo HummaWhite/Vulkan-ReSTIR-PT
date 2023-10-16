@@ -28,7 +28,7 @@ struct GBufferDrawParam {
 	std140(glm::mat4, model);
 	std140(glm::mat4, modelInvT);
 	std140(int32_t, matIdx);
-	std140(int32_t, pad0);
+	std140(int32_t, meshIdx);
 	std140(int32_t, pad1);
 	std140(int32_t, pad2);
 };
@@ -43,8 +43,9 @@ struct GBufferRenderParam {
 };
 
 class GBufferPass : public zvk::BaseVkObject {
-	constexpr static vk::Format GBufferAFormat = vk::Format::eR32G32B32A32Uint;
-	constexpr static vk::Format GBufferBFormat = vk::Format::eR32G32B32A32Uint;
+	constexpr static vk::Format DepthNormalFormat = vk::Format::eR32G32B32A32Sfloat;
+	constexpr static vk::Format AlbedoMatIdFormat = vk::Format::eR32G32Uint;
+	constexpr static vk::Format MotionVectorFormat = vk::Format::eR16G16Sfloat;
 	constexpr static vk::Format DepthStencilFormat = vk::Format::eD32Sfloat;
 
 public:
@@ -77,8 +78,9 @@ private:
 	void destroyFrame();
 
 public:
-	std::unique_ptr<zvk::Image> GBufferA[NumFramesInFlight][2];
-	std::unique_ptr<zvk::Image> GBufferB[NumFramesInFlight][2];
+	std::unique_ptr<zvk::Image> depthNormal[NumFramesInFlight][2];
+	std::unique_ptr<zvk::Image> albedoMatId[NumFramesInFlight][2];
+	std::unique_ptr<zvk::Image> motionVector[NumFramesInFlight];
 	vk::Framebuffer framebuffer[NumFramesInFlight][2];
 
 private:

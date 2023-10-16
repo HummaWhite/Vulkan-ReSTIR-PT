@@ -3,10 +3,10 @@
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 
-#include "rayTracingLayouts.glsl"
+#include "ray_layouts.glsl"
 #include "math.glsl"
 #include "material.glsl"
-#include "lightSampling.glsl"
+#include "light_sampling.glsl"
 
 layout(location = 0) rayPayloadInEXT Intersection rtIsec;
 

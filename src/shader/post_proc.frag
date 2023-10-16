@@ -26,7 +26,7 @@ vec3 ACES(vec3 color) {
 }
 
 void main() {
-    ivec2 coord = ivec2(vec2(textureSize(uGBufferThisA, 0) - 1) * vTexUV);
+    ivec2 coord = ivec2(vec2(textureSize(uDepthNormal, 0) - 1) * vTexUV);
     vec3 color = vec3(0.0);
 
     if (noDirect == 0) {

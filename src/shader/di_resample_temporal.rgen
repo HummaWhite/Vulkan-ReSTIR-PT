@@ -3,34 +3,35 @@
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 
-#include "rayTracingLayouts.glsl"
+#include "ray_layouts.glsl"
 #include "camera.glsl"
-#include "GBufferUtil.glsl"
-#include "lightSampling.glsl"
+#include "gbuffer_util.glsl"
+#include "light_sampling.glsl"
 #include "math.glsl"
+#include "reservoir.glsl"
 
 layout(location = 0) rayPayloadEXT Intersection rtIsec;
 layout(location = 1) rayPayloadEXT bool rtShadowed;
 
 void main() {
     vec2 uv = (vec2(gl_LaunchIDEXT.xy) + 0.5) / vec2(gl_LaunchSizeEXT.xy);
+    uvec2 index = gl_LaunchIDEXT.xy;
 
-    uvec4 GBufferThisA = texelFetch(uGBufferThisA, ivec2(gl_LaunchIDEXT.xy), 0);
-    uvec4 GBufferThisB = texelFetch(uGBufferThisB, ivec2(gl_LaunchIDEXT.xy), 0);
-
-    vec3 albedo = unpackAlbedo(GBufferThisA.x);
-    vec3 norm = uintBitsToFloat(GBufferThisA.yzw);
-    float depth = uintBitsToFloat(GBufferThisB.x);
-    int matIndex = int(GBufferThisB.y);
-    // vec2 motion = unpackSnorm2x16(GBufferThisB.z);
+    vec4 depthNormal = texture(uDepthNormal, uv);
+    float depth = depthNormal.x;
+    vec3 norm = depthNormal.yzw;
 
     if (depth == 0.0) {
-        imageStore(uDirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(vec3(0.0), 1.0));
+        imageStore(uIndirectOutput, ivec2(index), vec4(vec3(0.0), 1.0));
         return;
     }
+    uvec2 albedoMatId = texelFetch(uAlbedoMatId, ivec2(index), 0).rg;
+    vec3 albedo = unpackAlbedo(albedoMatId.x);
+    int matMeshId = int(albedoMatId.y);
+    int matId = matMeshId >> 16;
     
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
+    uint rng = makeSeed(uCamera.frameIndex, uCamera.seed, hash2(gl_LaunchIDEXT.x) + gl_LaunchIDEXT.y);
 
     vec3 radiance = vec3(0.0);
     vec3 throughput = vec3(1.0);
@@ -44,8 +45,7 @@ void main() {
     surf.lightIndex = InvalidResourceIdx;
     rtIsec.hit = true;
 
-    if (/* sample direct lighting */ true)
-    {
+    if (/* sample direct lighting */ true) {
         const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
         vec3 lightRadiance, lightDir;

@@ -48,12 +48,12 @@ void PostProcPassFrag::createPipeline(
 	const std::vector<vk::DescriptorSetLayout>& descLayouts
 ) {
 	auto vertStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/postProc.vert.spv"),
+		shaderManager->createShaderModule("shaders/post_proc.vert.spv"),
 		vk::ShaderStageFlagBits::eVertex
 	);
 
 	auto fragStageInfo = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/postProc.frag.spv"),
+		shaderManager->createShaderModule("shaders/post_proc.frag.spv"),
 		vk::ShaderStageFlagBits::eFragment
 	);
 

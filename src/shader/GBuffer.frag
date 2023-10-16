@@ -4,10 +4,11 @@
 #extension GL_EXT_buffer_reference : enable
 
 #include "layouts.glsl"
-#include "GBufferUtil.glsl"
+#include "gbuffer_util.glsl"
 
-layout(location = 0) out uvec4 GBufferA;
-layout(location = 1) out uvec4 GBufferB;
+layout(location = 0) out vec4 DepthNormal;
+layout(location = 1) out uvec2 AlbedoMatId;
+layout(location = 2) out vec2 MotionVector;
 
 layout(location = 0) in VSOut {
 	vec3 pos;
@@ -44,10 +45,7 @@ void main() {
 	if (alpha < 0.5) {
 		//discard;
 	}
-
-	packGBuffer(
-		GBufferA, GBufferB,
-		albedo, normalize(fsIn.norm), length(uCamera.pos - fsIn.pos),
-		lastCoord.xy - thisCoord, param.matIdx
-	);
+	DepthNormal = vec4(length(uCamera.pos - fsIn.pos), normalize(fsIn.norm));
+	AlbedoMatId = uvec2(packAlbedo(albedo), uint(param.matIdx << 16 | param.meshIdx));
+	MotionVector = lastCoord.xy - thisCoord;
 }
