@@ -25,9 +25,18 @@ std::tuple<glm::vec3, glm::vec3, glm::vec3> loadTransform(const pugi::xml_node& 
 	return { pos, scale, rot };
 }
 
-std::pair<ModelInstance*, std::optional<glm::vec3>> Scene::loadModelInstance(const pugi::xml_node& modelNode) {
+std::pair<ModelInstance*, glm::vec3> Scene::loadModelInstance(const pugi::xml_node& modelNode) {
+	glm::vec3 power(0.f);
+	bool isLight = false;
+
+	if (std::string(modelNode.attribute("type").as_string()) == "light") {
+		std::stringstream radStr(modelNode.child("radiance").attribute("value").as_string());
+		radStr >> power.r >> power.g >> power.b;
+		isLight = true;
+	}
+
 	auto modelPath = modelNode.attribute("path").as_string();
-	auto model = resource.openModelInstance(modelPath, glm::vec3(0.0f));
+	auto model = resource.openModelInstance(modelPath, !isLight, glm::vec3(0.0f));
 
 	std::string name(modelNode.attribute("name").as_string());
 	model->setName(name);
@@ -40,27 +49,19 @@ std::pair<ModelInstance*, std::optional<glm::vec3>> Scene::loadModelInstance(con
 	model->setScale(scale.x, scale.y, scale.z);
 	model->setRotation(rot);
 
-	if (std::string(modelNode.attribute("type").as_string()) == "light") {
-		glm::vec3 radiance;
-		std::stringstream radStr(modelNode.child("radiance").attribute("value").as_string());
-		radStr >> radiance.r >> radiance.g >> radiance.b;
-		return { model, radiance };
+	if (!isLight) {
+		auto matNode = modelNode.child("material");
+		auto material = loadMaterial(matNode);
+
+		if (material) {
+			for (uint32_t i = 0; i < model->numMeshes(); i++) {
+				uint32_t materialIdx = resource.mMeshInstances[i + model->meshOffset()].materialIdx;
+				material->textureIdx = resource.mMaterials[materialIdx].textureIdx;
+				resource.mMaterials[materialIdx] = *material;
+			}
+		}
 	}
-
-	auto matNode = modelNode.child("material");
-	auto material = loadMaterial(matNode);
-
-	if (!material) {
-		return { model, std::nullopt };
-	}
-
-	for (uint32_t i = 0; i < model->numMeshes(); i++) {
-		uint32_t materialIdx = resource.mMeshInstances[i + model->meshOffset()].materialIdx;
-		material->textureIdx = resource.mMaterials[materialIdx].textureIdx;
-		resource.mMaterials[materialIdx] = *material;
-	}
-
-	return { model, std::nullopt };
+	return { model, power };
 }
 
 void Scene::load(const File::path& path) {
@@ -71,8 +72,7 @@ void Scene::load(const File::path& path) {
 	doc.load_file(path.generic_string().c_str());
 	loadXML(doc.child("scene"));
 
-	objectInstances = resource.objectInstances();
-	buildLightSampler();
+	buildLightDataStructure();
 
 	Log::line<1>("Statistics");
 	Log::line<2>("Vertices = " + std::to_string(resource.vertices().size()));
@@ -86,7 +86,7 @@ void Scene::load(const File::path& path) {
 void Scene::clear() {
 	resource.destroy();
 	objectInstances.clear();
-	lightInstances.clear();
+	triangleLights.clear();
 }
 
 void Scene::loadXML(pugi::xml_node sceneNode) {
@@ -144,9 +144,18 @@ void Scene::loadModels(pugi::xml_node modelNode) {
 	for (auto instance = modelNode.first_child(); instance; instance = instance.next_sibling()) {
 		auto [model, power] = loadModelInstance(instance);
 
-		if (power) {
-			lightInstances.push_back({ *power, static_cast<uint32_t>(resource.modelInstances().size() - 1) });
-		}
+		glm::mat4 transform = model->modelMatrix();
+		glm::mat4 transformInv = glm::inverse(transform);
+		glm::mat4 transformInvT = glm::transpose(transformInv);
+
+		objectInstances.push_back(ObjectInstance{
+			.transform = transform,
+			.transformInv = transformInv,
+			.transformInvT = transformInvT,
+			.radiance = power,
+			.indexOffset = resource.mMeshInstances[model->meshOffset()].indexOffset,
+			.indexCount = model->mNumIndices
+		});
 	}
 }
 
@@ -154,24 +163,56 @@ void Scene::loadEnvironmentMap(pugi::xml_node envMapNode) {
 	//envMap = EnvironmentMap::create(scene.child("envMap").attribute("path").as_string());
 }
 
-void Scene::buildLightSampler() {
+void Scene::buildLightDataStructure() {
 	Log::line<1>("Light Sample Table");
 	std::vector<float> powerDistrib;
 	numObjectInstances = static_cast<uint32_t>(objectInstances.size());
 
-	for (uint32_t i = 0; i < lightInstances.size(); i++) {
-		auto& lightInstance = lightInstances[i];
-		auto modelInstance = resource.modelInstances()[lightInstance.objectIdx];
-		ObjectInstance& lightObject = objectInstances[lightInstance.objectIdx];
+	for (uint32_t i = 0; i < objectInstances.size(); i++) {
+		auto& instance = objectInstances[i];
 
-		float transformedSurfaceArea = resource.getModelTransformedSurfaceArea(modelInstance);
-		lightObject.lightIndex = i;
-		lightObject.transformedSurfaceArea = transformedSurfaceArea;
+		if (glm::length(instance.radiance) > 0.f) {
+			auto modelInstance = resource.modelInstances()[i];
+			glm::vec3 power = instance.radiance;
 
-		glm::vec3 power = lightInstance.power;
-		lightInstance.radiance = lightInstance.power / transformedSurfaceArea;
+			const auto& beginMeshInstance = resource.mMeshInstances[modelInstance->meshOffset()];
+			uint32_t indexOffset = beginMeshInstance.indexOffset;
+			uint32_t indexCount = modelInstance->numIndices();
+			uint32_t triangleCount = indexCount / 3;
 
-		powerDistrib.push_back(luminance(power) /* Pi * 2.f */);
+			auto transform = [&](const glm::vec3& pos) {
+				return glm::vec3(modelInstance->modelMatrix() * glm::vec4(pos, 1.f));
+			};
+
+			float sumArea = 0.f;
+			uint32_t triangleOffset = triangleLights.size();
+
+			for (uint32_t j = 0; j < triangleCount; j++) {
+				TriangleLight tri{};
+
+				tri.v0 = transform(resource.mVertices[resource.mIndices[indexOffset + j * 3 + 0]].pos);
+				tri.v1 = transform(resource.mVertices[resource.mIndices[indexOffset + j * 3 + 1]].pos);
+				tri.v2 = transform(resource.mVertices[resource.mIndices[indexOffset + j * 3 + 2]].pos);
+
+				glm::vec3 n = glm::cross(tri.v1 - tri.v0, tri.v2 - tri.v0);
+				tri.area = .5f * glm::length(n);
+				n = glm::normalize(n);
+
+				tri.nx = n.x;
+				tri.ny = n.y;
+				tri.nz = n.z;
+
+				triangleLights.push_back(tri);
+				sumArea += tri.area;
+			}
+			instance.radiance = power / sumArea;
+
+			for (uint32_t j = 0; j < triangleCount; j++) {
+				auto& tri = triangleLights[triangleOffset + j];
+				tri.radiance = instance.radiance;
+				powerDistrib.push_back(luminance(tri.radiance * tri.area));
+			}
+		}
 	}
 	lightSampleTable.build(powerDistrib);
 
@@ -215,7 +256,7 @@ void DeviceScene::initDescriptor() {
 	update.add(resourceDescLayout.get(), resourceDescSet, 3, zvk::Descriptor::makeBufferInfo(vertices.get()));
 	update.add(resourceDescLayout.get(), resourceDescSet, 4, zvk::Descriptor::makeBufferInfo(indices.get()));
 	update.add(resourceDescLayout.get(), resourceDescSet, 5, zvk::Descriptor::makeBufferInfo(instances.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 6, zvk::Descriptor::makeBufferInfo(lightInstances.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 6, zvk::Descriptor::makeBufferInfo(triangleLights.get()));
 	update.add(resourceDescLayout.get(), resourceDescSet, 7, zvk::Descriptor::makeBufferInfo(lightSampleTable.get()));
 
 	update.add(rayTracingDescLayout.get(), rayTracingDescSet, 0, vk::WriteDescriptorSetAccelerationStructureKHR(topAccelStructure->structure));
@@ -267,12 +308,12 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 	);
 	zvk::DebugUtils::nameVkObject(mCtx->device, instances->buffer, "instances");
 
-	lightInstances = zvk::Memory::createBufferFromHost(
-		mCtx, queueIdx, scene.lightInstances.data(), zvk::sizeOf(scene.lightInstances),
+	triangleLights = zvk::Memory::createBufferFromHost(
+		mCtx, queueIdx, scene.triangleLights.data(), zvk::sizeOf(scene.triangleLights),
 		vk::BufferUsageFlagBits::eStorageBuffer,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
-	zvk::DebugUtils::nameVkObject(mCtx->device, lightInstances->buffer, "lightInstances");
+	zvk::DebugUtils::nameVkObject(mCtx->device, triangleLights->buffer, "triangleLights");
 
 	lightSampleTable = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.lightSampleTable.binomDistribs.data(), zvk::sizeOf(scene.lightSampleTable.binomDistribs),

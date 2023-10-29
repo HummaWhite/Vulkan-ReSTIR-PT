@@ -78,15 +78,25 @@ struct ObjectInstance {
 	mat4 transform;
 	mat4 transformInv;
 	mat4 transformInvT;
+
+	vec3 radiance;
+	float pad0;
+
 	uint indexOffset;
 	uint indexCount;
-	float transformedSurfaceArea;
-	int lightIndex;
+	float pad1;
+	float pad2;
 };
 
-struct LightInstance {
+struct TriangleLight {
+	vec3 v0;
+	float nx;
+	vec3 v1;
+	float ny;
+	vec3 v2;
+	float nz;
 	vec3 radiance;
-	uint objectIdx;
+	float area;
 };
 
 struct LightSampleTableElement {
@@ -148,7 +158,7 @@ layout(set = ResourceDescSet, binding = 2) readonly buffer _MaterialIndices { in
 layout(set = ResourceDescSet, binding = 3) readonly buffer _Vertices { MeshVertex uVertices[]; };
 layout(set = ResourceDescSet, binding = 4) readonly buffer _Indices { uint uIndices[]; };
 layout(set = ResourceDescSet, binding = 5) readonly buffer _ObjectInstances { ObjectInstance uObjectInstances[]; };
-layout(set = ResourceDescSet, binding = 6) readonly buffer _LightInstances { LightInstance uLightInstances[]; };
+layout(set = ResourceDescSet, binding = 6) readonly buffer _TriangleLights { TriangleLight uTriangleLights[]; };
 layout(set = ResourceDescSet, binding = 7) readonly buffer _LightSampleTable { LightSampleTableElement uLightSampleTable[]; };
 
 layout(set = RayImageDescSet, binding = 0, rgba16f) uniform image2D uDirectOutput;

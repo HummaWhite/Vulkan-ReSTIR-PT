@@ -41,7 +41,7 @@ vec3 BSDFDot(vec3 albedo, vec3 n, vec3 wi) {
 }
 
 void main() {
-    const uint ResampleNum = 16;
+    const uint ResampleNum = 32;
 
     vec2 uv = (vec2(gl_LaunchIDEXT.xy) + 0.5) / vec2(gl_LaunchSizeEXT.xy);
     uvec2 index = gl_LaunchIDEXT.xy;
@@ -73,7 +73,7 @@ void main() {
         DIPathSample pathSample = DIPathSampleInit();
         float lightPdf;
 
-        pathSample.radiance = sampleLight(pos, pathSample.wi, pathSample.dist, lightPdf, rng);
+        pathSample.radiance = sampleLightGlobal(pos, pathSample.wi, pathSample.dist, lightPdf, sample4f(rng));
         float resampleWeight = 0;
 
         if (lightPdf > 1e-6) {

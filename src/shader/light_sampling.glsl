@@ -1,59 +1,34 @@
 #ifndef LIGHT_SAMPLING_GLSL
 #define LIGHT_SAMPLING_GLSL
 
-vec3 sampleLight(ObjectInstance obj, vec3 ref, out float dist, out vec3 norm, out float pdf, vec3 r) {
-    uint primCount = obj.indexCount / 3;
-    uint primIdx = uint(float(primCount) * r.x);
-
-    uint i0 = uIndices[obj.indexOffset + primIdx * 3 + 0];
-    uint i1 = uIndices[obj.indexOffset + primIdx * 3 + 1];
-    uint i2 = uIndices[obj.indexOffset + primIdx * 3 + 2];
-
-    vec3 v0 = uVertices[i0].pos;
-    vec3 v1 = uVertices[i1].pos;
-    vec3 v2 = uVertices[i2].pos;
-
-    vec3 pos = sampleTriangleUniform(v0, v1, v2, r.yz);
-    pos = (obj.transform * vec4(pos, 1.0)).xyz;
+vec3 sampleTriangleLight(TriangleLight light, vec3 ref, out vec3 wi, out float dist, out float pdf, vec2 r) {
+    vec3 pos = sampleTriangleUniform(light.v0, light.v1, light.v2, r);
     dist = distance(ref, pos);
 
-    vec3 e1 = v1 - v0;
-    vec3 e2 = v2 - v0;
+    vec3 n = vec3(light.nx, light.ny, light.nz);
+    wi = (pos - ref) / dist;
+    pdf = dist * dist / absDot(n, wi) / light.area;
 
-    norm = normalize(cross(e1, e2));
-    norm = mat3(obj.transformInvT) * norm;
-
-    mat3 transform3x3 = mat3(obj.transform);
-    pdf = 2.0 / length(cross(transform3x3 * e1, transform3x3 * e2)) / float(primCount);
-
-    return (pos - ref) / dist;
+    return light.radiance;
 }
 
-vec3 sampleLight(vec3 ref, out vec3 dir, out float dist, out float pdf, inout uint rng) {
+vec3 sampleLightGlobal(vec3 ref, out vec3 wi, out float dist, out float pdf, vec4 r) {
     float sumPower = uLightSampleTable[0].prob;
     uint numLights = uLightSampleTable[0].failId;
 
-    vec2 r = sample2f(rng);
     uint idx = uint(float(numLights) * r.x);
     idx = (r.y < uLightSampleTable[idx + 1].prob) ? idx : uLightSampleTable[idx + 1].failId - 1;
 
-    vec3 radiance = uLightInstances[idx].radiance;
-    ObjectInstance obj = uObjectInstances[uLightInstances[idx].objectIdx];
+    TriangleLight light = uTriangleLights[idx];
 
-    vec3 norm;
-    float pdfArea;
-    dir = sampleLight(obj, ref, dist, norm, pdfArea, sample3f(rng));
+    vec3 pos = sampleTriangleUniform(light.v0, light.v1, light.v2, r.zw);
+    dist = distance(ref, pos);
 
-    float cosTheta = dot(norm, dir);
+    vec3 n = vec3(light.nx, light.ny, light.nz);
+    wi = (pos - ref) / dist;
+    pdf = dist * dist / absDot(n, wi) * luminance(light.radiance) / sumPower;
 
-    if (/* cosTheta <= 0.0 */ false) {
-        pdf = 0.0;
-        return Black;
-    }
-    else {
-        pdf = pdfArea * dist * dist / absDot(norm, dir) * luminance(radiance * obj.transformedSurfaceArea) / sumPower;
-        return radiance;
-    }
+    return light.radiance;
 }
 
 #endif

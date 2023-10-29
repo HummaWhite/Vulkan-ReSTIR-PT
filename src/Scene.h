@@ -14,12 +14,29 @@
 #include "Camera.h"
 #include "Resource.h"
 
-struct LightInstance {
-	union {
-		glm::vec3 radiance;
-		glm::vec3 power;
-	};
-	uint32_t objectIdx;
+struct ObjectInstance {
+	glm::mat4 transform;
+	glm::mat4 transformInv;
+	glm::mat4 transformInvT;
+
+	glm::vec3 radiance;
+	float pad0;
+
+	uint32_t indexOffset;
+	uint32_t indexCount;
+	float pad1;
+	float pad2;
+};
+
+struct TriangleLight {
+	glm::vec3 v0;
+	float nx;
+	glm::vec3 v1;
+	float ny;
+	glm::vec3 v2;
+	float nz;
+	glm::vec3 radiance;
+	float area;
 };
 
 class Scene
@@ -36,15 +53,15 @@ private:
 	void loadModels(pugi::xml_node modelNode);
 	void loadEnvironmentMap(pugi::xml_node envMapNode);
 
-	void buildLightSampler();
+	void buildLightDataStructure();
 
-	std::pair<ModelInstance*, std::optional<glm::vec3>> loadModelInstance(const pugi::xml_node& modelNode);
+	std::pair<ModelInstance*, glm::vec3> loadModelInstance(const pugi::xml_node& modelNode);
 
 public:
 	Camera camera;
 	Resource resource;
 	std::vector<ObjectInstance> objectInstances;
-	std::vector<LightInstance> lightInstances;
+	std::vector<TriangleLight> triangleLights;
 	DiscreteSampler1D<float> lightSampleTable;
 	uint32_t numObjectInstances = 0;
 };
@@ -68,7 +85,7 @@ public:
 	std::unique_ptr<zvk::Buffer> materials;
 	std::unique_ptr<zvk::Buffer> materialIds;
 	std::unique_ptr<zvk::Buffer> instances;
-	std::unique_ptr<zvk::Buffer> lightInstances;
+	std::unique_ptr<zvk::Buffer> triangleLights;
 	std::unique_ptr<zvk::Buffer> lightSampleTable;
 	std::vector<std::unique_ptr<zvk::Image>> textures;
 
@@ -79,6 +96,7 @@ public:
 	uint32_t numIndices = 0;
 	uint32_t numMaterials = 0;
 	uint32_t numTriangles = 0;
+	uint32_t numLightTriangles;
 
 	std::unique_ptr<zvk::DescriptorSetLayout> resourceDescLayout;
 	std::unique_ptr<zvk::DescriptorSetLayout> rayTracingDescLayout;

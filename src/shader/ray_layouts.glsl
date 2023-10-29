@@ -17,9 +17,8 @@ struct SurfaceInfo {
     vec3 pos;
     vec3 norm;
     vec3 albedo;
-    int lightIndex;
-    float transSurfaceArea;
     uint matIndex;
+    bool isLight;
 };
 
 layout(set = RayTracingDescSet, binding = 0) uniform accelerationStructureEXT uTLAS;
@@ -31,7 +30,6 @@ uint index1D(uvec2 index) {
 void loadSurfaceInfo(Intersection isec, out SurfaceInfo info) {
     ObjectInstance instance = uObjectInstances[isec.instanceIdx];
 
-    info.lightIndex = InvalidResourceIdx;
     info.matIndex = uMaterialIndices[instance.indexOffset / 3 + isec.triangleIdx];
 
     uint i0 = uIndices[instance.indexOffset + isec.triangleIdx * 3 + 0];
@@ -52,10 +50,10 @@ void loadSurfaceInfo(Intersection isec, out SurfaceInfo info) {
     info.pos = vec3(instance.transform * vec4(pos, 1.0));
     info.norm = normalize(vec3(instance.transformInvT * vec4(norm, 1.0)));
 
-    if (instance.lightIndex != InvalidResourceIdx) {
-        info.albedo = uLightInstances[instance.lightIndex].radiance;
-        info.transSurfaceArea = instance.transformedSurfaceArea;
-        info.lightIndex = instance.lightIndex;
+    info.isLight = length(instance.radiance) > 0;
+
+    if (info.isLight) {
+        info.albedo = instance.radiance;
         return;
     }
     int texIdx = uMaterials[info.matIndex].textureIdx;

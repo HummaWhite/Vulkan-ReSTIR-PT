@@ -246,6 +246,10 @@ vec3 sample3f(inout uint rng) {
 	return vec3(sample2f(rng), sample1f(rng));
 }
 
+vec4 sample4f(inout uint rng) {
+	return vec4(sample2f(rng), sample2f(rng));
+}
+
 float MISWeight(float f, float g) {
 	return (f * f) / (f * f + g * g);
 }

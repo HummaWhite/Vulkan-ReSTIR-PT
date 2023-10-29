@@ -92,13 +92,3 @@ private:
 	std::string mName;
 	File::path mPath;
 };
-
-struct ObjectInstance {
-	std140(glm::mat4, transform);
-	std140(glm::mat4, transformInv);
-	std140(glm::mat4, transformInvT);
-	std140(uint32_t, indexOffset);
-	std140(uint32_t, indexCount);
-	std140(float, transformedSurfaceArea);
-	std140(int32_t, lightIndex) = InvalidResourceIdx;
-};

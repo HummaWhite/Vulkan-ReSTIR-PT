@@ -39,24 +39,6 @@ Resource::Resource() {
 	mMaterials.push_back(emptyMat);
 }
 
-std::vector<ObjectInstance> Resource::objectInstances() const {
-	std::vector<ObjectInstance> instances;
-
-	for (auto instance : mModelInstances) {
-		glm::mat4 transform = instance->modelMatrix();
-		glm::mat4 transformInv = glm::inverse(transform);
-		glm::mat4 transformInvT = glm::transpose(transformInv);
-
-		instances.push_back({
-			transform, transformInv, transformInvT,
-			mMeshInstances[instance->meshOffset()].indexOffset,
-			instance->mNumIndices,
-			0.0f, InvalidResourceIdx
-		});
-	}
-	return instances;
-}
-
 float Resource::getModelTransformedSurfaceArea(const ModelInstance* modelInstance) const {
 	std::atomic<float> area = 0.f;
 
@@ -93,11 +75,11 @@ float Resource::getModelTransformedSurfaceArea(const ModelInstance* modelInstanc
 	return area;
 }
 
-ModelInstance* Resource::openModelInstance(const File::path& path, glm::vec3 pos, glm::vec3 scale, glm::vec3 rotation) {
+ModelInstance* Resource::openModelInstance(const File::path& path, bool smoothNormal, glm::vec3 pos, glm::vec3 scale, glm::vec3 rotation) {
 	auto model = getModelInstanceByPath(path);
 
 	if (model == nullptr) {
-		model = createNewModelInstance(path);
+		model = createNewModelInstance(path, smoothNormal);
 		model->mRefId = static_cast<uint32_t>(mUniqueModelInstances.size());
 		mMapPathToModelInstance[path] = model;
 		mUniqueModelInstances.push_back(model);
@@ -111,15 +93,15 @@ ModelInstance* Resource::openModelInstance(const File::path& path, glm::vec3 pos
 	return newCopy;
 }
 
-ModelInstance* Resource::createNewModelInstance(const File::path& path) {
+ModelInstance* Resource::createNewModelInstance(const File::path& path, bool smoothNormal) {
 	auto model = new ModelInstance;
 	auto pathStr = path.generic_string();
 
 	model->mPath = pathStr;
 	Assimp::Importer importer;
+
 	uint32_t option = aiProcess_Triangulate
 		| aiProcess_FlipUVs
-		| aiProcess_GenSmoothNormals
 		| aiProcess_GenUVCoords
 		| aiProcess_FixInfacingNormals
 		| aiProcess_FindInstances
@@ -129,6 +111,8 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path) {
 		//| aiProcess_ForceGenNormals
 		//| aiProcess_FindDegenerates
 		;
+	option |= smoothNormal ? aiProcess_GenSmoothNormals : aiProcess_GenNormals;
+
 	auto scene = importer.ReadFile(pathStr.c_str(), option);
 
 	Log::line<1>("ModelInstance loading: " + pathStr + " ...");

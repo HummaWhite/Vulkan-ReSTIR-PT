@@ -46,7 +46,7 @@ void main() {
         float lightDist, lightPdf;
 
         rtShadowed = true;
-        lightRadiance = sampleLight(pos, lightDir, lightDist, lightPdf, rng);
+        lightRadiance = sampleLightGlobal(pos, lightDir, lightDist, lightPdf, sample4f(rng));
 
         traceRayEXT(
             /* AS, flags, masks    */ uTLAS, shadowRayFlags, 0xff,

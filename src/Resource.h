@@ -27,7 +27,6 @@ public:
 	const std::vector<Material>& materials() const { return mMaterials; }
 	const std::vector<int32_t>& materialIndices() const { return mMaterialIndices; }
 	const std::vector<ModelInstance*>& uniqueModelInstances() const { return mUniqueModelInstances; }
-	std::vector<ObjectInstance> objectInstances() const;
 
 	float getModelTransformedSurfaceArea(const ModelInstance* modelInstance) const;
 
@@ -38,7 +37,7 @@ public:
 	const std::vector<zvk::HostImage*>& imagePool() const { return mImagePool; }
 
 	ModelInstance* openModelInstance(
-		const File::path& path,
+		const File::path& path, bool smoothNormal,
 		glm::vec3 pos, glm::vec3 scale = glm::vec3(1.0f), glm::vec3 rotation = glm::vec3(0.0f));
 
 	void clearDeviceMeshAndImage();
@@ -46,7 +45,7 @@ public:
 
 private:
 	ModelInstance* getModelInstanceByPath(const File::path& path);
-	ModelInstance* createNewModelInstance(const File::path& path);
+	ModelInstance* createNewModelInstance(const File::path& path, bool smoothNormal);
 	MeshInstance createNewMeshInstance(aiMesh* mesh, const aiScene* scene);
 
 private:
