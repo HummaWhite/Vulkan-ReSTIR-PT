@@ -142,10 +142,10 @@ void Scene::loadCamera(pugi::xml_node cameraNode) {
 
 void Scene::loadModels(pugi::xml_node modelNode) {
 	for (auto instance = modelNode.first_child(); instance; instance = instance.next_sibling()) {
-		auto [model, radiance] = loadModelInstance(instance);
+		auto [model, power] = loadModelInstance(instance);
 
-		if (radiance) {
-			lightInstances.push_back({ *radiance, static_cast<uint32_t>(resource.modelInstances().size() - 1) });
+		if (power) {
+			lightInstances.push_back({ *power, static_cast<uint32_t>(resource.modelInstances().size() - 1) });
 		}
 	}
 }
@@ -168,12 +168,15 @@ void Scene::buildLightSampler() {
 		lightObject.lightIndex = i;
 		lightObject.transformedSurfaceArea = transformedSurfaceArea;
 
-		powerDistrib.push_back(luminance(lightInstance.radiance) * transformedSurfaceArea);
+		glm::vec3 power = lightInstance.power;
+		lightInstance.radiance = lightInstance.power / transformedSurfaceArea;
+
+		powerDistrib.push_back(luminance(power) /* Pi * 2.f */);
 	}
 	lightSampleTable.build(powerDistrib);
 
-	Log::line<2>("Num = " + std::to_string(lightSampleTable.binomDistribs[0].prob));
-	Log::line<2>("Sum = " + std::to_string(lightSampleTable.binomDistribs[0].failId));
+	Log::line<2>("Sum = " + std::to_string(lightSampleTable.binomDistribs[0].prob));
+	Log::line<2>("Num = " + std::to_string(lightSampleTable.binomDistribs[0].failId));
 }
 
 DeviceScene::DeviceScene(const zvk::Context* ctx, const Scene& scene, zvk::QueueIdx queueIdx) :

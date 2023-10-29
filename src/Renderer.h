@@ -48,8 +48,8 @@ public:
 		float frameLimit = 0;
 	};
 
-	Renderer(const std::string& name, int width, int height) :
-		mName(name), mWidth(width), mHeight(height) {}
+	Renderer(const std::string& name, int width, int height, const std::string& sceneFile) :
+		mName(name), mWidth(width), mHeight(height), mSceneFile(sceneFile) {}
 
 	void exec();
 
@@ -121,6 +121,7 @@ private:
 	vk::Semaphore mRenderFinishSemaphores[NumFramesInFlight];
 	vk::Fence mInFlightFences[NumFramesInFlight];
 
+	std::string mSceneFile;
 	Scene mScene;
 	Camera mCamera;
 	Camera mPrevCamera;

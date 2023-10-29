@@ -111,5 +111,9 @@ void main() {
         lastBsdfPdf = absDot(surf.norm, ray.dir) * PiInv;
         lastPos = surf.pos;
     }
-    imageStore(uIndirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
+    float frameCount = float(uCamera.frameIndex);
+    vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(index)).rgb;
+    accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
+
+    imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
 }

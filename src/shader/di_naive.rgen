@@ -9,8 +9,11 @@
 #include "light_sampling.glsl"
 #include "math.glsl"
 
-layout(location = 0) rayPayloadEXT Intersection rtIsec;
 layout(location = 1) rayPayloadEXT bool rtShadowed;
+
+vec3 BSDFDot(vec3 albedo, vec3 n, vec3 wi) {
+    return albedo * PiInv * satDot(n, wi);
+}
 
 void main() {
     uvec2 index = gl_LaunchIDEXT.xy;
@@ -33,16 +36,8 @@ void main() {
     uint rng = makeSeed(uCamera.seed + gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
 
     vec3 radiance = vec3(0.0);
-    vec3 throughput = vec3(1.0);
-    vec3 lastPos;
-    float lastBsdfPdf;
 
-    SurfaceInfo surf;
-    surf.pos = ray.ori + ray.dir * (depth - 1e-4);
-    surf.norm = norm;
-    surf.albedo = albedo;
-    surf.lightIndex = InvalidResourceIdx;
-    rtIsec.hit = true;
+    vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
 
     if (/* sample direct lighting */ true) {
         const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
@@ -51,21 +46,27 @@ void main() {
         float lightDist, lightPdf;
 
         rtShadowed = true;
-        lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, rng);
+        lightRadiance = sampleLight(pos, lightDir, lightDist, lightPdf, rng);
 
         traceRayEXT(
             /* AS, flags, masks    */ uTLAS, shadowRayFlags, 0xff,
             /* SBT offset & stride */ 0, 0,
             /* miss index          */ 1,
-            /* ray attribs         */ surf.pos, MinRayDistance, lightDir, lightDist - 1e-4,
+            /* ray attribs         */ pos, MinRayDistance, lightDir, lightDist - 1e-4,
             /* payload location    */ 1
         );
 
         if (!rtShadowed && lightPdf > 1e-6) {
-            float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
+            float bsdfPdf = absDot(norm, lightDir) * PiInv;
             float weight = MISWeight(lightPdf, bsdfPdf);
-            radiance += lightRadiance * (surf.albedo * PiInv) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
+            radiance = lightRadiance * BSDFDot(albedo, norm, lightDir) / lightPdf;
         }
     }
-    imageStore(uDirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
+    radiance = clampColor(radiance);
+
+    float frameCount = float(uCamera.frameIndex);
+    vec3 accumulatedRadaince = imageLoad(uDirectOutput, ivec2(index)).rgb;
+    accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
+
+    imageStore(uDirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
 }

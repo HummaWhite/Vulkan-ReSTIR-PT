@@ -15,8 +15,11 @@
 #include "Resource.h"
 
 struct LightInstance {
-	std140(glm::vec3, radiance);
-	std140(uint32_t, objectIdx);
+	union {
+		glm::vec3 radiance;
+		glm::vec3 power;
+	};
+	uint32_t objectIdx;
 };
 
 class Scene

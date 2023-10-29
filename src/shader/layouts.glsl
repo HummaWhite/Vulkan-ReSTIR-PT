@@ -101,20 +101,23 @@ struct DIPathSample {
 	float dist;
 };
 
+struct DIReservoir {
+	vec3 radiance;
+	float pad0;
+	vec3 wi;
+	float dist;
+	uint sampleCount;
+	float resampleWeight;
+	float contribWeight;
+	float pHat;
+};
+
 struct GIPathSample {
 	vec3 radiance;
 	vec3 visiblePos;
 	vec3 visibleNorm;
 	vec3 sampledPos;
 	vec3 sampledNorm;
-};
-
-struct DIReservoir {
-	DIPathSample pathSample;
-	uint sampleCount;
-	float resampleWeight;
-	float pad0;
-	float pad1;
 };
 
 struct GIReservoir {

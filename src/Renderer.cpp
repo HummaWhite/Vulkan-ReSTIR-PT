@@ -23,19 +23,15 @@ const std::vector<const char*> DeviceExtensions = {
 	VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
 };
 
-struct DIPathSample {
+struct DIReservoir {
 	glm::vec3 radiance;
-	float pHat;
+	uint32_t sampleCount;
 	glm::vec3 wi;
 	float dist;
-};
-
-struct DIReservoir {
-	DIPathSample pathSample;
-	uint32_t sampleCount;
 	float resampleWeight;
+	float contribWeight;
+	float pHat;
 	float pad0;
-	float pad1;
 };
 
 struct GIReservoir {
@@ -185,7 +181,7 @@ void Renderer::createPipeline() {
 }
 
 void Renderer::initScene() {
-	mScene.load("res/sponza.xml");
+	mScene.load(mSceneFile);
 }
 
 void Renderer::createCameraBuffer() {
@@ -526,8 +522,8 @@ void Renderer::drawFrame() {
 }
 
 void Renderer::initSettings() {
-	mSettings.directMethod = RayTracingMethod::None;
-	mSettings.indirectMethod = RayTracingMethod::ResampledGI;
+	mSettings.directMethod = RayTracingMethod::ResampledDI;
+	mSettings.indirectMethod = RayTracingMethod::None;
 	mSettings.frameLimit = 0;
 }
 

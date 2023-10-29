@@ -7,7 +7,7 @@
 #include "camera.glsl"
 #include "gbuffer_util.glsl"
 #include "light_sampling.glsl"
-#include "reservoir.glsl"
+#include "gi_reservoir.glsl"
 
 layout(location = 0) rayPayloadEXT Intersection rtIsec;
 layout(location = 1) rayPayloadEXT bool rtShadowed;
@@ -117,6 +117,7 @@ void main() {
                     float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / cosTheta;
                     weight = MISWeight(lastBsdfPdf, lightPdf);
                 }
+                weight = 1.0;
                 pathSample.radiance += surf.albedo * weight * throughput;
             }
             break;
@@ -143,6 +144,7 @@ void main() {
             if (!rtShadowed && lightPdf > 1e-6) {
                 float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
                 float weight = MISWeight(lightPdf, bsdfPdf);
+                weight = 0.0;
                 pathSample.radiance += lightRadiance * (surf.albedo * PiInv) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
             }
         }
@@ -183,11 +185,18 @@ void main() {
         if (GIReservoirIsValid(resv) && resv.sampleCount > 0 && resv.pHat > 1e-6) {
             vec3 primaryWi = normalize(resv.sampledPos - resv.visiblePos);
             radiance = resv.radiance / resv.pHat * resv.resampleWeight / float(resv.sampleCount);
+            radiance *= absDot(resv.visibleNorm, primaryWi);
         }
     }
     uGIReservoir[index1D(index)] = resv;
 
+    //radiance = pathSample.radiance;
     radiance *= albedo;
     radiance = clampColor(radiance);
-    imageStore(uIndirectOutput, ivec2(index), vec4(radiance, 1.0));
+
+    float frameCount = float(uCamera.frameIndex);
+    vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(index)).rgb;
+    accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
+
+    imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
 }

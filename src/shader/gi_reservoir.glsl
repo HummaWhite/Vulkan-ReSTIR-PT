@@ -1,5 +1,5 @@
-#ifndef RESERVOIR_GLSL
-#define RESERVOIR_GLSL
+#ifndef GI_RESERVOIR_GLSL
+#define GI_RESERVOIR_GLSL
 
 #include "material.glsl"
 #include "math.glsl"

@@ -36,7 +36,7 @@ void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t in
 		.setClearValues(clearValues);
 
 	cmd.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-	auto bindPoint = vk::PipelineBindPoint::eGraphics;
+	constexpr auto bindPoint = vk::PipelineBindPoint::eGraphics;
 
 	cmd.bindPipeline(bindPoint, mPipeline);
 
@@ -44,11 +44,11 @@ void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t in
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, GBufferDrawParamDescSet, mDrawParamDescSet, {});
 
-	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
-	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
-
 	cmd.bindVertexBuffers(0, param.vertexBuffer, vk::DeviceSize(0));
 	cmd.bindIndexBuffer(param.indexBuffer, 0, vk::IndexType::eUint32);
+
+	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
+	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
 
 	for (uint32_t i = 0; i < param.count; i++) {
 		cmd.pushConstants(

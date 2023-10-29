@@ -8,12 +8,41 @@
 #include "gbuffer_util.glsl"
 #include "light_sampling.glsl"
 #include "math.glsl"
-#include "reservoir.glsl"
+#include "di_reservoir.glsl"
 
-layout(location = 0) rayPayloadEXT Intersection rtIsec;
 layout(location = 1) rayPayloadEXT bool rtShadowed;
 
+bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 albedo, int matMeshId, out DIReservoir resv) {
+    if (uv.x < 0 || uv.y < 0 || uv.x > 1.0 || uv.y > 1.0) {
+        return false;
+    }
+    ivec2 pixelId = ivec2(uv * vec2(gl_LaunchSizeEXT.xy));
+
+    vec4 depthNormalPrev = texture(uDepthNormal, uv);
+    uvec2 albedoMatIdPrev = texelFetch(uAlbedoMatIdPrev, pixelId, 0).rg;
+    
+    float depthPrev = depthNormalPrev.x;
+    vec3 normalPrev = depthNormalPrev.yzw;
+    vec3 albedoPrev = unpackAlbedo(albedoMatIdPrev.x);
+    int matMeshIdPrev = int(albedoMatIdPrev.y);
+
+    Ray ray = pinholeCameraSampleRay(uPrevCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
+    vec3 posPrev = ray.ori + ray.dir * (depthPrev - 1e-4);
+
+    if (matMeshIdPrev != matMeshId || dot(normalPrev, normal) < 0.95 || abs(depthPrev - depth) > 1.0) {
+        return false;
+    }
+    resv = uDIReservoirPrev[index1D(uvec2(pixelId))];
+    return true;
+}
+
+vec3 BSDFDot(vec3 albedo, vec3 n, vec3 wi) {
+    return albedo * PiInv * satDot(n, wi);
+}
+
 void main() {
+    const uint ResampleNum = 16;
+
     vec2 uv = (vec2(gl_LaunchIDEXT.xy) + 0.5) / vec2(gl_LaunchSizeEXT.xy);
     uvec2 index = gl_LaunchIDEXT.xy;
 
@@ -22,51 +51,83 @@ void main() {
     vec3 norm = depthNormal.yzw;
 
     if (depth == 0.0) {
-        imageStore(uIndirectOutput, ivec2(index), vec4(vec3(0.0), 1.0));
+        imageStore(uDirectOutput, ivec2(index), vec4(vec3(0.0), 1.0));
         return;
     }
     uvec2 albedoMatId = texelFetch(uAlbedoMatId, ivec2(index), 0).rg;
     vec3 albedo = unpackAlbedo(albedoMatId.x);
     int matMeshId = int(albedoMatId.y);
     int matId = matMeshId >> 16;
+    vec2 motion = texelFetch(uMotionVector, ivec2(index), 0).xy;
     
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.frameIndex, uCamera.seed, hash2(gl_LaunchIDEXT.x) + gl_LaunchIDEXT.y);
+    uint rng = makeSeed(uCamera.seed + gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
 
-    vec3 radiance = vec3(0.0);
-    vec3 throughput = vec3(1.0);
-    vec3 lastPos;
-    float lastBsdfPdf;
+    vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
 
-    SurfaceInfo surf;
-    surf.pos = ray.ori + ray.dir * (depth - 1e-4);
-    surf.norm = norm;
-    surf.albedo = albedo;
-    surf.lightIndex = InvalidResourceIdx;
-    rtIsec.hit = true;
+    DIReservoir resv;
+    DIReservoirReset(resv);
 
-    if (/* sample direct lighting */ true) {
-        const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
+#pragma unroll
+    for (uint i = 0; i < ResampleNum; i++) {
+        DIPathSample pathSample = DIPathSampleInit();
+        float lightPdf;
 
-        vec3 lightRadiance, lightDir;
-        float lightDist, lightPdf;
+        pathSample.radiance = sampleLight(pos, pathSample.wi, pathSample.dist, lightPdf, rng);
+        float resampleWeight = 0;
 
+        if (lightPdf > 1e-6) {
+            float bsdfPdf = absDot(norm, pathSample.wi) * PiInv;
+            float weight = MISWeight(lightPdf, bsdfPdf);
+            vec3 pHat = pathSample.radiance * BSDFDot(albedo, norm, pathSample.wi);
+            resampleWeight = luminance(pHat / lightPdf);
+        }
+
+        if (isnan(resampleWeight)) {
+            resampleWeight = 0;
+        }
+        DIReservoirAddSample(resv, pathSample, resampleWeight, sample1f(rng));
+    }
+
+    if (/* shadow ray */ true) {
         rtShadowed = true;
-        lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, rng);
+        const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
         traceRayEXT(
             /* AS, flags, masks    */ uTLAS, shadowRayFlags, 0xff,
             /* SBT offset & stride */ 0, 0,
             /* miss index          */ 1,
-            /* ray attribs         */ surf.pos, MinRayDistance, lightDir, lightDist - 1e-4,
+            /* ray attribs         */ pos, MinRayDistance, resv.wi, resv.dist - 1e-4,
             /* payload location    */ 1
         );
 
-        if (!rtShadowed && lightPdf > 1e-6) {
-            float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
-            float weight = MISWeight(lightPdf, bsdfPdf);
-            radiance += lightRadiance * (surf.albedo * PiInv) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
+        if (rtShadowed) {
+            resv.resampleWeight = 0;
         }
     }
-    imageStore(uDirectOutput, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
+
+    DIReservoir temporalResv;
+
+    if (findPreviousReservoir(uv + motion, pos, depth, norm, albedo, matMeshId, temporalResv)) {
+        if (DIReservoirIsValid(temporalResv)) {
+            DIReservoirMerge(resv, temporalResv, sample1f(rng));
+            DIReservoirCapSample(resv, ResampleNum * 20);
+        }
+    }
+    DIReservoirResetIfInvalid(resv);
+    uDIReservoirPrev[index1D(uvec2(index))] = resv;
+
+    vec3 radiance = vec3(0.0);
+
+    if (DIReservoirIsValid(resv) && resv.sampleCount > 0) {
+        vec3 pHat = resv.radiance * BSDFDot(albedo, norm, resv.wi);
+        radiance = pHat / luminance(pHat) * resv.resampleWeight / float(resv.sampleCount);
+    }
+    radiance = clampColor(radiance);
+    
+    float frameCount = float(uCamera.frameIndex);
+    vec3 accumulatedRadaince = imageLoad(uDirectOutput, ivec2(index)).rgb;
+    accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
+
+    imageStore(uDirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
 }
