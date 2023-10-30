@@ -36,7 +36,7 @@ std::pair<ModelInstance*, glm::vec3> Scene::loadModelInstance(const pugi::xml_no
 	}
 
 	auto modelPath = modelNode.attribute("path").as_string();
-	auto model = resource.openModelInstance(modelPath, !isLight, glm::vec3(0.0f));
+	auto model = resource.openModelInstance(modelPath, isLight, glm::vec3(0.0f));
 
 	std::string name(modelNode.attribute("name").as_string());
 	model->setName(name);
@@ -55,9 +55,9 @@ std::pair<ModelInstance*, glm::vec3> Scene::loadModelInstance(const pugi::xml_no
 
 		if (material) {
 			for (uint32_t i = 0; i < model->numMeshes(); i++) {
-				uint32_t materialIdx = resource.mMeshInstances[i + model->meshOffset()].materialIdx;
-				material->textureIdx = resource.mMaterials[materialIdx].textureIdx;
-				resource.mMaterials[materialIdx] = *material;
+				uint32_t materialIdx = resource.meshInstances[Resource::Object][i + model->meshOffset()].materialIdx;
+				material->textureIdx = resource.materials[materialIdx].textureIdx;
+				resource.materials[materialIdx] = *material;
 			}
 		}
 	}
@@ -75,11 +75,12 @@ void Scene::load(const File::path& path) {
 	buildLightDataStructure();
 
 	Log::line<1>("Statistics");
-	Log::line<2>("Vertices = " + std::to_string(resource.vertices().size()));
-	Log::line<2>("Indices = " + std::to_string(resource.indices().size()));
-	Log::line<2>("Mesh instances = " + std::to_string(resource.meshInstances().size()));
-	Log::line<2>("Model instances = " + std::to_string(resource.modelInstances().size()));
-	Log::line<2>("Materials = " + std::to_string(resource.materials().size()));
+	Log::line<2>("Objects");
+	Log::line<3>("Vertices = " + std::to_string(resource.vertices[Resource::Object].size()));
+	Log::line<3>("Indices = " + std::to_string(resource.indices[Resource::Object].size()));
+	Log::line<3>("Mesh instances = " + std::to_string(resource.meshInstances[Resource::Object].size()));
+	Log::line<3>("Model instances = " + std::to_string(resource.modelInstances[Resource::Object].size()));
+	Log::line<3>("Materials = " + std::to_string(resource.materials.size()));
 	Log::newLine();
 }
 
@@ -93,7 +94,6 @@ void Scene::loadXML(pugi::xml_node sceneNode) {
 	if (!sceneNode) {
 		throw std::runtime_error("Scene: failed to load");
 	}
-
 	loadIntegrator(sceneNode.child("integrator"));
 	loadSampler(sceneNode.child("sampler"));
 	loadCamera(sceneNode.child("camera"));
@@ -142,40 +142,16 @@ void Scene::loadCamera(pugi::xml_node cameraNode) {
 
 void Scene::loadModels(pugi::xml_node modelNode) {
 	for (auto instance = modelNode.first_child(); instance; instance = instance.next_sibling()) {
-		auto [model, power] = loadModelInstance(instance);
+		auto [modelInstance, power] = loadModelInstance(instance);
 
-		glm::mat4 transform = model->modelMatrix();
+		glm::mat4 transform = modelInstance->modelMatrix();
 		glm::mat4 transformInv = glm::inverse(transform);
 		glm::mat4 transformInvT = glm::transpose(transformInv);
 
-		objectInstances.push_back(ObjectInstance{
-			.transform = transform,
-			.transformInv = transformInv,
-			.transformInvT = transformInvT,
-			.radiance = power,
-			.indexOffset = resource.mMeshInstances[model->meshOffset()].indexOffset,
-			.indexCount = model->mNumIndices
-		});
-	}
-}
+		bool isLight = glm::length(power) > 0;
 
-void Scene::loadEnvironmentMap(pugi::xml_node envMapNode) {
-	//envMap = EnvironmentMap::create(scene.child("envMap").attribute("path").as_string());
-}
-
-void Scene::buildLightDataStructure() {
-	Log::line<1>("Light Sample Table");
-	std::vector<float> powerDistrib;
-	numObjectInstances = static_cast<uint32_t>(objectInstances.size());
-
-	for (uint32_t i = 0; i < objectInstances.size(); i++) {
-		auto& instance = objectInstances[i];
-
-		if (glm::length(instance.radiance) > 0.f) {
-			auto modelInstance = resource.modelInstances()[i];
-			glm::vec3 power = instance.radiance;
-
-			const auto& beginMeshInstance = resource.mMeshInstances[modelInstance->meshOffset()];
+		if (isLight) {
+			const auto& beginMeshInstance = resource.meshInstances[Resource::Light][modelInstance->meshOffset()];
 			uint32_t indexOffset = beginMeshInstance.indexOffset;
 			uint32_t indexCount = modelInstance->numIndices();
 			uint32_t triangleCount = indexCount / 3;
@@ -185,14 +161,18 @@ void Scene::buildLightDataStructure() {
 			};
 
 			float sumArea = 0.f;
-			uint32_t triangleOffset = triangleLights.size();
+			auto triangleOffset = static_cast<uint32_t>(triangleLights.size());
 
-			for (uint32_t j = 0; j < triangleCount; j++) {
+			for (uint32_t i = 0; i < triangleCount; i++) {
 				TriangleLight tri{};
 
-				tri.v0 = transform(resource.mVertices[resource.mIndices[indexOffset + j * 3 + 0]].pos);
-				tri.v1 = transform(resource.mVertices[resource.mIndices[indexOffset + j * 3 + 1]].pos);
-				tri.v2 = transform(resource.mVertices[resource.mIndices[indexOffset + j * 3 + 2]].pos);
+				uint32_t i0 = resource.indices[Resource::Light][indexOffset + i * 3 + 0];
+				uint32_t i1 = resource.indices[Resource::Light][indexOffset + i * 3 + 1];
+				uint32_t i2 = resource.indices[Resource::Light][indexOffset + i * 3 + 2];
+
+				tri.v0 = transform(resource.vertices[Resource::Light][i0].pos);
+				tri.v1 = transform(resource.vertices[Resource::Light][i1].pos);
+				tri.v2 = transform(resource.vertices[Resource::Light][i2].pos);
 
 				glm::vec3 n = glm::cross(tri.v1 - tri.v0, tri.v2 - tri.v0);
 				tri.area = .5f * glm::length(n);
@@ -205,14 +185,37 @@ void Scene::buildLightDataStructure() {
 				triangleLights.push_back(tri);
 				sumArea += tri.area;
 			}
-			instance.radiance = power / sumArea;
 
-			for (uint32_t j = 0; j < triangleCount; j++) {
-				auto& tri = triangleLights[triangleOffset + j];
-				tri.radiance = instance.radiance;
-				powerDistrib.push_back(luminance(tri.radiance * tri.area));
+			for (uint32_t i = 0; i < triangleCount; i++) {
+				auto& tri = triangleLights[triangleOffset + i];
+				tri.radiance = power / sumArea;
 			}
 		}
+		else {
+			objectInstances.push_back(ObjectInstance{
+				.transform = transform,
+				.transformInv = transformInv,
+				.transformInvT = transformInvT,
+				.radiance = power,
+				.indexOffset = resource.meshInstances[Resource::Object][modelInstance->meshOffset()].indexOffset,
+				.indexCount = modelInstance->mNumIndices
+			});
+		}
+	}
+}
+
+void Scene::loadEnvironmentMap(pugi::xml_node envMapNode) {
+	//envMap = EnvironmentMap::create(scene.child("envMap").attribute("path").as_string());
+}
+
+void Scene::buildLightDataStructure() {
+	Log::line<1>("Light Sample Table");
+	std::vector<float> powerDistrib(triangleLights.size());
+
+	float sumArea = 0.f;
+
+	for (uint32_t i = 0; i < triangleLights.size(); i++) {
+		powerDistrib[i] = luminance(triangleLights[i].radiance * triangleLights[i].area);
 	}
 	lightSampleTable.build(powerDistrib);
 
@@ -265,37 +268,38 @@ void DeviceScene::initDescriptor() {
 }
 
 void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueIdx) {
-	numVertices = scene.resource.vertices().size();
-	numIndices = scene.resource.indices().size();
-	numMaterials = scene.resource.materials().size();
-	numTriangles = numIndices / 3;
+	numVertices = static_cast<uint32_t>(scene.resource.vertices[Resource::Object].size());
+	numIndices = static_cast<uint32_t>(scene.resource.indices[Resource::Object].size());
+	numMaterials = static_cast<uint32_t>(scene.resource.materials.size());
+	numTriangles = static_cast<uint32_t>(numIndices / 3);
+	numTriangleLights = static_cast<uint32_t>(scene.triangleLights.size());
 
 	auto RTBuildFlags = vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR |
 		vk::BufferUsageFlagBits::eShaderDeviceAddress;
 
 	vertices = zvk::Memory::createBufferFromHost(
-		mCtx, queueIdx, scene.resource.vertices().data(), zvk::sizeOf(scene.resource.vertices()),
+		mCtx, queueIdx, scene.resource.vertices[Resource::Object].data(), zvk::sizeOf(scene.resource.vertices[Resource::Object]),
 		vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer | RTBuildFlags,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
 	zvk::DebugUtils::nameVkObject(mCtx->device, vertices->buffer, "vertices");
 
 	indices = zvk::Memory::createBufferFromHost(
-		mCtx, queueIdx, scene.resource.indices().data(), zvk::sizeOf(scene.resource.indices()),
+		mCtx, queueIdx, scene.resource.indices[Resource::Object].data(), zvk::sizeOf(scene.resource.indices[Resource::Object]),
 		vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer | RTBuildFlags,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
 	zvk::DebugUtils::nameVkObject(mCtx->device, indices->buffer, "indices");
 
 	materials = zvk::Memory::createBufferFromHost(
-		mCtx, queueIdx, scene.resource.materials().data(), zvk::sizeOf(scene.resource.materials()),
+		mCtx, queueIdx, scene.resource.materials.data(), zvk::sizeOf(scene.resource.materials),
 		vk::BufferUsageFlagBits::eStorageBuffer,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
 	zvk::DebugUtils::nameVkObject(mCtx->device, materials->buffer, "materials");
 
 	materialIds = zvk::Memory::createBufferFromHost(
-		mCtx, queueIdx, scene.resource.materialIndices().data(), zvk::sizeOf(scene.resource.materialIndices()),
+		mCtx, queueIdx, scene.resource.materialIndices.data(), zvk::sizeOf(scene.resource.materialIndices),
 		vk::BufferUsageFlagBits::eStorageBuffer,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
@@ -310,7 +314,8 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 
 	triangleLights = zvk::Memory::createBufferFromHost(
 		mCtx, queueIdx, scene.triangleLights.data(), zvk::sizeOf(scene.triangleLights),
-		vk::BufferUsageFlagBits::eStorageBuffer,
+		vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
+			vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR,
 		vk::MemoryAllocateFlagBits::eDeviceAddress
 	);
 	zvk::DebugUtils::nameVkObject(mCtx->device, triangleLights->buffer, "triangleLights");
@@ -343,12 +348,65 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 }
 
 void DeviceScene::createAccelerationStructure(const Scene& scene, zvk::QueueIdx queueIdx) {
-	for (auto model : scene.resource.uniqueModelInstances()) {
-		auto firstMesh = scene.resource.meshInstances()[model->meshOffset()];
+	Log::line<0>("Creating acceleration structures");
+
+	std::unique_ptr<zvk::Buffer> lightIndicesBuf;
+	std::vector<vk::AccelerationStructureInstanceKHR> instances;
+
+	if (/* build light AS */ true) {
+		std::vector<uint32_t> lightIndices(numTriangleLights * 3);
+
+		for (uint32_t i = 0; i < numTriangleLights; i++) {
+			lightIndices[3 * i + 0] = 4 * i + 0;
+			lightIndices[3 * i + 1] = 4 * i + 1;
+			lightIndices[3 * i + 2] = 4 * i + 2;
+		}
+		lightIndicesBuf = zvk::Memory::createBufferFromHost(
+			mCtx, queueIdx, lightIndices.data(), zvk::sizeOf(lightIndices),
+			vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer |
+				vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR |
+				vk::BufferUsageFlagBits::eShaderDeviceAddress,
+			vk::MemoryAllocateFlagBits::eDeviceAddress
+		);
+
+		zvk::AccelerationStructureTriangleMesh meshData {
+			.vertexAddress = triangleLights->address(),
+			.indexAddress = lightIndicesBuf->address(),
+			.vertexStride = sizeof(glm::vec4),
+			.vertexFormat = vk::Format::eR32G32B32Sfloat,
+			.indexType = vk::IndexType::eUint32,
+			.maxVertex = numTriangleLights * 3,
+			.numIndices = numTriangleLights * 3,
+			.indexOffset = 0
+		};
+
+		auto lightBLAS = std::make_unique<zvk::AccelerationStructure>(
+			mCtx, queueIdx, meshData, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
+		);
+		zvk::DebugUtils::nameVkObject(mCtx->device, lightBLAS->structure, "lightBLAS");
+		meshAccelStructures.push_back(std::move(lightBLAS));
+
+		vk::TransformMatrixKHR transform;
+		glm::mat4 matrix(1.f);
+		memcpy(&transform, &matrix, 12 * sizeof(float));
+
+		instances.push_back(
+			vk::AccelerationStructureInstanceKHR()
+				.setTransform(transform)
+				.setInstanceCustomIndex(0)
+				.setMask(0xff)
+				.setInstanceShaderBindingTableRecordOffset(0)
+				.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)
+				.setAccelerationStructureReference(meshAccelStructures[0]->address)
+		);
+	}
+
+	for (auto model : scene.resource.uniqueModelInstances[Resource::Object]) {
+		auto firstMesh = scene.resource.meshInstances[Resource::Object][model->meshOffset()];
 
 		uint64_t indexOffset = firstMesh.indexOffset * sizeof(uint32_t);
 
-		zvk::AccelerationStructureTriangleMesh meshData{
+		zvk::AccelerationStructureTriangleMesh meshData {
 			.vertexAddress = vertices->address(),
 			.indexAddress = indices->address() + indexOffset,
 			.vertexStride = sizeof(MeshVertex),
@@ -362,14 +420,12 @@ void DeviceScene::createAccelerationStructure(const Scene& scene, zvk::QueueIdx 
 		auto BLAS = std::make_unique<zvk::AccelerationStructure>(
 			mCtx, queueIdx, meshData, vk::BuildAccelerationStructureFlagBitsKHR::ePreferFastTrace
 		);
-		zvk::DebugUtils::nameVkObject(mCtx->device, BLAS->structure, "BLAS_" + model->name());
-
+		zvk::DebugUtils::nameVkObject(mCtx->device, BLAS->structure, "objectBLAS_" + model->name());
 		meshAccelStructures.push_back(std::move(BLAS));
 	}
-	std::vector<vk::AccelerationStructureInstanceKHR> instances;
 
-	for (uint32_t i = 0; i < scene.resource.modelInstances().size(); i++) {
-		auto modelInstance = scene.resource.modelInstances()[i];
+	for (uint32_t i = 0; i < scene.resource.modelInstances[Resource::Object].size(); i++) {
+		auto modelInstance = scene.resource.modelInstances[Resource::Object][i];
 
 		vk::TransformMatrixKHR transform;
 		glm::mat4 matrix = glm::transpose(modelInstance->modelMatrix());
@@ -377,12 +433,12 @@ void DeviceScene::createAccelerationStructure(const Scene& scene, zvk::QueueIdx 
 
 		instances.push_back(
 			vk::AccelerationStructureInstanceKHR()
-			.setTransform(transform)
-			.setInstanceCustomIndex(i)
-			.setMask(0xff)
-			.setInstanceShaderBindingTableRecordOffset(0)
-			.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)
-			.setAccelerationStructureReference(meshAccelStructures[modelInstance->refId()]->address)
+				.setTransform(transform)
+				.setInstanceCustomIndex(i + 1)
+				.setMask(0xff)
+				.setInstanceShaderBindingTableRecordOffset(0)
+				.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable)
+				.setAccelerationStructureReference(meshAccelStructures[modelInstance->refId() + 1]->address)
 		);
 	}
 

@@ -96,7 +96,7 @@ public:
 	uint32_t numIndices = 0;
 	uint32_t numMaterials = 0;
 	uint32_t numTriangles = 0;
-	uint32_t numLightTriangles;
+	uint32_t numTriangleLights;
 
 	std::unique_ptr<zvk::DescriptorSetLayout> resourceDescLayout;
 	std::unique_ptr<zvk::DescriptorSetLayout> rayTracingDescLayout;

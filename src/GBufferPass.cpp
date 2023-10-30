@@ -79,12 +79,12 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 
 	int32_t meshIdx = 0;
 
-	for (const auto& model : resource.modelInstances()) {
+	for (const auto& model : resource.modelInstances[Resource::Object]) {
 		glm::mat4 modelMatrix = model->modelMatrix();
 		glm::mat4 modelInvT(glm::transpose(glm::inverse(modelMatrix)));
 
 		for (uint32_t i = 0; i < model->numMeshes(); i++) {
-			const auto& mesh = resource.meshInstances()[model->meshOffset() + i];
+			const auto& mesh = resource.meshInstances[Resource::Object][model->meshOffset() + i];
 			commands.push_back({ mesh.indexCount, 1, mesh.indexOffset, 0, 0 });
 			mDrawParams.push_back({ modelMatrix, modelInvT, mesh.materialIdx, meshIdx++ });
 		}

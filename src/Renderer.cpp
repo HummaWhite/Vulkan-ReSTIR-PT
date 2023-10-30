@@ -382,7 +382,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.vertexBuffer = mDeviceScene->vertices->buffer,
 		.indexBuffer = mDeviceScene->indices->buffer,
 		.offset = 0,
-		.count = static_cast<uint32_t>(mScene.resource.meshInstances().size())
+		.count = static_cast<uint32_t>(mScene.resource.meshInstances[Resource::Object].size())
 	};
 
 	auto rayTracingParam = RayTracingRenderParam {

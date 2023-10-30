@@ -16,19 +16,18 @@
 
 class Resource {
 public:
+	enum MeshType {
+		Object = 0,
+		Light,
+		MeshTypeCount
+	};
+
+public:
 	friend class Scene;
 	Resource();
 	~Resource() { destroy(); }
 
-	const std::vector<MeshVertex>& vertices() const { return mVertices; }
-	const std::vector<uint32_t>& indices() const { return mIndices; }
-	const std::vector<MeshInstance>& meshInstances() const { return mMeshInstances; }
-	const std::vector<ModelInstance*>& modelInstances() const { return mModelInstances; }
-	const std::vector<Material>& materials() const { return mMaterials; }
-	const std::vector<int32_t>& materialIndices() const { return mMaterialIndices; }
-	const std::vector<ModelInstance*>& uniqueModelInstances() const { return mUniqueModelInstances; }
-
-	float getModelTransformedSurfaceArea(const ModelInstance* modelInstance) const;
+	float getModelTransformedSurfaceArea(const ModelInstance* modelInstance, bool isLight) const;
 
 	zvk::HostImage* getImageByIndex(uint32_t index);
 	zvk::HostImage* getImageByPath(const File::path& path);
@@ -37,7 +36,7 @@ public:
 	const std::vector<zvk::HostImage*>& imagePool() const { return mImagePool; }
 
 	ModelInstance* openModelInstance(
-		const File::path& path, bool smoothNormal,
+		const File::path& path, bool isLight,
 		glm::vec3 pos, glm::vec3 scale = glm::vec3(1.0f), glm::vec3 rotation = glm::vec3(0.0f));
 
 	void clearDeviceMeshAndImage();
@@ -45,19 +44,20 @@ public:
 
 private:
 	ModelInstance* getModelInstanceByPath(const File::path& path);
-	ModelInstance* createNewModelInstance(const File::path& path, bool smoothNormal);
-	MeshInstance createNewMeshInstance(aiMesh* mesh, const aiScene* scene);
+	ModelInstance* createNewModelInstance(const File::path& path, bool isLight);
+	MeshInstance createNewMeshInstance(aiMesh* mesh, const aiScene* scene, bool isLight);
+
+public:
+	std::vector<MeshVertex> vertices[MeshTypeCount];
+	std::vector<uint32_t> indices[MeshTypeCount];
+	std::vector<MeshInstance> meshInstances[MeshTypeCount];
+	std::vector<ModelInstance*> modelInstances[MeshTypeCount];
+	std::vector<ModelInstance*> uniqueModelInstances[MeshTypeCount];
+	std::vector<Material> materials;
+	std::vector<int32_t> materialIndices;
 
 private:
-	std::vector<MeshVertex> mVertices;
-	std::vector<uint32_t> mIndices;
-	std::vector<MeshInstance> mMeshInstances;
-	std::vector<ModelInstance*> mModelInstances;
-	std::vector<ModelInstance*> mUniqueModelInstances;
-	std::vector<Material> mMaterials;
-	std::vector<int32_t> mMaterialIndices;
-
 	std::vector<zvk::HostImage*> mImagePool;
 	std::map<File::path, uint32_t> mMapPathToImageIndex;
-	std::map<File::path, ModelInstance*> mMapPathToModelInstance;
+	std::map<File::path, ModelInstance*> mMapPathToUniqueModelInstance;
 };

@@ -36,13 +36,13 @@ std::optional<uint32_t> Resource::addImage(const File::path& path, zvk::HostImag
 Resource::Resource() {
 	Material emptyMat;
 	emptyMat.baseColor = glm::vec3(1.f, 0.f, 1.f);
-	mMaterials.push_back(emptyMat);
+	materials.push_back(emptyMat);
 }
 
-float Resource::getModelTransformedSurfaceArea(const ModelInstance* modelInstance) const {
+float Resource::getModelTransformedSurfaceArea(const ModelInstance* modelInstance, bool isLight) const {
 	std::atomic<float> area = 0.f;
 
-	const auto& beginMeshInstance = mMeshInstances[modelInstance->meshOffset()];
+	const auto& beginMeshInstance = meshInstances[isLight][modelInstance->meshOffset()];
 	uint32_t indexOffset = beginMeshInstance.indexOffset;
 	uint32_t indexCount = modelInstance->numIndices();
 	uint32_t triangleCount = indexCount / 3;
@@ -53,9 +53,13 @@ float Resource::getModelTransformedSurfaceArea(const ModelInstance* modelInstanc
 
 	auto areaReduction = [&](uint32_t begin, uint32_t end) {
 		for (uint32_t i = begin; i < end; i++) {
-			glm::vec3 va = transform(mVertices[mIndices[indexOffset + i * 3 + 0]].pos);
-			glm::vec3 vb = transform(mVertices[mIndices[indexOffset + i * 3 + 1]].pos);
-			glm::vec3 vc = transform(mVertices[mIndices[indexOffset + i * 3 + 2]].pos);
+			uint32_t ia = indices[isLight][indexOffset + i * 3 + 0];
+			uint32_t ib = indices[isLight][indexOffset + i * 3 + 1];
+			uint32_t ic = indices[isLight][indexOffset + i * 3 + 2];
+
+			glm::vec3 va = transform(vertices[isLight][ia].pos);
+			glm::vec3 vb = transform(vertices[isLight][ib].pos);
+			glm::vec3 vc = transform(vertices[isLight][ic].pos);
 			area += .5f * glm::length(glm::cross(vb - va, vc - va));
 		}
 	};
@@ -75,25 +79,25 @@ float Resource::getModelTransformedSurfaceArea(const ModelInstance* modelInstanc
 	return area;
 }
 
-ModelInstance* Resource::openModelInstance(const File::path& path, bool smoothNormal, glm::vec3 pos, glm::vec3 scale, glm::vec3 rotation) {
+ModelInstance* Resource::openModelInstance(const File::path& path, bool isLight, glm::vec3 pos, glm::vec3 scale, glm::vec3 rotation) {
 	auto model = getModelInstanceByPath(path);
 
 	if (model == nullptr) {
-		model = createNewModelInstance(path, smoothNormal);
-		model->mRefId = static_cast<uint32_t>(mUniqueModelInstances.size());
-		mMapPathToModelInstance[path] = model;
-		mUniqueModelInstances.push_back(model);
+		model = createNewModelInstance(path, isLight);
+		model->mRefId = static_cast<uint32_t>(uniqueModelInstances[isLight].size());
+		mMapPathToUniqueModelInstance[path] = model;
+		uniqueModelInstances[isLight].push_back(model);
 	}
 	auto newCopy = model->copy();
 	newCopy->setPos(pos);
 	newCopy->setScale(scale);
 	newCopy->setRotation(rotation);
 
-	mModelInstances.push_back(newCopy);
+	modelInstances[isLight].push_back(newCopy);
 	return newCopy;
 }
 
-ModelInstance* Resource::createNewModelInstance(const File::path& path, bool smoothNormal) {
+ModelInstance* Resource::createNewModelInstance(const File::path& path, bool isLight) {
 	auto model = new ModelInstance;
 	auto pathStr = path.generic_string();
 
@@ -111,7 +115,7 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool smo
 		//| aiProcess_ForceGenNormals
 		//| aiProcess_FindDegenerates
 		;
-	option |= smoothNormal ? aiProcess_GenSmoothNormals : aiProcess_GenNormals;
+	option |= isLight ? aiProcess_GenNormals : aiProcess_GenSmoothNormals;
 
 	auto scene = importer.ReadFile(pathStr.c_str(), option);
 
@@ -123,7 +127,7 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool smo
 
 	std::stack<aiNode*> stack;
 	stack.push(scene->mRootNode);
-	model->mMeshOffset = static_cast<uint32_t>(mMeshInstances.size());
+	model->mMeshOffset = static_cast<uint32_t>(meshInstances[isLight].size());
 
 	while (!stack.empty()) {
 		auto node = stack.top();
@@ -131,10 +135,10 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool smo
 
 		for (uint32_t i = 0; i < node->mNumMeshes; i++) {
 			auto mesh = scene->mMeshes[node->mMeshes[i]];
-			auto meshInstance = createNewMeshInstance(mesh, scene);
+			auto meshInstance = createNewMeshInstance(mesh, scene, isLight);
 			model->mNumIndices += meshInstance.indexCount;
 			model->mNumVertices += meshInstance.vertexCount;
-			mMeshInstances.push_back(meshInstance);
+			meshInstances[isLight].push_back(meshInstance);
 		}
 		for (uint32_t i = 0; i < node->mNumChildren; i++) {
 			stack.push(node->mChildren[i]);
@@ -142,33 +146,35 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool smo
 		model->mNumMeshes += node->mNumMeshes;
 	}
 
-	for (uint32_t i = 0; i < scene->mNumMaterials; i++) {
-		aiMaterial* aiMat = scene->mMaterials[i];
-		aiColor3D albedo;
-		aiMat->Get(AI_MATKEY_COLOR_DIFFUSE, albedo);
+	if (!isLight) {
+		for (uint32_t i = 0; i < scene->mNumMaterials; i++) {
+			aiMaterial* aiMat = scene->mMaterials[i];
+			aiColor3D albedo;
+			aiMat->Get(AI_MATKEY_COLOR_DIFFUSE, albedo);
 
-		Material material;
-		material.baseColor.r = albedo.r;
-		material.baseColor.g = albedo.g;
-		material.baseColor.b = albedo.b;
+			Material material;
+			material.baseColor.r = albedo.r;
+			material.baseColor.g = albedo.g;
+			material.baseColor.b = albedo.b;
 
-		if (aiMat->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
-			aiString str;
-			aiMat->GetTexture(aiTextureType_DIFFUSE, 0, &str);
-			File::path imagePath(str.C_Str());
+			if (aiMat->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
+				aiString str;
+				aiMat->GetTexture(aiTextureType_DIFFUSE, 0, &str);
+				File::path imagePath(str.C_Str());
 
-			if (!path.is_absolute()) {
-				imagePath = path.parent_path() / imagePath;
+				if (!path.is_absolute()) {
+					imagePath = path.parent_path() / imagePath;
+				}
+				Log::line<2>("Albedo texture " + imagePath.generic_string());
+
+				auto imageIdx = addImage(imagePath, zvk::HostImageType::Int8);
+				material.textureIdx = imageIdx ? *imageIdx : InvalidResourceIdx;
 			}
-			Log::line<2>("Albedo texture " + imagePath.generic_string());
-
-			auto imageIdx = addImage(imagePath, zvk::HostImageType::Int8);
-			material.textureIdx = imageIdx ? *imageIdx : InvalidResourceIdx;
+			else {
+				material.textureIdx = InvalidResourceIdx;
+			}
+			materials.push_back(material);
 		}
-		else {
-			material.textureIdx = InvalidResourceIdx;
-		}
-		mMaterials.push_back(material);
 	}
 	Log::line<2>(std::to_string(scene->mNumMaterials) + " material(s)");
 	Log::line<2>(std::to_string(model->numMeshes()) + " mesh(es)");
@@ -176,8 +182,8 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool smo
 }
 
 ModelInstance* Resource::getModelInstanceByPath(const File::path& path) {
-	auto res = mMapPathToModelInstance.find(path);
-	if (res == mMapPathToModelInstance.end()) {
+	auto res = mMapPathToUniqueModelInstance.find(path);
+	if (res == mMapPathToUniqueModelInstance.end()) {
 		return nullptr;
 	}
 	return res->second;
@@ -188,28 +194,34 @@ void Resource::clearDeviceMeshAndImage() {
 		delete image;
 	}
 
-	for (auto m : mMapPathToModelInstance) {
+	for (auto m : mMapPathToUniqueModelInstance) {
 		delete m.second;
 	}
-	mVertices.clear();
-	mIndices.clear();
+
+	for (uint32_t i = 0; i < MeshTypeCount; i++) {
+		vertices[i].clear();
+		indices[i].clear();
+	}
 	mImagePool.clear();
 	mMapPathToImageIndex.clear();
-	mMapPathToModelInstance.clear();
+	mMapPathToUniqueModelInstance.clear();
 }
 
 void Resource::destroy() {
 	clearDeviceMeshAndImage();
-	mModelInstances.clear();
-	mMaterials.clear();
+	materials.clear();
+
+	for (uint32_t i = 0; i < MeshTypeCount; i++) {
+		modelInstances[i].clear();
+	}
 }
 
-MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene) {
+MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene, bool isLight) {
 	Log::line<2>("Mesh nVertices = " + std::to_string(mesh->mNumVertices) +
 		", nFaces = " + std::to_string(mesh->mNumFaces));
 
 	MeshInstance meshInstance;
-	auto vertexOffset = static_cast<uint32_t>(mVertices.size());
+	auto vertexOffset = static_cast<uint32_t>(vertices[isLight].size());
 
 	for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
 		MeshVertex vertex;
@@ -217,24 +229,27 @@ MeshInstance Resource::createNewMeshInstance(aiMesh* mesh, const aiScene* scene)
 		vertex.norm = { mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
 		vertex.uvx = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][i].x : 0;
 		vertex.uvy = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][i].y : 0;
-		mVertices.push_back(vertex);
+		vertices[isLight].push_back(vertex);
 	}
-	auto materialOffset = static_cast<uint32_t>(mMaterials.size());
+	auto materialOffset = static_cast<uint32_t>(materials.size());
 
 	if (scene->mNumMaterials > 0 && mesh->mMaterialIndex >= 0) {
 		meshInstance.materialIdx = mesh->mMaterialIndex + materialOffset;
 	}
 	meshInstance.vertexOffset = vertexOffset;
 	meshInstance.vertexCount = mesh->mNumVertices;
-	meshInstance.indexOffset = static_cast<uint32_t>(mIndices.size());
+	meshInstance.indexOffset = static_cast<uint32_t>(indices[isLight].size());
 
 	for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
 		aiFace face = mesh->mFaces[i];
 		for (uint32_t j = 0; j < face.mNumIndices; j++) {
-			mIndices.push_back(face.mIndices[j] + vertexOffset);
+			indices[isLight].push_back(face.mIndices[j] + vertexOffset);
 		}
 		meshInstance.indexCount += face.mNumIndices;
-		mMaterialIndices.push_back(meshInstance.materialIdx);
+
+		if (!isLight) {
+			materialIndices.push_back(meshInstance.materialIdx);
+		}
 	}
 	return meshInstance;
 }
