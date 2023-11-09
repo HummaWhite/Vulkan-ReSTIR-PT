@@ -1,7 +1,6 @@
 #include "ResampledPTPass.h"
+#include "RayTracing.h"
 #include "shader/HostDevice.h"
-#include "core/ExtFunctions.h"
-#include "core/DebugUtils.h"
 
 void ResampledPTPass::destroy() {
 	mCtx->device.destroyPipeline(mRayTracingPipeline);

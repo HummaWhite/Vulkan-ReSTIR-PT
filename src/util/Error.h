@@ -7,10 +7,10 @@
 
 NAMESPACE_BEGIN(Log)
 
-template<int NTabs, typename T>
+template<uint32_t NTabs, typename T>
 void line(const T& msg) {
     static_assert(NTabs >= 0);
-    for (int i = 0; i < NTabs; i++) {
+    for (uint32_t i = 0; i < NTabs; i++) {
         std::cerr << "\t";
     }
     std::cerr << "[" << msg << "]" << std::endl;

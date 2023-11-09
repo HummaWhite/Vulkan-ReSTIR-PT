@@ -1,9 +1,6 @@
 #pragma once
 
-#include "core/Context.h"
-#include "core/ShaderManager.h"
-#include "core/Memory.h"
-#include "core/ShaderBindingTable.h"
+#include "zvk.h"
 #include "Scene.h"
 
 struct RayTracingRenderParam;

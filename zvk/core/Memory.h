@@ -118,17 +118,17 @@ public:
 
 public:
 	vk::Image image;
-	vk::ImageType type;
+	vk::ImageType type = {};
 	vk::ImageView view;
-	vk::ImageViewType viewType;
+	vk::ImageViewType viewType = {};
 	vk::ImageUsageFlags usage;
 	vk::ImageLayout layout;
-	vk::Format format;
-	vk::Extent3D extent;
+	vk::Format format = vk::Format::eUndefined;
+	vk::Extent3D extent = {};
 	vk::Sampler sampler;
 	vk::DeviceMemory memory;
-	uint32_t numMipLevels;
-	uint32_t numArrayLayers;
+	uint32_t numMipLevels = 0;
+	uint32_t numArrayLayers = 0;
 };
 
 namespace Memory {

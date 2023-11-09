@@ -13,15 +13,8 @@
 #include <limits>
 #include <set>
 
-#include "core/Context.h"
-#include "core/Swapchain.h"
-#include "core/ShaderManager.h"
-#include "core/Memory.h"
-#include "core/Descriptor.h"
+#include "zvk.h"
 #include "Scene.h"
-
-#include "util/Error.h"
-#include "util/Timer.h"
 
 class PostProcPassFrag : public zvk::BaseVkObject {
 public:

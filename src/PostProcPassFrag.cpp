@@ -171,7 +171,7 @@ void PostProcPassFrag::render(
 	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, mPipeline);
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, mPipelineLayout, RayImageDescSet, rayImageDescSet, {});
 
-	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, extent.width, extent.height, 0.0f, 1.0f));
+	cmd.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f));
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
 
 	cmd.pushConstants(mPipelineLayout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstant), &param);

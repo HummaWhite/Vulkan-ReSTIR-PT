@@ -1,8 +1,6 @@
 #include "NaiveDIPass.h"
-#include "shader/HostDevice.h"
-#include "core/ExtFunctions.h"
-#include "core/DebugUtils.h"
 #include "RayTracing.h"
+#include "shader/HostDevice.h"
 
 void NaiveDIPass::destroy() {
 	mCtx->device.destroyPipeline(mRayTracingPipeline);

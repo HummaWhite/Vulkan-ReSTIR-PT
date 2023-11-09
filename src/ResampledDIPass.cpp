@@ -1,7 +1,6 @@
 #include "ResampledDIPass.h"
+#include "RayTracing.h"
 #include "shader/HostDevice.h"
-#include "core/ExtFunctions.h"
-#include "core/DebugUtils.h"
 
 void ResampledDIPass::destroy() {
 	mCtx->device.destroyPipeline(mRayTracingPipeline);

@@ -5,23 +5,22 @@
 
 NAMESPACE_BEGIN(zvk::ExtFunctions)
 
-PFN_vkCreateDebugUtilsMessengerEXT fpCreateDebugUtilsMessengerEXT = nullptr;
-PFN_vkDestroyDebugUtilsMessengerEXT fpDestroyDebugUtilsMessengerEXT = nullptr;
+static PFN_vkGetAccelerationStructureBuildSizesKHR fpGetAccelerationStructureBuildSizesKHR = nullptr;
+static PFN_vkCreateAccelerationStructureKHR fpCreateAccelerationStructureKHR = nullptr;
+static PFN_vkDestroyAccelerationStructureKHR fpDestroyAccelerationStructureKHR = nullptr;
+static PFN_vkGetAccelerationStructureDeviceAddressKHR fpGetAccelerationStructureDeviceAddressKHR = nullptr;
+static PFN_vkCmdBuildAccelerationStructuresKHR fpCmdBuildAccelerationStructuresKHR = nullptr;
+static PFN_vkGetRayTracingShaderGroupHandlesKHR fpGetRayTracingShaderGroupHandlesKHR = nullptr;
+static PFN_vkCreateRayTracingPipelinesKHR fpCreateRayTracingPipelinesKHR = nullptr;
+static PFN_vkCmdTraceRaysKHR fpCmdTraceRaysKHR = nullptr;
 
-PFN_vkGetAccelerationStructureBuildSizesKHR fpGetAccelerationStructureBuildSizesKHR = nullptr;
-PFN_vkCreateAccelerationStructureKHR fpCreateAccelerationStructureKHR = nullptr;
-PFN_vkDestroyAccelerationStructureKHR fpDestroyAccelerationStructureKHR = nullptr;
-PFN_vkGetAccelerationStructureDeviceAddressKHR fpGetAccelerationStructureDeviceAddressKHR = nullptr;
-PFN_vkCmdBuildAccelerationStructuresKHR fpCmdBuildAccelerationStructuresKHR = nullptr;
-PFN_vkGetRayTracingShaderGroupHandlesKHR fpGetRayTracingShaderGroupHandlesKHR = nullptr;
-PFN_vkCreateRayTracingPipelinesKHR fpCreateRayTracingPipelinesKHR = nullptr;
-PFN_vkCmdTraceRaysKHR fpCmdTraceRaysKHR = nullptr;
-
-PFN_vkSetDebugUtilsObjectTagEXT fpSetDebugUtilsObjectTagEXT = nullptr;
-PFN_vkSetDebugUtilsObjectNameEXT fpSetDebugUtilsObjectNameEXT = nullptr;
-PFN_vkCmdBeginDebugUtilsLabelEXT fpCmdBeginDebugUtilsLabelEXT = nullptr;
-PFN_vkCmdEndDebugUtilsLabelEXT fpCmdEndDebugUtilsLabelEXT = nullptr;
-PFN_vkCmdInsertDebugUtilsLabelEXT fpCmdInsertDebugUtilsLabelEXT = nullptr;
+static PFN_vkCreateDebugUtilsMessengerEXT fpCreateDebugUtilsMessengerEXT = nullptr;
+static PFN_vkDestroyDebugUtilsMessengerEXT fpDestroyDebugUtilsMessengerEXT = nullptr;
+static PFN_vkSetDebugUtilsObjectTagEXT fpSetDebugUtilsObjectTagEXT = nullptr;
+static PFN_vkSetDebugUtilsObjectNameEXT fpSetDebugUtilsObjectNameEXT = nullptr;
+static PFN_vkCmdBeginDebugUtilsLabelEXT fpCmdBeginDebugUtilsLabelEXT = nullptr;
+static PFN_vkCmdEndDebugUtilsLabelEXT fpCmdEndDebugUtilsLabelEXT = nullptr;
+static PFN_vkCmdInsertDebugUtilsLabelEXT fpCmdInsertDebugUtilsLabelEXT = nullptr;
 
 template<typename FuncPtr>
 void loadFunction(vk::Instance instance, const char* name, FuncPtr& func) {
@@ -36,9 +35,6 @@ void loadFunction(vk::Instance instance, const char* name, FuncPtr& func) {
 void load(vk::Instance instance) {
 	Log::line<0>("Loading Vulkan functions");
 
-	loadFunction(instance, "vkCreateDebugUtilsMessengerEXT", fpCreateDebugUtilsMessengerEXT);
-	loadFunction(instance, "vkDestroyDebugUtilsMessengerEXT", fpDestroyDebugUtilsMessengerEXT);
-
 	loadFunction(instance, "vkGetAccelerationStructureBuildSizesKHR", fpGetAccelerationStructureBuildSizesKHR);
 	loadFunction(instance, "vkCreateAccelerationStructureKHR", fpCreateAccelerationStructureKHR);
 	loadFunction(instance, "vkGetAccelerationStructureDeviceAddressKHR", fpGetAccelerationStructureDeviceAddressKHR);
@@ -48,6 +44,8 @@ void load(vk::Instance instance) {
 	loadFunction(instance, "vkCreateRayTracingPipelinesKHR", fpCreateRayTracingPipelinesKHR);
 	loadFunction(instance, "vkCmdTraceRaysKHR", fpCmdTraceRaysKHR);
 
+	loadFunction(instance, "vkCreateDebugUtilsMessengerEXT", fpCreateDebugUtilsMessengerEXT);
+	loadFunction(instance, "vkDestroyDebugUtilsMessengerEXT", fpDestroyDebugUtilsMessengerEXT);
 	loadFunction(instance, "vkSetDebugUtilsObjectTagEXT", fpSetDebugUtilsObjectTagEXT);
 	loadFunction(instance, "vkSetDebugUtilsObjectNameEXT", fpSetDebugUtilsObjectNameEXT);
 	loadFunction(instance, "vkCmdBeginDebugUtilsLabelEXT", fpCmdBeginDebugUtilsLabelEXT);
@@ -55,35 +53,6 @@ void load(vk::Instance instance) {
 	loadFunction(instance, "vkCmdInsertDebugUtilsLabelEXT", fpCmdInsertDebugUtilsLabelEXT);
 
 	Log::newLine();
-}
-
-vk::DebugUtilsMessengerEXT createDebugUtilsMessengerEXT(
-	vk::Instance instance,
-	const vk::DebugUtilsMessengerCreateInfoEXT& createInfo
-) {
-	VkDebugUtilsMessengerEXT messenger;
-
-	auto result = fpCreateDebugUtilsMessengerEXT(
-		instance,
-		reinterpret_cast<const VkDebugUtilsMessengerCreateInfoEXT*>(&createInfo),
-		nullptr, &messenger
-	);
-
-	if (result != VK_SUCCESS) {
-		vk::throwResultException(vk::Result(result), "zvk::VkExt vkCreateDebugUtilsMessengerEXT failed");
-	}
-	return vk::DebugUtilsMessengerEXT(messenger);
-}
-
-void destroyDebugUtilsMessenger(
-	vk::Instance instance,
-	vk::DebugUtilsMessengerEXT messenger
-) {
-	fpDestroyDebugUtilsMessengerEXT(
-		instance,
-		messenger,
-		nullptr
-	);
 }
 
 vk::AccelerationStructureBuildSizesInfoKHR getAccelerationStructureBuildSizesKHR(
@@ -211,6 +180,35 @@ void cmdTraceRaysKHR(
 		width,
 		height,
 		depth
+	);
+}
+
+vk::DebugUtilsMessengerEXT createDebugUtilsMessengerEXT(
+	vk::Instance instance,
+	const vk::DebugUtilsMessengerCreateInfoEXT& createInfo
+) {
+	VkDebugUtilsMessengerEXT messenger;
+
+	auto result = fpCreateDebugUtilsMessengerEXT(
+		instance,
+		reinterpret_cast<const VkDebugUtilsMessengerCreateInfoEXT*>(&createInfo),
+		nullptr, &messenger
+	);
+
+	if (result != VK_SUCCESS) {
+		vk::throwResultException(vk::Result(result), "zvk::VkExt vkCreateDebugUtilsMessengerEXT failed");
+	}
+	return vk::DebugUtilsMessengerEXT(messenger);
+}
+
+void destroyDebugUtilsMessenger(
+	vk::Instance instance,
+	vk::DebugUtilsMessengerEXT messenger
+) {
+	fpDestroyDebugUtilsMessengerEXT(
+		instance,
+		messenger,
+		nullptr
 	);
 }
 

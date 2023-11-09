@@ -1,7 +1,5 @@
 #pragma once
 
-#define ZVK_DEBUG
-
 #include "core/AccelerationStructure.h"
 #include "core/Command.h"
 #include "core/Context.h"

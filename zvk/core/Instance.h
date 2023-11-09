@@ -25,7 +25,8 @@ class Instance {
 public:
 	Instance(
 		const vk::ApplicationInfo& appInfo, GLFWwindow* window,
-		const std::vector<const char*>& extensions, const void* featureChain = nullptr);
+		const std::vector<const char*>& requestedDeviceExtensions,
+		const void* featureChain = nullptr);
 
 	~Instance() { destroy(); }
 	void destroy();

@@ -1,7 +1,6 @@
 #include "Scene.h"
 #include "util/Error.h"
 #include "shader/HostDevice.h"
-#include "core/DebugUtils.h"
 
 #include <sstream>
 #include <pugixml.hpp>
@@ -453,7 +452,7 @@ void DeviceScene::createDescriptor() {
 		zvk::Descriptor::makeBinding(
 			0, vk::DescriptorType::eCombinedImageSampler,
 			vk::ShaderStageFlagBits::eFragment | RayTracingShaderStageFlags,
-			textures.size()
+			static_cast<uint32_t>(textures.size())
 		),
 		zvk::Descriptor::makeBinding(
 			1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | RayTracingShaderStageFlags

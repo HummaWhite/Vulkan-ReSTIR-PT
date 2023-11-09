@@ -7,14 +7,6 @@ NAMESPACE_BEGIN(zvk::ExtFunctions)
 
 void load(vk::Instance instance);
 
-vk::DebugUtilsMessengerEXT createDebugUtilsMessengerEXT(
-	vk::Instance instance,
-	const vk::DebugUtilsMessengerCreateInfoEXT& createInfo);
-
-void destroyDebugUtilsMessenger(
-	vk::Instance instance,
-	vk::DebugUtilsMessengerEXT messenger);
-
 vk::AccelerationStructureBuildSizesInfoKHR getAccelerationStructureBuildSizesKHR(
 	vk::Device device,
 	vk::AccelerationStructureBuildTypeKHR buildType,
@@ -60,6 +52,14 @@ void cmdTraceRaysKHR(
 	uint32_t width,
 	uint32_t height,
 	uint32_t depth);
+
+vk::DebugUtilsMessengerEXT createDebugUtilsMessengerEXT(
+	vk::Instance instance,
+	const vk::DebugUtilsMessengerCreateInfoEXT& createInfo);
+
+void destroyDebugUtilsMessenger(
+	vk::Instance instance,
+	vk::DebugUtilsMessengerEXT messenger);
 
 void setDebugUtilsObjectTagEXT(
 	vk::Device device,

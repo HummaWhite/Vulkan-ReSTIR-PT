@@ -1,7 +1,6 @@
 #include "ResampledGIPass.h"
+#include "RayTracing.h"
 #include "shader/HostDevice.h"
-#include "core/ExtFunctions.h"
-#include "core/DebugUtils.h"
 
 void ResampledGIPass::destroy() {
 	mCtx->device.destroyPipeline(mRayTracingPipeline);

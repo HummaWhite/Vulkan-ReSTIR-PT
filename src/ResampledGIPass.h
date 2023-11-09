@@ -1,6 +1,9 @@
 #pragma once
 
-#include "RayTracing.h"
+#include "zvk.h"
+#include "Scene.h"
+
+struct RayTracingRenderParam;
 
 class ResampledGIPass : public zvk::BaseVkObject {
 public:

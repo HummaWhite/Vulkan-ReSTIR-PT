@@ -17,9 +17,6 @@
 #include "shader/HostDevice.h"
 #include "Scene.h"
 
-#include "util/Error.h"
-#include "util/Timer.h"
-
 struct GBufferDrawParam {
 	std140(glm::mat4, model);
 	std140(glm::mat4, modelInvT);

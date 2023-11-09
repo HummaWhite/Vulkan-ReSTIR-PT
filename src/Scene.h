@@ -6,10 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "core/HostImage.h"
-#include "core/Memory.h"
-#include "core/Descriptor.h"
-#include "core/AccelerationStructure.h"
+#include "zvk.h"
 #include "Model.h"
 #include "Camera.h"
 #include "Resource.h"

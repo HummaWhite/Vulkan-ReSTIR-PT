@@ -21,7 +21,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL zvkDebugCallback(
 	return VK_FALSE;
 }
 
-vk::DebugUtilsMessengerCreateInfoEXT zvkNormalDebugCreateInfo() {
+vk::DebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo() {
 	using Severity = vk::DebugUtilsMessageSeverityFlagBitsEXT;
 	using MsgType = vk::DebugUtilsMessageTypeFlagBitsEXT;
 
@@ -35,26 +35,30 @@ vk::DebugUtilsMessengerCreateInfoEXT zvkNormalDebugCreateInfo() {
 
 Instance::Instance(
 	const vk::ApplicationInfo& appInfo, GLFWwindow* window,
-	const std::vector<const char*>& extensions, const void* featureChain
+	const std::vector<const char*>& requestedDeviceExtensions,
+	const void* featureChain
 ) {
 	queryExtensionsAndLayers();
-	auto debugInfo = zvkNormalDebugCreateInfo();
 
-	if (EnableValidationLayer) {
-		debugInfo.setPNext(featureChain);
-	}
+#if ZVK_VALIDATION_LAYER
+	auto debugMessengerInfo = getDebugMessengerCreateInfo().setPNext(featureChain);
+#endif
 	auto instanceInfo = vk::InstanceCreateInfo()
 		.setPApplicationInfo(&appInfo)
 		.setPEnabledExtensionNames(mRequiredVkExtensions)
 		.setPEnabledLayerNames(ValidationLayers)
-		.setPNext(EnableValidationLayer ? &debugInfo : featureChain);
+#if ZVK_VALIDATION_LAYER
+		.setPNext(&debugMessengerInfo);
+#else
+		.setPNext(featureChain);
+#endif
 
 	mInstance = vk::createInstance(instanceInfo);
 	ExtFunctions::load(mInstance);
 
 	setupDebugMessenger();
 	createSurface(window);
-	selectPhysicalDevice(extensions);
+	selectPhysicalDevice(requestedDeviceExtensions);
 	queryPhysicalDeviceProperties();
 }
 
@@ -80,9 +84,9 @@ void Instance::queryExtensionsAndLayers() {
 	mRequiredVkExtensions.resize(nExtensions);
 	memcpy(mRequiredVkExtensions.data(), extensions, sizeof(char*) * nExtensions);
 
-	if (EnableValidationLayer) {
-		mRequiredVkExtensions.push_back((char*)VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-	}
+#if ZVK_VALIDATION_LAYER
+	mRequiredVkExtensions.push_back((char*)VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
 	Log::newLine();
 
 	Log::line<0>("Instance layers");
@@ -92,9 +96,10 @@ void Instance::queryExtensionsAndLayers() {
 		Log::line<1>(i.layerName);
 	}
 
-	if (!EnableValidationLayer) {
-		return;
-	}
+#if !ZVL_VALIDATION_LAYER
+	return;
+#endif
+
 	for (const auto& layerName : ValidationLayers) {
 		bool found = false;
 		for (const auto& prop : layerProps) {
@@ -111,10 +116,10 @@ void Instance::queryExtensionsAndLayers() {
 }
 
 void Instance::setupDebugMessenger() {
-	if (!EnableValidationLayer) {
-		return;
-	}
-	auto createInfo = zvkNormalDebugCreateInfo();
+#if !ZVK_VALIDATION_LAYER
+	return;
+#endif
+	auto createInfo = getDebugMessengerCreateInfo();
 	//mVkDebugMessenger = mVkInstance.createDebugUtilsMessengerEXT(createInfo);
 	mDebugMessenger = ExtFunctions::createDebugUtilsMessengerEXT(mInstance, createInfo);
 }
