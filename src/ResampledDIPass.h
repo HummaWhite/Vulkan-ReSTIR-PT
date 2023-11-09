@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RayTracingCommon.h"
+#include "RayTracing.h"
 
 class ResampledDIPass : public zvk::BaseVkObject {
 public:
@@ -13,7 +13,7 @@ public:
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param);
 
 private:
-	vk::Pipeline mPipeline;
-	vk::PipelineLayout mPipelineLayout;
+	vk::Pipeline mRayTracingPipeline;
+	vk::PipelineLayout mRayTracingPipelineLayout;
 	std::unique_ptr<zvk::ShaderBindingTable> mShaderBindingTable;
 };

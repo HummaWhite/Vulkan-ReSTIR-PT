@@ -220,9 +220,6 @@ void Instance::selectPhysicalDevice(const std::vector<const char*>& extensions) 
 }
 
 void Instance::queryPhysicalDeviceProperties() {
-	using RTPipelineProperties = vk::PhysicalDeviceRayTracingPipelinePropertiesKHR;
-	using ASProperties = vk::PhysicalDeviceAccelerationStructurePropertiesKHR;
-
 	memProperties = mPhysicalDevice.getMemoryProperties();
 	deviceProperties = mPhysicalDevice.getProperties();
 

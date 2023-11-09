@@ -1,27 +1,27 @@
 #include "ExtFunctions.h"
-#include "util/Error.h"
+#include <util/Error.h>
 
 #define ZVK_EXT_FUNCTIONS_LOAD_LOG true
 
 NAMESPACE_BEGIN(zvk::ExtFunctions)
 
-static PFN_vkCreateDebugUtilsMessengerEXT fpCreateDebugUtilsMessengerEXT = nullptr;
-static PFN_vkDestroyDebugUtilsMessengerEXT fpDestroyDebugUtilsMessengerEXT = nullptr;
+PFN_vkCreateDebugUtilsMessengerEXT fpCreateDebugUtilsMessengerEXT = nullptr;
+PFN_vkDestroyDebugUtilsMessengerEXT fpDestroyDebugUtilsMessengerEXT = nullptr;
 
-static PFN_vkGetAccelerationStructureBuildSizesKHR fpGetAccelerationStructureBuildSizesKHR = nullptr;
-static PFN_vkCreateAccelerationStructureKHR fpCreateAccelerationStructureKHR = nullptr;
-static PFN_vkDestroyAccelerationStructureKHR fpDestroyAccelerationStructureKHR = nullptr;
-static PFN_vkGetAccelerationStructureDeviceAddressKHR fpGetAccelerationStructureDeviceAddressKHR = nullptr;
-static PFN_vkCmdBuildAccelerationStructuresKHR fpCmdBuildAccelerationStructuresKHR = nullptr;
-static PFN_vkGetRayTracingShaderGroupHandlesKHR fpGetRayTracingShaderGroupHandlesKHR = nullptr;
-static PFN_vkCreateRayTracingPipelinesKHR fpCreateRayTracingPipelinesKHR = nullptr;
-static PFN_vkCmdTraceRaysKHR fpCmdTraceRaysKHR = nullptr;
+PFN_vkGetAccelerationStructureBuildSizesKHR fpGetAccelerationStructureBuildSizesKHR = nullptr;
+PFN_vkCreateAccelerationStructureKHR fpCreateAccelerationStructureKHR = nullptr;
+PFN_vkDestroyAccelerationStructureKHR fpDestroyAccelerationStructureKHR = nullptr;
+PFN_vkGetAccelerationStructureDeviceAddressKHR fpGetAccelerationStructureDeviceAddressKHR = nullptr;
+PFN_vkCmdBuildAccelerationStructuresKHR fpCmdBuildAccelerationStructuresKHR = nullptr;
+PFN_vkGetRayTracingShaderGroupHandlesKHR fpGetRayTracingShaderGroupHandlesKHR = nullptr;
+PFN_vkCreateRayTracingPipelinesKHR fpCreateRayTracingPipelinesKHR = nullptr;
+PFN_vkCmdTraceRaysKHR fpCmdTraceRaysKHR = nullptr;
 
-static PFN_vkSetDebugUtilsObjectTagEXT fpSetDebugUtilsObjectTagEXT = nullptr;
-static PFN_vkSetDebugUtilsObjectNameEXT fpSetDebugUtilsObjectNameEXT = nullptr;
-static PFN_vkCmdBeginDebugUtilsLabelEXT fpCmdBeginDebugUtilsLabelEXT = nullptr;
-static PFN_vkCmdEndDebugUtilsLabelEXT fpCmdEndDebugUtilsLabelEXT = nullptr;
-static PFN_vkCmdInsertDebugUtilsLabelEXT fpCmdInsertDebugUtilsLabelEXT = nullptr;
+PFN_vkSetDebugUtilsObjectTagEXT fpSetDebugUtilsObjectTagEXT = nullptr;
+PFN_vkSetDebugUtilsObjectNameEXT fpSetDebugUtilsObjectNameEXT = nullptr;
+PFN_vkCmdBeginDebugUtilsLabelEXT fpCmdBeginDebugUtilsLabelEXT = nullptr;
+PFN_vkCmdEndDebugUtilsLabelEXT fpCmdEndDebugUtilsLabelEXT = nullptr;
+PFN_vkCmdInsertDebugUtilsLabelEXT fpCmdInsertDebugUtilsLabelEXT = nullptr;
 
 template<typename FuncPtr>
 void loadFunction(vk::Instance instance, const char* name, FuncPtr& func) {

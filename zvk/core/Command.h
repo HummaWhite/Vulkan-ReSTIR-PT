@@ -33,7 +33,7 @@ private:
 };
 
 namespace Command {
-    std::vector<std::unique_ptr<CommandBuffer>> createPrimary(const Context* ctx, QueueIdx queueIdx, size_t n);
+    std::vector<std::unique_ptr<CommandBuffer>> createPrimary(const Context* ctx, QueueIdx queueIdx, uint32_t n);
     std::unique_ptr<CommandBuffer> createOneTimeSubmit(const Context* ctx, QueueIdx queueIdx);
 }
 

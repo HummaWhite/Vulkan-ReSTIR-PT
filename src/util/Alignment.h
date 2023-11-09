@@ -6,7 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "util/NamespaceDecl.h"
+#include "NamespaceDecl.h"
 
 NAMESPACE_BEGIN(zvk)
 

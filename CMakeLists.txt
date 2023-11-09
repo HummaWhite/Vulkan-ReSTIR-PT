@@ -74,13 +74,15 @@ include_directories(
 	"${PROJECT_SOURCE_DIR}/build/${Assimp_include_dir}"
 	"${CMAKE_CURRENT_SOURCE_DIR}/${GLFW_include_dir}"
 	"${CMAKE_CURRENT_SOURCE_DIR}/ext/pugixml/src"
+	"${CMAKE_CURRENT_SOURCE_DIR}/zvk"
 	"${Vulkan_INCLUDE_DIRS}"
 )
 
-add_subdirectory(ext)
-add_subdirectory(src)
+include_directories(${Vulkan_INCLUDE_DIRS})
 
 message("${Vulkan_INCLUDE_DIRS}")
 message("${PROJECT_SOURCE_DIR}/build/${Assimp_include_dir}")
 
-include_directories(${Vulkan_INCLUDE_DIRS})
+add_subdirectory(ext)
+add_subdirectory(zvk)
+add_subdirectory(src)

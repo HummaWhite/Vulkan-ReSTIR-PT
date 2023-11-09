@@ -3,8 +3,9 @@
 #include <vulkan/vulkan.hpp>
 #include <array>
 
-#include "util/NamespaceDecl.h"
-#include "core/ExtFunctions.h"
+#include <util/NamespaceDecl.h>
+
+#include "ExtFunctions.h"
 
 NAMESPACE_BEGIN(zvk::DebugUtils)
 

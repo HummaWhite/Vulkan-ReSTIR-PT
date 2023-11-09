@@ -1,6 +1,12 @@
 #pragma once
 
-#include "RayTracingCommon.h"
+#include "core/Context.h"
+#include "core/ShaderManager.h"
+#include "core/Memory.h"
+#include "core/ShaderBindingTable.h"
+#include "Scene.h"
+
+struct RayTracingRenderParam;
 
 class NaiveDIPass : public zvk::BaseVkObject {
 public:
@@ -13,7 +19,7 @@ public:
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param);
 
 private:
-	vk::Pipeline mPipeline;
-	vk::PipelineLayout mPipelineLayout;
+	vk::Pipeline mRayTracingPipeline;
+	vk::PipelineLayout mRayTracingPipelineLayout;
 	std::unique_ptr<zvk::ShaderBindingTable> mShaderBindingTable;
 };

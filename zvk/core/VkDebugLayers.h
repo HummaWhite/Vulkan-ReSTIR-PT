@@ -1,9 +1,8 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
-#include "util/NamespaceDecl.h"
 
-#define ZVK_DEBUG
+#include <util/NamespaceDecl.h>
 
 NAMESPACE_BEGIN(zvk)
 

@@ -81,7 +81,7 @@ void DescriptorWrite::add(
 
     writes.push_back(
         vk::WriteDescriptorSet(
-            set, binding, 0, imageInfo.size(), layout->types.at(binding),
+            set, binding, 0, static_cast<uint32_t>(imageInfo.size()), layout->types.at(binding),
             mImageArrayInfo[mImageArrayInfo.size() - 1].data(), nullptr, nullptr
         )
     );

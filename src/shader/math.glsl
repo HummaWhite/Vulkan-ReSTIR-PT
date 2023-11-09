@@ -254,4 +254,12 @@ float MISWeight(float f, float g) {
 	return (f * f) / (f * f + g * g);
 }
 
+uint ceilDiv(uint x, uint y) {
+	return (x + y - 1) / y;
+}
+
+int ceilDiv(int x, int y) {
+	return (x + y - 1) / y;
+}
+
 #endif

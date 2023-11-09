@@ -7,7 +7,6 @@
 #include <array>
 
 #include "Instance.h"
-#include "util/NamespaceDecl.h"
 
 NAMESPACE_BEGIN(zvk)
 

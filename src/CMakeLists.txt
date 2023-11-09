@@ -56,8 +56,6 @@ endif()
 if(WIN32)
     add_executable(Vulkan_ReSTIR_PT ${core_sources} ${SHADER_SOURCES} ${SHADER_INCLUDES})
     target_link_libraries(Vulkan_ReSTIR_PT ${WINLIBS})
-else(WIN32)
-    add_executable(Vulkan_ReSTIR_PT ${core_sources})
     target_link_libraries(Vulkan_ReSTIR_PT ${CMAKE_THREAD_LIBS_INIT})
 endif(WIN32)
 
@@ -78,7 +76,7 @@ foreach(SHADER_SOURCE ${SHADER_SOURCES})
     # TODO: Build shaders on not windows
 endforeach()
 
-target_link_libraries(Vulkan_ReSTIR_PT Vulkan::Vulkan glfw stb imgui assimp pugixml)
+target_link_libraries(Vulkan_ReSTIR_PT zvk_core Vulkan::Vulkan glfw imgui assimp pugixml)
 
 target_include_directories(Vulkan_ReSTIR_PT
 	PRIVATE

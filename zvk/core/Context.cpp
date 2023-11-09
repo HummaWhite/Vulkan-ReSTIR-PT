@@ -24,7 +24,7 @@ Context::Context(const Instance* instance, const std::vector<const char*>& exten
 	if (!general) {
 		throw std::runtime_error("No queue family usable");
 	}
-	std::map<uint32_t, size_t> maxQueueNums = { { general->index, general->count } };
+	std::map<uint32_t, uint32_t> maxQueueNums = { { general->index, general->count } };
 
 	if (compute) {
 		maxQueueNums.insert({ compute->index, compute->count });
@@ -60,7 +60,7 @@ Context::Context(const Instance* instance, const std::vector<const char*>& exten
 		auto createInfo = vk::DeviceQueueCreateInfo()
 			.setQueueFamilyIndex(family)
 			.setQueuePriorities(priorities)
-			.setQueueCount(std::min(queues.size(), maxQueueNums[family]));
+			.setQueueCount(std::min(static_cast<uint32_t>(queues.size()), maxQueueNums[family]));
 
 		queueCreateInfos.push_back(createInfo);
 	}

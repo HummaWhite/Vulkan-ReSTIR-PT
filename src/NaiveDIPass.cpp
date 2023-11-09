@@ -2,21 +2,22 @@
 #include "shader/HostDevice.h"
 #include "core/ExtFunctions.h"
 #include "core/DebugUtils.h"
+#include "RayTracing.h"
 
 void NaiveDIPass::destroy() {
-	mCtx->device.destroyPipeline(mPipeline);
-	mCtx->device.destroyPipelineLayout(mPipelineLayout);
+	mCtx->device.destroyPipeline(mRayTracingPipeline);
+	mCtx->device.destroyPipelineLayout(mRayTracingPipelineLayout);
 }
 
 void NaiveDIPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
 
-	cmd.bindPipeline(bindPoint, mPipeline);
+	cmd.bindPipeline(bindPoint, mRayTracingPipeline);
 
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, param.cameraDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayImageDescSet, param.rayImageDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, param.rayTracingDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, CameraDescSet, param.cameraDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, RayImageDescSet, param.rayImageDescSet, {});
+	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, RayTracingDescSet, param.rayTracingDescSet, {});
 
 	zvk::ExtFunctions::cmdTraceRaysKHR(
 		cmd,
@@ -78,10 +79,10 @@ void NaiveDIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t max
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
 		.setSetLayouts(descLayouts);
 
-	mPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
+	mRayTracingPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
 
 	auto pipelineCreateInfo = vk::RayTracingPipelineCreateInfoKHR()
-		.setLayout(mPipelineLayout)
+		.setLayout(mRayTracingPipelineLayout)
 		.setStages(stages)
 		.setGroups(groups)
 		.setMaxPipelineRayRecursionDepth(maxDepth);
@@ -91,7 +92,7 @@ void NaiveDIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t max
 	if (result.result != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to create RayTracingPass pipeline");
 	}
-	mPipeline = result.value;
+	mRayTracingPipeline = result.value;
 
-	mShaderBindingTable = std::make_unique<zvk::ShaderBindingTable>(mCtx, 2, 1, mPipeline);
+	mShaderBindingTable = std::make_unique<zvk::ShaderBindingTable>(mCtx, 2, 1, mRayTracingPipeline);
 }

@@ -9,7 +9,7 @@ void CommandBuffer::submitAndWait() {
     mCtx->queues[mQueueIdx].queue.waitIdle();
 }
 
-std::vector<std::unique_ptr<CommandBuffer>> Command::createPrimary(const Context* ctx, QueueIdx queueIdx, size_t n) {
+std::vector<std::unique_ptr<CommandBuffer>> Command::createPrimary(const Context* ctx, QueueIdx queueIdx, uint32_t n) {
     auto allocInfo = vk::CommandBufferAllocateInfo()
         .setLevel(vk::CommandBufferLevel::ePrimary)
         .setCommandPool(ctx->cmdPools[queueIdx])
@@ -18,7 +18,7 @@ std::vector<std::unique_ptr<CommandBuffer>> Command::createPrimary(const Context
     auto cmds = ctx->device.allocateCommandBuffers(allocInfo);
     std::vector<std::unique_ptr<CommandBuffer>> ret(cmds.size());
 
-    for (size_t i = 0; i < n; i++) {
+    for (uint32_t i = 0; i < n; i++) {
         ret[i] = std::make_unique<CommandBuffer>(ctx, queueIdx);
         ret[i]->cmd = cmds[i];
         ret[i]->open = false;

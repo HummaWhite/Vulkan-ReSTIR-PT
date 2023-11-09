@@ -9,7 +9,7 @@
 #include <pugixml.hpp>
 
 #include "util/NamespaceDecl.h"
-#include "core/Alignment.h"
+#include "util/Alignment.h"
 
 constexpr int InvalidResourceIdx = -1;
 

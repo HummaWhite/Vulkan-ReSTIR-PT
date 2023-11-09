@@ -6,9 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "core/Context.h"
-#include "core/Swapchain.h"
-#include "core/Descriptor.h"
+#include "zvk.h"
 
 class GUIManager : public zvk::BaseVkObject {
 public:

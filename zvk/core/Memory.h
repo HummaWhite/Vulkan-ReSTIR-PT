@@ -6,12 +6,11 @@
 #include <optional>
 #include <array>
 
+#include <util/EnumBitField.h>
+
 #include "Context.h"
 #include "Command.h"
 #include "HostImage.h"
-
-#include "util/NamespaceDecl.h"
-#include "util/EnumBitField.h"
 
 NAMESPACE_BEGIN(zvk)
 

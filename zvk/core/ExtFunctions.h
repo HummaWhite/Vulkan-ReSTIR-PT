@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
-#include "util/NamespaceDecl.h"
+#include <util/NamespaceDecl.h>
 
 NAMESPACE_BEGIN(zvk::ExtFunctions)
 

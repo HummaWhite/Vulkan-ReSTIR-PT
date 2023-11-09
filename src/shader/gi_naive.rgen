@@ -88,7 +88,7 @@ void main() {
             float lightDist, lightPdf;
 
             rtShadowed = true;
-            lightRadiance = sampleLightGlobal(surf.pos, lightDir, lightDist, lightPdf, sample4f(rng));
+            lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, rng);
 
             traceRayEXT(
                 /* AS, flags, masks    */ uTLAS, shadowRayFlags, 0xff,
