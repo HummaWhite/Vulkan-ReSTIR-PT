@@ -104,14 +104,14 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool isL
 	model->mPath = pathStr;
 	Assimp::Importer importer;
 
-	uint32_t option = aiProcess_Triangulate
+	uint32_t option = 0
+		| aiProcess_Triangulate
 		| aiProcess_FlipUVs
 		| aiProcess_GenUVCoords
 		| aiProcess_FixInfacingNormals
-		| aiProcess_FindInstances
-		| aiProcess_JoinIdenticalVertices
-		| aiProcess_OptimizeMeshes
-		| aiProcess_GenUVCoords
+		//| aiProcess_FindInstances
+		//| aiProcess_JoinIdenticalVertices
+		//| aiProcess_OptimizeMeshes
 		//| aiProcess_ForceGenNormals
 		//| aiProcess_FindDegenerates
 		;

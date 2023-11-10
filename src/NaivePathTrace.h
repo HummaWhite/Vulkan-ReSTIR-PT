@@ -1,17 +1,19 @@
 #pragma once
 
 #include "zvk.h"
-#include "Scene.h"
 
 struct RayTracingRenderParam;
 
-class ResampledPTPass : public zvk::BaseVkObject {
+class NaivePathTrace : public zvk::BaseVkObject {
 public:
-	ResampledPTPass(const zvk::Context* ctx) : BaseVkObject(ctx) {}
-	~ResampledPTPass() { destroy(); }
+	NaivePathTrace(const zvk::Context* ctx) : BaseVkObject(ctx) {}
+	~NaivePathTrace() { destroy(); }
 	void destroy();
 
-	void createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts);
+	void createPipeline(
+		zvk::ShaderManager* shaderManager, const File::path& rayGenShaderPath,
+		const std::vector<vk::DescriptorSetLayout>& descLayouts,
+		uint32_t maxDepth);
 
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param);
 

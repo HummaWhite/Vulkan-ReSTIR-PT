@@ -1,14 +1,13 @@
 #pragma once
 
 #include "zvk.h"
-#include "Scene.h"
 
 struct RayTracingRenderParam;
 
-class NaiveDIPass : public zvk::BaseVkObject {
+class GIReSTIR : public zvk::BaseVkObject {
 public:
-	NaiveDIPass(const zvk::Context* ctx) : BaseVkObject(ctx) {}
-	~NaiveDIPass() { destroy(); }
+	GIReSTIR(const zvk::Context* ctx) : BaseVkObject(ctx) {}
+	~GIReSTIR() { destroy(); }
 	void destroy();
 
 	void createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts);

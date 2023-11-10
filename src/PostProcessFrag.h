@@ -1,22 +1,8 @@
 #pragma once
 
-//#define VK_USE_PLATFORM_WIN32_KHR
-#include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
-
-#undef min
-#undef max
-
-#include <algorithm>
-#include <iostream>
-#include <optional>
-#include <limits>
-#include <set>
-
 #include "zvk.h"
-#include "Scene.h"
 
-class PostProcPassFrag : public zvk::BaseVkObject {
+class PostProcessFrag : public zvk::BaseVkObject {
 public:
 	struct PushConstant {
 		uint32_t toneMapping;
@@ -25,8 +11,8 @@ public:
 		uint32_t noIndirect;
 	};
 
-	PostProcPassFrag(const zvk::Context* ctx, const zvk::Swapchain* swapchain);
-	~PostProcPassFrag() { destroy(); }
+	PostProcessFrag(const zvk::Context* ctx, const zvk::Swapchain* swapchain);
+	~PostProcessFrag() { destroy(); }
 	void destroy();
 
 	void createPipeline(

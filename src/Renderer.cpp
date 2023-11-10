@@ -137,11 +137,11 @@ void Renderer::initVulkan() {
 		auto extent = mSwapchain->extent();
 
 		mGBufferPass = std::make_unique<GBufferPass>(mContext.get(), extent, mScene.resource);
-		mNaiveDIPass = std::make_unique<NaiveDIPass>(mContext.get());
-		mNaiveGIPass = std::make_unique<NaiveGIPass>(mContext.get());
-		mResampledDIPass = std::make_unique<ResampledDIPass>(mContext.get());
-		mResampledGIPass = std::make_unique<ResampledGIPass>(mContext.get());
-		mPostProcPass = std::make_unique<PostProcPassFrag>(mContext.get(), mSwapchain.get());
+		mNaiveDIPass = std::make_unique<NaivePathTrace>(mContext.get());
+		mNaiveGIPass = std::make_unique<NaivePathTrace>(mContext.get());
+		mResampledDIPass = std::make_unique<DIReSTIR>(mContext.get());
+		mResampledGIPass = std::make_unique<GIReSTIR>(mContext.get());
+		mPostProcessPass = std::make_unique<PostProcessFrag>(mContext.get(), mSwapchain.get());
 
 		mScene.clear();
 
@@ -174,11 +174,11 @@ void Renderer::createPipeline() {
 		mDeviceScene->rayTracingDescLayout->layout,
 	};
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager.get(), descLayouts);
-	mNaiveDIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
-	mNaiveGIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
+	mNaiveDIPass->createPipeline(mShaderManager.get(), "shaders/di_resample_temporal.rgen.spv", descLayouts, 2);
+	mNaiveGIPass->createPipeline(mShaderManager.get(), "shaders/gi_resample_temporal.rgen.spv", descLayouts, 2);
 	mResampledDIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
 	mResampledGIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
-	mPostProcPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
+	mPostProcessPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
 
 void Renderer::initScene() {
@@ -344,7 +344,7 @@ void Renderer::recreateFrame() {
 
 	mSwapchain = std::make_unique<zvk::Swapchain>(mContext.get(), width, height, SWAPCHAIN_FORMAT, false);
 	mGBufferPass->recreateFrame(mSwapchain->extent());
-	mPostProcPass->recreateFrame(mSwapchain.get());
+	mPostProcessPass->recreateFrame(mSwapchain.get());
 }
 
 void Renderer::createCommandBuffer() {
@@ -394,7 +394,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.maxDepth = 1
 	};
 
-	auto postProcPushConstant = PostProcPassFrag::PushConstant {
+	auto postProcPushConstant = PostProcessFrag::PushConstant {
 		.toneMapping = static_cast<uint32_t>(mSettings.toneMapping),
 		.correctGamma = static_cast<uint32_t>(mSettings.correctGamma),
 		.noDirect = (mSettings.directMethod == RayTracingMethod::None),
@@ -444,12 +444,12 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		);
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "Post Processing", { .8f, .3f, .5f, 1.f }); {
-			mPostProcPass->render(cmd, imageIdx, mRayImageDescSet[mInFlightFrameIdx][curFrame], mSwapchain->extent(), postProcPushConstant);
+			mPostProcessPass->render(cmd, imageIdx, mRayImageDescSet[mInFlightFrameIdx][curFrame], mSwapchain->extent(), postProcPushConstant);
 		}
 		zvk::DebugUtils::cmdEndLabel(cmd);
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "GUI", { .3f, .8f, .5f, 1.f }); {
-			mGUIManager->render(cmd, mPostProcPass->framebuffers[imageIdx], mSwapchain->extent());
+			mGUIManager->render(cmd, mPostProcessPass->framebuffers[imageIdx], mSwapchain->extent());
 		}
 		zvk::DebugUtils::cmdEndLabel(cmd);
 	}
@@ -582,7 +582,7 @@ void Renderer::cleanupVulkan() {
 	mNaiveGIPass.reset();
 	mResampledDIPass.reset();
 	mResampledGIPass.reset();
-	mPostProcPass.reset();
+	mPostProcessPass.reset();
 
 	mCameraDescLayout.reset();
 	mRayImageDescLayout.reset();

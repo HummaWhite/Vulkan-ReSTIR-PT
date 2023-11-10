@@ -1,13 +1,13 @@
-#include "NaiveDIPass.h"
+#include "GIReSTIR.h"
 #include "RayTracing.h"
 #include "shader/HostDevice.h"
 
-void NaiveDIPass::destroy() {
+void GIReSTIR::destroy() {
 	mCtx->device.destroyPipeline(mRayTracingPipeline);
 	mCtx->device.destroyPipelineLayout(mRayTracingPipelineLayout);
 }
 
-void NaiveDIPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
+void GIReSTIR::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
 
 	cmd.bindPipeline(bindPoint, mRayTracingPipeline);
@@ -24,7 +24,7 @@ void NaiveDIPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTr
 	);
 }
 
-void NaiveDIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+void GIReSTIR::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
 	enum Stages : uint32_t {
 		RayGen,
 		Miss,
@@ -37,7 +37,7 @@ void NaiveDIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t max
 	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
 
 	stages[RayGen] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/di_naive.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
+		shaderManager->createShaderModule("shaders/gi_resample_temporal.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
 	);
 	stages[Miss] = zvk::ShaderManager::shaderStageCreateInfo(
 		shaderManager->createShaderModule("shaders/ray_miss.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR

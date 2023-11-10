@@ -1,11 +1,11 @@
-#include "PostProcPassComp.h"
+#include "PostProcessComp.h"
 #include "shader/HostDevice.h"
 
-PostProcPassComp::PostProcPassComp(const zvk::Context* ctx, const zvk::Swapchain* swapchain) : zvk::BaseVkObject(ctx) {
+PostProcessComp::PostProcessComp(const zvk::Context* ctx, const zvk::Swapchain* swapchain) : zvk::BaseVkObject(ctx) {
 	createDescriptor(swapchain->numImages());
 }
 
-void PostProcPassComp::destroy() {
+void PostProcessComp::destroy() {
 	delete mDescriptorSetLayout;
 	delete mDescriptorPool;
 
@@ -13,7 +13,7 @@ void PostProcPassComp::destroy() {
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void PostProcPassComp::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx) {
+void PostProcessComp::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t imageIdx) {
 	cmd.bindPipeline(vk::PipelineBindPoint::eCompute, mPipeline);
 	cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, mPipelineLayout, SwapchainStorageDescSet, mDescriptorSet[0][imageIdx], {});
 
@@ -24,7 +24,7 @@ void PostProcPassComp::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32
 	cmd.dispatch(zvk::ceilDiv(extent.width, PostProcBlockSizeX), zvk::ceilDiv(extent.height, PostProcBlockSizeY), 1);
 }
 
-void PostProcPassComp::updateDescriptor(zvk::Image* inImage[2], const zvk::Swapchain* swapchain) {
+void PostProcessComp::updateDescriptor(zvk::Image* inImage[2], const zvk::Swapchain* swapchain) {
 	zvk::DescriptorWrite update(mCtx);
 
 	for (int i = 0; i < 2; i++) {
@@ -42,11 +42,11 @@ void PostProcPassComp::updateDescriptor(zvk::Image* inImage[2], const zvk::Swapc
 	}
 }
 
-void PostProcPassComp::swap() {
+void PostProcessComp::swap() {
 	std::swap(mDescriptorSet[0], mDescriptorSet[1]);
 }
 
-void PostProcPassComp::createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+void PostProcessComp::createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
 	auto stageInfo = zvk::ShaderManager::shaderStageCreateInfo(
 		shaderManager->createShaderModule("shaders/postProc.comp.spv"),
 		vk::ShaderStageFlagBits::eCompute
@@ -66,12 +66,12 @@ void PostProcPassComp::createPipeline(zvk::ShaderManager* shaderManager, const s
 	auto result = mCtx->device.createComputePipeline({}, pipelineCreateInfo);
 
 	if (result.result != vk::Result::eSuccess) {
-		throw std::runtime_error("Failed to create PostProcPassComp pipeline");
+		throw std::runtime_error("Failed to create PostProcessComp pipeline");
 	}
 	mPipeline = result.value;
 }
 
-void PostProcPassComp::createDescriptor(uint32_t nSwapchainImages) {
+void PostProcessComp::createDescriptor(uint32_t nSwapchainImages) {
 	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
 		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute),
 		zvk::Descriptor::makeBinding(1, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute)

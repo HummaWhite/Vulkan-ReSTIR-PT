@@ -1,13 +1,13 @@
-#include "ResampledDIPass.h"
+#include "PTReSTIR.h"
 #include "RayTracing.h"
 #include "shader/HostDevice.h"
 
-void ResampledDIPass::destroy() {
+void PTReSTIR::destroy() {
 	mCtx->device.destroyPipeline(mRayTracingPipeline);
 	mCtx->device.destroyPipelineLayout(mRayTracingPipelineLayout);
 }
 
-void ResampledDIPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
+void PTReSTIR::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
 
 	cmd.bindPipeline(bindPoint, mRayTracingPipeline);
@@ -24,7 +24,7 @@ void ResampledDIPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, const R
 	);
 }
 
-void ResampledDIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+void PTReSTIR::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
 	enum Stages : uint32_t {
 		RayGen,
 		Miss,
@@ -37,16 +37,16 @@ void ResampledDIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t
 	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
 
 	stages[RayGen] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/di_resample_temporal.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
+		shaderManager->createShaderModule("shaders/resampledGIPass.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
 	);
 	stages[Miss] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/ray_miss.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
+		shaderManager->createShaderModule("shaders/rayTracingMiss.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
 	);
 	stages[ShadowMiss] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/ray_shadow.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
+		shaderManager->createShaderModule("shaders/rayTracingShadow.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
 	);
 	stages[ClosestHit] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/ray_intersection.rchit.spv"), vk::ShaderStageFlagBits::eClosestHitKHR
+		shaderManager->createShaderModule("shaders/intersection.rchit.spv"), vk::ShaderStageFlagBits::eClosestHitKHR
 	);
 
 	groups.push_back(

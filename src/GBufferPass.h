@@ -1,21 +1,8 @@
 #pragma once
 
-//#define VK_USE_PLATFORM_WIN32_KHR
-#include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
-
-#undef min
-#undef max
-
-#include <algorithm>
-#include <iostream>
-#include <optional>
-#include <limits>
-#include <set>
-
 #include "zvk.h"
+#include "Resource.h"
 #include "shader/HostDevice.h"
-#include "Scene.h"
 
 struct GBufferDrawParam {
 	std140(glm::mat4, model);

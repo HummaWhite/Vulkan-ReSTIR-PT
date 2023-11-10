@@ -18,11 +18,10 @@
 #include "shader/HostDevice.h"
 #include "Scene.h"
 #include "GBufferPass.h"
-#include "NaiveDIPass.h"
-#include "NaiveGIPass.h"
-#include "ResampledDIPass.h"
-#include "ResampledGIPass.h"
-#include "PostProcPassFrag.h"
+#include "NaivePathTrace.h"
+#include "DIReSTIR.h"
+#include "GIReSTIR.h"
+#include "PostProcessFrag.h"
 #include "GUIManager.h"
 
 class Renderer {
@@ -129,11 +128,11 @@ private:
 	std::unique_ptr<zvk::Buffer> mGIReservoir[NumFramesInFlight][2];
 
 	std::unique_ptr<GBufferPass> mGBufferPass;
-	std::unique_ptr<NaiveDIPass> mNaiveDIPass;
-	std::unique_ptr<NaiveGIPass> mNaiveGIPass;
-	std::unique_ptr<ResampledDIPass> mResampledDIPass;
-	std::unique_ptr<ResampledGIPass> mResampledGIPass;
-	std::unique_ptr<PostProcPassFrag> mPostProcPass;
+	std::unique_ptr<NaivePathTrace> mNaiveDIPass;
+	std::unique_ptr<NaivePathTrace> mNaiveGIPass;
+	std::unique_ptr<DIReSTIR> mResampledDIPass;
+	std::unique_ptr<GIReSTIR> mResampledGIPass;
+	std::unique_ptr<PostProcessFrag> mPostProcessPass;
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
 	std::unique_ptr<zvk::DescriptorSetLayout> mRayImageDescLayout;

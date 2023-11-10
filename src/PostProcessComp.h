@@ -16,15 +16,15 @@
 #include "zvk.h"
 #include "Scene.h"
 
-class PostProcPassComp : public zvk::BaseVkObject {
+class PostProcessComp : public zvk::BaseVkObject {
 public:
 	struct PushConstant {
 		glm::ivec2 frameSize;
 		uint32_t toneMapping;
 	};
 
-	PostProcPassComp(const zvk::Context* ctx, const zvk::Swapchain* swapchain);
-	~PostProcPassComp() { destroy(); }
+	PostProcessComp(const zvk::Context* ctx, const zvk::Swapchain* swapchain);
+	~PostProcessComp() { destroy(); }
 	void destroy();
 
 	vk::DescriptorSetLayout descSetLayout() const { return mDescriptorSetLayout->layout; }

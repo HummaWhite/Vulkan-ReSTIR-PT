@@ -1,13 +1,13 @@
-#include "NaiveGIPass.h"
+#include "NaivePathTrace.h"
 #include "RayTracing.h"
 #include "shader/HostDevice.h"
 
-void NaiveGIPass::destroy() {
+void NaivePathTrace::destroy() {
 	mCtx->device.destroyPipeline(mRayTracingPipeline);
 	mCtx->device.destroyPipelineLayout(mRayTracingPipelineLayout);
 }
 
-void NaiveGIPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
+void NaivePathTrace::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
 
 	cmd.bindPipeline(bindPoint, mRayTracingPipeline);
@@ -24,7 +24,11 @@ void NaiveGIPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTr
 	);
 }
 
-void NaiveGIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+void NaivePathTrace::createPipeline(
+	zvk::ShaderManager* shaderManager, const File::path& rayGenShaderPath,
+	const std::vector<vk::DescriptorSetLayout>& descLayouts,
+	uint32_t maxDepth
+) {
 	enum Stages : uint32_t {
 		RayGen,
 		Miss,
@@ -37,7 +41,7 @@ void NaiveGIPass::createPipeline(zvk::ShaderManager* shaderManager, uint32_t max
 	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
 
 	stages[RayGen] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/gi_naive.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
+		shaderManager->createShaderModule(rayGenShaderPath), vk::ShaderStageFlagBits::eRaygenKHR
 	);
 	stages[Miss] = zvk::ShaderManager::shaderStageCreateInfo(
 		shaderManager->createShaderModule("shaders/ray_miss.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR

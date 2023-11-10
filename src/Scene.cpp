@@ -140,9 +140,24 @@ void Scene::loadCamera(pugi::xml_node cameraNode) {
 }
 
 void Scene::loadModels(pugi::xml_node modelNode) {
-	for (auto instance = modelNode.first_child(); instance; instance = instance.next_sibling()) {
-		auto [modelInstance, power] = loadModelInstance(instance);
+	std::vector<std::pair<ModelInstance*, glm::vec3>> instances;
+	uint32_t totalTriangleCount = 0;
+	uint32_t lightTriangleCount = 0;
 
+	for (auto instance = modelNode.first_child(); instance; instance = instance.next_sibling()) {
+		auto instanceAndPower = loadModelInstance(instance);
+		instances.push_back(instanceAndPower);
+
+		if (glm::length(instanceAndPower.second) > 0) {
+			lightTriangleCount += instanceAndPower.first->numIndices() / 3;
+		}
+		totalTriangleCount += instanceAndPower.first->numIndices() / 3;
+	}
+	triangleLights.resize(lightTriangleCount);
+
+	uint32_t lightTriangleOffset = 0;
+
+	for (const auto& [modelInstance, power] : instances) {
 		glm::mat4 transform = modelInstance->modelMatrix();
 		glm::mat4 transformInv = glm::inverse(transform);
 		glm::mat4 transformInvT = glm::transpose(transformInv);
@@ -159,36 +174,66 @@ void Scene::loadModels(pugi::xml_node modelNode) {
 				return glm::vec3(modelInstance->modelMatrix() * glm::vec4(pos, 1.f));
 			};
 
+			uint32_t maxThreads = std::min(triangleCount, std::thread::hardware_concurrency());
+			std::vector<float> sumAreas(maxThreads, 0.f);
+
+			auto fillLightTriangle = [&](uint32_t begin, uint32_t end, uint32_t id) {
+				for (uint32_t i = begin; i < end; i++) {
+					TriangleLight tri{};
+
+					uint32_t i0 = resource.indices[Resource::Light][indexOffset + i * 3 + 0];
+					uint32_t i1 = resource.indices[Resource::Light][indexOffset + i * 3 + 1];
+					uint32_t i2 = resource.indices[Resource::Light][indexOffset + i * 3 + 2];
+
+					tri.v0 = transform(resource.vertices[Resource::Light][i0].pos);
+					tri.v1 = transform(resource.vertices[Resource::Light][i1].pos);
+					tri.v2 = transform(resource.vertices[Resource::Light][i2].pos);
+
+					glm::vec3 n = glm::cross(tri.v1 - tri.v0, tri.v2 - tri.v0);
+					tri.area = .5f * glm::length(n);
+					n = glm::normalize(n);
+
+					tri.nx = n.x;
+					tri.ny = n.y;
+					tri.nz = n.z;
+
+					sumAreas[id] += tri.area;
+					triangleLights[lightTriangleOffset + i] = tri;
+				}
+			};
+
+			std::vector<std::thread> threads(maxThreads);
+
+			for (uint32_t i = 0; i < maxThreads; i++) {
+				uint32_t begin = i * (triangleCount / maxThreads);
+				uint32_t end = std::min((i + 1) * (triangleCount / maxThreads), triangleCount);
+				threads[i] = std::thread(fillLightTriangle, begin, end, i);
+			}
+			for (auto& thread : threads) {
+				thread.join();
+			}
 			float sumArea = 0.f;
-			auto triangleOffset = static_cast<uint32_t>(triangleLights.size());
 
-			for (uint32_t i = 0; i < triangleCount; i++) {
-				TriangleLight tri{};
-
-				uint32_t i0 = resource.indices[Resource::Light][indexOffset + i * 3 + 0];
-				uint32_t i1 = resource.indices[Resource::Light][indexOffset + i * 3 + 1];
-				uint32_t i2 = resource.indices[Resource::Light][indexOffset + i * 3 + 2];
-
-				tri.v0 = transform(resource.vertices[Resource::Light][i0].pos);
-				tri.v1 = transform(resource.vertices[Resource::Light][i1].pos);
-				tri.v2 = transform(resource.vertices[Resource::Light][i2].pos);
-
-				glm::vec3 n = glm::cross(tri.v1 - tri.v0, tri.v2 - tri.v0);
-				tri.area = .5f * glm::length(n);
-				n = glm::normalize(n);
-
-				tri.nx = n.x;
-				tri.ny = n.y;
-				tri.nz = n.z;
-
-				triangleLights.push_back(tri);
-				sumArea += tri.area;
+			for (auto i : sumAreas) {
+				sumArea += i;
 			}
+			
+			auto divideArea = [&](uint32_t begin, uint32_t end) {
+				for (uint32_t i = begin; i < end; i++) {
+					triangleLights[lightTriangleOffset + i].radiance = power / static_cast<float>(sumArea);
+				}
+			};
 
-			for (uint32_t i = 0; i < triangleCount; i++) {
-				auto& tri = triangleLights[triangleOffset + i];
-				tri.radiance = power / sumArea;
+			for (uint32_t i = 0; i < maxThreads; i++) {
+				uint32_t begin = i * (triangleCount / maxThreads);
+				uint32_t end = std::min((i + 1) * (triangleCount / maxThreads), triangleCount);
+				threads[i] = std::thread(divideArea, begin, end);
 			}
+			for (auto& thread : threads) {
+				thread.join();
+			}
+			
+			lightTriangleOffset += triangleCount;
 		}
 		else {
 			objectInstances.push_back(ObjectInstance{

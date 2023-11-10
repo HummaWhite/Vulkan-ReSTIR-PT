@@ -1,4 +1,5 @@
-#include "PostProcPassFrag.h"
+#include "PostProcessFrag.h"
+#include "Scene.h"
 #include "shader/HostDevice.h"
 
 struct QuadVertex {
@@ -25,25 +26,25 @@ const QuadVertex QuadVertices[6] = {
 	{ glm::vec2(0.f, 1.f), glm::vec2(0.f, 1.f) },
 };
 
-PostProcPassFrag::PostProcPassFrag(const zvk::Context* ctx, const zvk::Swapchain* swapchain) : zvk::BaseVkObject(ctx) {
+PostProcessFrag::PostProcessFrag(const zvk::Context* ctx, const zvk::Swapchain* swapchain) : zvk::BaseVkObject(ctx) {
 	createResource();
 	createRenderPass();
 	createFramebuffer(swapchain);
 }
 
-void PostProcPassFrag::destroy() {
+void PostProcessFrag::destroy() {
 	mCtx->device.destroyRenderPass(mRenderPass);
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 	destroyFrame();
 }
 
-void PostProcPassFrag::recreateFrame(const zvk::Swapchain* swapchain) {
+void PostProcessFrag::recreateFrame(const zvk::Swapchain* swapchain) {
 	destroyFrame();
 	createFramebuffer(swapchain);
 }
 
-void PostProcPassFrag::createPipeline(
+void PostProcessFrag::createPipeline(
 	zvk::ShaderManager* shaderManager, vk::Extent2D extent,
 	const std::vector<vk::DescriptorSetLayout>& descLayouts
 ) {
@@ -147,12 +148,12 @@ void PostProcPassFrag::createPipeline(
 	auto result = mCtx->device.createGraphicsPipeline({}, pipelineCreateInfo);
 
 	if (result.result != vk::Result::eSuccess) {
-		throw std::runtime_error("Failed to create PostProcPassFrag pipeline");
+		throw std::runtime_error("Failed to create PostProcessFrag pipeline");
 	}
 	mPipeline = result.value;
 }
 
-void PostProcPassFrag::render(
+void PostProcessFrag::render(
 	vk::CommandBuffer cmd, uint32_t imageIdx,
 	vk::DescriptorSet rayImageDescSet, vk::Extent2D extent, PushConstant param
 ) {
@@ -182,13 +183,13 @@ void PostProcPassFrag::render(
 	cmd.endRenderPass();
 }
 
-void PostProcPassFrag::createResource() {
+void PostProcessFrag::createResource() {
 	mQuadVertexBuffer = zvk::Memory::createBufferFromHost(
 		mCtx, zvk::QueueIdx::GeneralUse, QuadVertices, 6 * sizeof(QuadVertex), vk::BufferUsageFlagBits::eVertexBuffer
 	);
 }
 
-void PostProcPassFrag::createRenderPass() {
+void PostProcessFrag::createRenderPass() {
 	auto colorDesc = vk::AttachmentDescription()
 		.setFormat(SWAPCHAIN_FORMAT)
 		.setSamples(vk::SampleCountFlagBits::e1)
@@ -225,7 +226,7 @@ void PostProcPassFrag::createRenderPass() {
 	mRenderPass = mCtx->device.createRenderPass(createInfo);
 }
 
-void PostProcPassFrag::createFramebuffer(const zvk::Swapchain* swapchain) {
+void PostProcessFrag::createFramebuffer(const zvk::Swapchain* swapchain) {
 	framebuffers.resize(swapchain->numImages());
 
 	for (uint32_t i = 0; i < swapchain->numImages(); i++) {
@@ -240,7 +241,7 @@ void PostProcPassFrag::createFramebuffer(const zvk::Swapchain* swapchain) {
 	}
 }
 
-void PostProcPassFrag::destroyFrame() {
+void PostProcessFrag::destroyFrame() {
 	for (auto& frame : framebuffers) {
 		mCtx->device.destroyFramebuffer(frame);
 	}

@@ -1,5 +1,4 @@
 #include "GBufferPass.h"
-#include "shader/HostDevice.h"
 
 GBufferPass::GBufferPass(
 	const zvk::Context* ctx, vk::Extent2D extent, const Resource& resource, vk::ImageLayout outLayout
