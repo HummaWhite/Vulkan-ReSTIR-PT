@@ -30,16 +30,22 @@ namespace zvk {
   #define SWAPCHAIN_FORMAT rgba8
 
   #define InvalidResourceIdx -1
+
+  #define int32_t int
+  #define uint32_t uint
 #endif
 
-const int PostProcBlockSizeX = 32;
-const int PostProcBlockSizeY = 32;
+const uint32_t PostProcBlockSizeX = 32;
+const uint32_t PostProcBlockSizeY = 32;
 
-const int CameraDescSet = 0;
-const int ResourceDescSet = 1;
-const int GBufferDrawParamDescSet = 2;
-const int RayImageDescSet = 3;
-const int RayTracingDescSet = 4;
-const int SwapchainStorageDescSet = 5;
+const uint32_t RayQueryBlockSizeX = 8;
+const uint32_t RayQueryBlockSizeY = 4;
+
+const uint32_t CameraDescSet = 0;
+const uint32_t ResourceDescSet = 1;
+const uint32_t GBufferDrawParamDescSet = 2;
+const uint32_t RayImageDescSet = 3;
+const uint32_t RayTracingDescSet = 4;
+const uint32_t SwapchainStorageDescSet = 5;
 
 #endif

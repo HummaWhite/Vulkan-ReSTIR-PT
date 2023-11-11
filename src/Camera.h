@@ -46,13 +46,9 @@ public:
 
 private:
 	std140(glm::mat4, mViewMatrix);
-	std140(glm::mat4, mViewMatrixInv);
 	std140(glm::mat4, mProjMatrix);
-	std140(glm::mat4, mProjMatrixInv);
 	std140(glm::mat4, mProjView);
-	std140(glm::mat4, mProjViewInv);
 	std140(glm::mat4, mLastProjView);
-	std140(glm::mat4, mLastProjViewInv);
 
 	std140(glm::vec3, mPos);
 	std140(float, mFOV) = 45.0f;

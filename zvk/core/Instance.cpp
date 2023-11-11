@@ -2,6 +2,7 @@
 #include "VkDebugLayers.h"
 #include "ExtFunctions.h"
 #include "DebugUtils.h"
+#include "DebugMessenger.h"
 
 #include "util/EnumBitField.h"
 #include "util/Error.h"
@@ -10,17 +11,6 @@
 
 NAMESPACE_BEGIN(zvk)
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL zvkDebugCallback(
-	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-	VkDebugUtilsMessageTypeFlagsEXT messageType,
-	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-	void* pUserData
-) {
-	Log::newLine();
-	Log::line<0>(std::string(pCallbackData->pMessage));
-	return VK_FALSE;
-}
-
 vk::DebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo() {
 	using Severity = vk::DebugUtilsMessageSeverityFlagBitsEXT;
 	using MsgType = vk::DebugUtilsMessageTypeFlagBitsEXT;
@@ -28,7 +18,7 @@ vk::DebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo() {
 	auto createInfo = vk::DebugUtilsMessengerCreateInfoEXT()
 		.setMessageSeverity(Severity::eWarning | Severity::eError)
 		.setMessageType(MsgType::eGeneral | MsgType::eValidation | MsgType::ePerformance)
-		.setPfnUserCallback(zvkDebugCallback);
+		.setPfnUserCallback(debugMessengerCallback);
 
 	return createInfo;
 }

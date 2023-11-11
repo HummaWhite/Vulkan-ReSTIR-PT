@@ -24,7 +24,7 @@ void DIReSTIR::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTraci
 	);
 }
 
-void DIReSTIR::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+void DIReSTIR::createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts, uint32_t maxDepth) {
 	enum Stages : uint32_t {
 		RayGen,
 		Miss,

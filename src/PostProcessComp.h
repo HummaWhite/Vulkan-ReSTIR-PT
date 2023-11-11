@@ -1,18 +1,5 @@
 #pragma once
 
-//#define VK_USE_PLATFORM_WIN32_KHR
-#include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
-
-#undef min
-#undef max
-
-#include <algorithm>
-#include <iostream>
-#include <optional>
-#include <limits>
-#include <set>
-
 #include "zvk.h"
 #include "Scene.h"
 

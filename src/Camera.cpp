@@ -66,10 +66,9 @@ void Camera::setPlanes(float nearZ, float farZ) {
 }
 
 void Camera::nextFrame(std::default_random_engine& rng) {
-	mLastProjView = mProjView;
-	mLastProjViewInv = mProjViewInv;
-	mFrameIndex++;
 	seed = std::uniform_int_distribution<uint32_t>(0, std::numeric_limits<uint32_t>::max())(rng);
+	mLastProjView = mProjView;
+	mFrameIndex++;
 }
 
 void Camera::update() {
@@ -88,11 +87,8 @@ void Camera::update() {
 	glm::vec3 lookingAt = mPos + glm::vec3(x, y, z);
 
 	mViewMatrix = glm::lookAt(mPos, lookingAt, mUp);
-	mViewMatrixInv = glm::inverse(mViewMatrix);
 	mProjMatrix = glm::perspective(glm::radians(mFOV), aspect(), mNear, mFar);
 	mProjMatrix[1][1] *= -1.f;
-	mProjMatrixInv = glm::inverse(mProjMatrix);
 	mProjView = mProjMatrix * mViewMatrix;
-	mProjViewInv = glm::inverse(mProjView);
 	mFrameIndex = 0;
 }

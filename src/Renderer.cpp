@@ -141,6 +141,7 @@ void Renderer::initVulkan() {
 		mNaiveGIPass = std::make_unique<NaivePathTrace>(mContext.get());
 		mResampledDIPass = std::make_unique<DIReSTIR>(mContext.get());
 		mResampledGIPass = std::make_unique<GIReSTIR>(mContext.get());
+		mRayQueryPTPass = std::make_unique<RayQueryComp>(mContext.get());
 		mPostProcessPass = std::make_unique<PostProcessFrag>(mContext.get(), mSwapchain.get());
 
 		mScene.clear();
@@ -174,10 +175,11 @@ void Renderer::createPipeline() {
 		mDeviceScene->rayTracingDescLayout->layout,
 	};
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager.get(), descLayouts);
-	mNaiveDIPass->createPipeline(mShaderManager.get(), "shaders/di_resample_temporal.rgen.spv", descLayouts, 2);
-	mNaiveGIPass->createPipeline(mShaderManager.get(), "shaders/gi_resample_temporal.rgen.spv", descLayouts, 2);
-	mResampledDIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
-	mResampledGIPass->createPipeline(mShaderManager.get(), 2, descLayouts);
+	mNaiveDIPass->createPipeline(mShaderManager.get(), "shaders/di_naive.rgen.spv", descLayouts, 2);
+	mNaiveGIPass->createPipeline(mShaderManager.get(), "shaders/gi_naive.rgen.spv", descLayouts, 2);
+	mResampledDIPass->createPipeline(mShaderManager.get(), descLayouts, 2);
+	mResampledGIPass->createPipeline(mShaderManager.get(), descLayouts, 2);
+	mRayQueryPTPass->createPipeline(mShaderManager.get(), "shaders/naive_pt_ray_query.comp.spv", descLayouts);
 	mPostProcessPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
 
@@ -431,7 +433,8 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 				mNaiveGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
 			}
 			else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
-				mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+				//mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+				mRayQueryPTPass->render(cmd, mSwapchain->extent(), rayTracingParam);
 			}
 		}
 		zvk::DebugUtils::cmdEndLabel(cmd);
@@ -582,6 +585,7 @@ void Renderer::cleanupVulkan() {
 	mNaiveGIPass.reset();
 	mResampledDIPass.reset();
 	mResampledGIPass.reset();
+	mRayQueryPTPass.reset();
 	mPostProcessPass.reset();
 
 	mCameraDescLayout.reset();

@@ -40,26 +40,6 @@ vec3 BSDFDot(vec3 albedo, vec3 n, vec3 wi) {
     return albedo * PiInv * satDot(n, wi);
 }
 
-// vec3 sampleTriangleLight(TriangleLight light, vec3 ref, out vec3 wi, out float dist, out float pdf, vec2 r)
-
-vec3 sampleLightThreaded(vec3 ref, float blockRand, out vec3 wi, out float dist, out float pdf, inout uint rng) {
-    float sumPower = uLightSampleTable[0].prob;
-    uint numLights = uLightSampleTable[0].failId;
-
-    const uint blockSize = 16384;
-    uint blockNum = ceilDiv(numLights, blockSize);
-    uint blockIdx = uint(blockRand * float(blockNum));
-
-    uint realSize = (blockIdx == blockNum - 1) ? numLights - blockIdx * blockSize : blockSize;
-    uint idx = blockSize * blockIdx + uint(sample1f(rng) * realSize);
-
-    TriangleLight light = uTriangleLights[idx];
-    vec3 radiance = sampleTriangleLight(light, ref, wi, dist, pdf, sample2f(rng));
-    pdf *= 1.0 / float(numLights);
-
-    return radiance;
-}
-
 void main() {
     const uint ResampleNum = 32;
 

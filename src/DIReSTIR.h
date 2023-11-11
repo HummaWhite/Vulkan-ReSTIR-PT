@@ -10,7 +10,7 @@ public:
 	~DIReSTIR() { destroy(); }
 	void destroy();
 
-	void createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts);
+	void createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts, uint32_t maxDepth);
 
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param);
 

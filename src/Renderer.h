@@ -1,12 +1,5 @@
 #pragma once
 
-//#define VK_USE_PLATFORM_WIN32_KHR
-#include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
-
-#undef min
-#undef max
-
 #include <algorithm>
 #include <iostream>
 #include <optional>
@@ -21,6 +14,7 @@
 #include "NaivePathTrace.h"
 #include "DIReSTIR.h"
 #include "GIReSTIR.h"
+#include "RayQueryComp.h"
 #include "PostProcessFrag.h"
 #include "GUIManager.h"
 
@@ -132,6 +126,7 @@ private:
 	std::unique_ptr<NaivePathTrace> mNaiveGIPass;
 	std::unique_ptr<DIReSTIR> mResampledDIPass;
 	std::unique_ptr<GIReSTIR> mResampledGIPass;
+	std::unique_ptr<RayQueryComp> mRayQueryPTPass;
 	std::unique_ptr<PostProcessFrag> mPostProcessPass;
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;

@@ -85,7 +85,7 @@ namespace WindowInput {
 			return;
 		}
 		float speed = isPressingKey(GLFW_KEY_LEFT_CONTROL) ? .1f : 1.f;
-		camera->changeFOV(offsetY * CamerFOVSensitivity * speed);
+		camera->changeFOV(CamerFOVSensitivity * speed * static_cast<float>(offsetY));
 	}
 
 	void moveCamera(int key) {
@@ -128,8 +128,8 @@ namespace WindowInput {
 		}
 		float speed = isPressingKey(GLFW_KEY_LEFT_CONTROL) ? .1f : 1.f;
 
-		camera->move(dPos * CameraMoveSensitivity * float(deltaTime) * speed);
-		camera->roll(dRoll * CameraRollSensitivity * deltaTime * speed);
+		camera->move(dPos * CameraMoveSensitivity * speed * static_cast<float>(deltaTime));
+		camera->roll(dRoll * CameraRollSensitivity * speed * static_cast<float>(deltaTime));
 	}
 
 	void processKeys()

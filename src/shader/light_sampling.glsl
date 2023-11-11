@@ -42,4 +42,22 @@ vec3 sampleLight(vec3 ref, out vec3 wi, out float dist, out float pdf, inout uin
     return sampleLightUniform(ref, wi, dist, pdf, sample4f(rng));
 }
 
+vec3 sampleLightThreaded(vec3 ref, float blockRand, out vec3 wi, out float dist, out float pdf, inout uint rng) {
+    float sumPower = uLightSampleTable[0].prob;
+    uint numLights = uLightSampleTable[0].failId;
+
+    const uint blockSize = 16384;
+    uint blockNum = ceilDiv(numLights, blockSize);
+    uint blockIdx = uint(blockRand * float(blockNum));
+
+    uint realSize = (blockIdx == blockNum - 1) ? numLights - blockIdx * blockSize : blockSize;
+    uint idx = blockSize * blockIdx + uint(sample1f(rng) * realSize);
+
+    TriangleLight light = uTriangleLights[idx];
+    vec3 radiance = sampleTriangleLight(light, ref, wi, dist, pdf, sample2f(rng));
+    pdf *= 1.0 / float(numLights);
+
+    return radiance;
+}
+
 #endif

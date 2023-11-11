@@ -122,7 +122,7 @@ public:
 	vk::ImageView view;
 	vk::ImageViewType viewType = {};
 	vk::ImageUsageFlags usage;
-	vk::ImageLayout layout;
+	vk::ImageLayout layout = vk::ImageLayout::eUndefined;
 	vk::Format format = vk::Format::eUndefined;
 	vk::Extent3D extent = {};
 	vk::Sampler sampler;

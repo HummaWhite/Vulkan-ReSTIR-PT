@@ -10,6 +10,7 @@ struct Intersection {
 	vec2 bary;
 	uint instanceIdx;
 	uint triangleIdx;
+    float dist;
 	bool hit;
 };
 
