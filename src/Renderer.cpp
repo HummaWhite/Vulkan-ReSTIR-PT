@@ -195,7 +195,7 @@ void Renderer::createCameraBuffer() {
 			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
 		);
 		mCameraBuffer[i]->mapMemory();
-		zvk::DebugUtils::nameVkObject(mContext->device, mCameraBuffer[i]->buffer, "camera[" + std::to_string(i) + "]");
+		zvk::DebugUtils::nameVkObject(mContext->device, mCameraBuffer[i]->buffer, std::format("camera[{}]", i));
 	}
 }
 
@@ -215,7 +215,7 @@ void Renderer::createRayImage() {
 		mDirectOutput[i]->createImageView();
 		mDirectOutput[i]->createSampler(vk::Filter::eLinear);
 
-		zvk::DebugUtils::nameVkObject(mContext->device, mDirectOutput[i]->image, "directOutput[" + std::to_string(i) + "]");
+		zvk::DebugUtils::nameVkObject(mContext->device, mDirectOutput[i]->image, std::format("directOutput[{}]", i));
 
 		mIndirectOutput[i] = zvk::Memory::createImage2DAndInitLayout(
 			mContext.get(), zvk::QueueIdx::GeneralUse, extent, outputFormat,
@@ -227,7 +227,7 @@ void Renderer::createRayImage() {
 		mIndirectOutput[i]->createImageView();
 		mIndirectOutput[i]->createSampler(vk::Filter::eLinear);
 
-		zvk::DebugUtils::nameVkObject(mContext->device, mIndirectOutput[i]->image, "indirectOutput[" + std::to_string(i) + "]");
+		zvk::DebugUtils::nameVkObject(mContext->device, mIndirectOutput[i]->image, std::format("indirectOutput[{}]", i));
 
 		vk::DeviceSize DIResvSize = sizeof(DIReservoir) * extent.width * extent.height;
 		vk::DeviceSize GIResvSize = sizeof(GIReservoir) * extent.width * extent.height;
@@ -237,21 +237,23 @@ void Renderer::createRayImage() {
 				mContext.get(), DIResvSize, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
 			);
 			zvk::DebugUtils::nameVkObject(
-				mContext->device, mDIReservoir[i][j]->buffer, "DIReservoir[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+				mContext->device, mDIReservoir[i][j]->buffer, std::format("DIReservoir[{}, {}]", i, j)
 			);
 
 			mGIReservoir[i][j] = zvk::Memory::createBuffer(
 				mContext.get(), GIResvSize, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
 			);
 			zvk::DebugUtils::nameVkObject(
-				mContext->device, mGIReservoir[i][j]->buffer, "GIReservoir[" + std::to_string(i) + ", " + std::to_string(j) + "]"
+				mContext->device, mGIReservoir[i][j]->buffer, std::format("GIReservoir[{}, {}]", i, j)
 			);
 		}
 	}
 }
 
 void Renderer::createDescriptor() {
-	auto rayImageFlags = RayTracingShaderStageFlags | vk::ShaderStageFlagBits::eFragment;
+	auto rayImageFlags = RayPipelineShaderStageFlags
+		| RayQueryShaderStageFlags
+		| vk::ShaderStageFlagBits::eFragment;
 
 	std::vector<vk::DescriptorSetLayoutBinding> rayImageBindings = {
 		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eStorageImage, rayImageFlags),
@@ -260,10 +262,10 @@ void Renderer::createDescriptor() {
 		zvk::Descriptor::makeBinding(3, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
 		zvk::Descriptor::makeBinding(4, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
 		zvk::Descriptor::makeBinding(5, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
-		zvk::Descriptor::makeBinding(6, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags),
-		zvk::Descriptor::makeBinding(7, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags),
-		zvk::Descriptor::makeBinding(8, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags),
-		zvk::Descriptor::makeBinding(9, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags),
+		zvk::Descriptor::makeBinding(6, vk::DescriptorType::eStorageBuffer, RayPipelineShaderStageFlags),
+		zvk::Descriptor::makeBinding(7, vk::DescriptorType::eStorageBuffer, RayPipelineShaderStageFlags),
+		zvk::Descriptor::makeBinding(8, vk::DescriptorType::eStorageBuffer, RayPipelineShaderStageFlags),
+		zvk::Descriptor::makeBinding(9, vk::DescriptorType::eStorageBuffer, RayPipelineShaderStageFlags),
 		zvk::Descriptor::makeBinding(10, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
 	};
 	mRayImageDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), rayImageBindings);
@@ -271,7 +273,7 @@ void Renderer::createDescriptor() {
 	std::vector<vk::DescriptorSetLayoutBinding> cameraBindings = {
 		zvk::Descriptor::makeBinding(
 			0, vk::DescriptorType::eUniformBuffer,
-			vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute | RayTracingShaderStageFlags
+			vk::ShaderStageFlagBits::eAllGraphics | vk::ShaderStageFlagBits::eCompute | RayPipelineShaderStageFlags
 		)
 	};
 	mCameraDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), cameraBindings);
@@ -282,11 +284,11 @@ void Renderer::createDescriptor() {
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {
 		mRayImageDescSet[i][0] = mDescriptorPool->allocDescriptorSet(mRayImageDescLayout->layout);
 		mRayImageDescSet[i][1] = mDescriptorPool->allocDescriptorSet(mRayImageDescLayout->layout);
-		zvk::DebugUtils::nameVkObject(mContext->device, mRayImageDescSet[i][0], "rayImageDescSet[" + std::to_string(i) + ", 0]");
-		zvk::DebugUtils::nameVkObject(mContext->device, mRayImageDescSet[i][1], "rayImageDescSet[" + std::to_string(i) + ", 1]");
+		zvk::DebugUtils::nameVkObject(mContext->device, mRayImageDescSet[i][0], std::format("rayImageDescSet[{}, 0]", i));
+		zvk::DebugUtils::nameVkObject(mContext->device, mRayImageDescSet[i][1], std::format("rayImageDescSet[{}, 1]", i));
 
 		mCameraDescSet[i] = mDescriptorPool->allocDescriptorSet(mCameraDescLayout->layout);
-		zvk::DebugUtils::nameVkObject(mContext->device, mCameraDescSet[i], "cameraDescSet[" + std::to_string(i) + "]");
+		zvk::DebugUtils::nameVkObject(mContext->device, mCameraDescSet[i], std::format("cameraDescSet[{}]", i));
 
 		Log::line("cameraDescSet[" + std::to_string(i) + "] : " + std::format("0x{:x}", std::bit_cast<uint64_t>(mCameraDescSet[i])));
 	}
@@ -442,7 +444,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		auto rayImageMemoryBarrier = vk::MemoryBarrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
 
 		cmd.pipelineBarrier(
-			vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::PipelineStageFlagBits::eFragmentShader,
+			vk::PipelineStageFlagBits::eRayTracingShaderKHR | vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eFragmentShader,
 			vk::DependencyFlags{ 0 }, rayImageMemoryBarrier, {}, {}
 		);
 

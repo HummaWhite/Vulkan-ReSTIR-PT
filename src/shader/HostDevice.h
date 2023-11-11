@@ -10,9 +10,12 @@
   #define ENUM_END(x) }
   #define SWAPCHAIN_FORMAT vk::Format::eB8G8R8A8Unorm
 
-const vk::ShaderStageFlags RayTracingShaderStageFlags =
+const vk::ShaderStageFlags RayPipelineShaderStageFlags =
     vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eAnyHitKHR |
     vk::ShaderStageFlagBits::eMissKHR | vk::ShaderStageFlagBits::eClosestHitKHR;
+
+const vk::ShaderStageFlags RayQueryShaderStageFlags =
+    vk::ShaderStageFlagBits::eCompute;
 
 namespace zvk {
     inline uint32_t ceilDiv(uint32_t x, uint32_t y) {

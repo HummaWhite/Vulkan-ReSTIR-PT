@@ -493,37 +493,39 @@ void DeviceScene::createAccelerationStructure(const Scene& scene, zvk::QueueIdx 
 }
 
 void DeviceScene::createDescriptor() {
+	const vk::ShaderStageFlags rayTracingStageFlags = RayPipelineShaderStageFlags | RayQueryShaderStageFlags;
+
 	std::vector<vk::DescriptorSetLayoutBinding> resourceBindings = {
 		zvk::Descriptor::makeBinding(
 			0, vk::DescriptorType::eCombinedImageSampler,
-			vk::ShaderStageFlagBits::eFragment | RayTracingShaderStageFlags,
+			vk::ShaderStageFlagBits::eFragment | rayTracingStageFlags,
 			static_cast<uint32_t>(textures.size())
 		),
 		zvk::Descriptor::makeBinding(
-			1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | RayTracingShaderStageFlags
+			1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | rayTracingStageFlags
 		),
 		zvk::Descriptor::makeBinding(
-			2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | RayTracingShaderStageFlags
+			2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | rayTracingStageFlags
 		),
 		zvk::Descriptor::makeBinding(
-			3, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags
+			3, vk::DescriptorType::eStorageBuffer, rayTracingStageFlags
 		),
 		zvk::Descriptor::makeBinding(
-			4, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags
+			4, vk::DescriptorType::eStorageBuffer, rayTracingStageFlags
 		),
 		zvk::Descriptor::makeBinding(
-			5, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags
+			5, vk::DescriptorType::eStorageBuffer, rayTracingStageFlags
 		),
 		zvk::Descriptor::makeBinding(
-			6, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags
+			6, vk::DescriptorType::eStorageBuffer, rayTracingStageFlags
 		),
 		zvk::Descriptor::makeBinding(
-			7, vk::DescriptorType::eStorageBuffer, RayTracingShaderStageFlags
+			7, vk::DescriptorType::eStorageBuffer, rayTracingStageFlags
 		),
 	};
 
 	std::vector<vk::DescriptorSetLayoutBinding> accelStructBindings = {
-		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eAccelerationStructureKHR, RayTracingShaderStageFlags)
+		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eAccelerationStructureKHR, rayTracingStageFlags)
 	};
 
 	resourceDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, resourceBindings);

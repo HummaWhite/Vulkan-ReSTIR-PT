@@ -16,6 +16,8 @@ void RayQueryComp::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayT
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayImageDescSet, param.rayImageDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, RayTracingDescSet, param.rayTracingDescSet, {});
+
+	cmd.dispatch(zvk::ceilDiv(extent.width, RayQueryBlockSizeX), zvk::ceilDiv(extent.height, RayQueryBlockSizeY), 1);
 }
 
 void RayQueryComp::createPipeline(zvk::ShaderManager* shaderManager, const File::path& shaderPath, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
