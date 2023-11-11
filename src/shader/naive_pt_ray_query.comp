@@ -58,7 +58,8 @@ void main() {
 #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
         if (bounce > 0) {
-            Intersection isec = rayQueryTrace(
+            Intersection isec = rayQueryTraceClosestHit(
+                uTLAS,
                 gl_RayFlagsOpaqueEXT, 0xff,
                 ray.ori, MinRayDistance, ray.dir, MaxRayDistance
             );
@@ -95,6 +96,7 @@ void main() {
             lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, rng);
 
             bool shadowed = rayQueryTraceShadow(
+                uTLAS,
                 shadowRayFlags, 0xff,
                 surf.pos, MinRayDistance, lightDir, lightDist - 1e-4
             );

@@ -5,7 +5,7 @@
 
 #include "ray_layouts.glsl"
 
-layout(location = 1) rayPayloadInEXT bool rtShadowed;
+layout(location = ShadowPayloadLocation) rayPayloadInEXT bool rtShadowed;
 
 void main() {
     rtShadowed = false;

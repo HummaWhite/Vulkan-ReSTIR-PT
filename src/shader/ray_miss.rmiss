@@ -5,7 +5,7 @@
 
 #include "ray_layouts.glsl"
 
-layout(location = 0) rayPayloadInEXT Intersection rtIsec;
+layout(location = ClosestHitPayloadLocation) rayPayloadInEXT Intersection rtIsec;
 
 void main() {
     rtIsec.hit = false;

@@ -3,6 +3,9 @@
 
 #include "layouts.glsl"
 
+const int ClosestHitPayloadLocation = 0;
+const int ShadowPayloadLocation = 1;
+
 const float MinRayDistance = 1e-4;
 const float MaxRayDistance = 1e7;
 

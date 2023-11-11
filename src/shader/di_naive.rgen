@@ -9,7 +9,8 @@
 #include "light_sampling.glsl"
 #include "math.glsl"
 
-layout(location = 1) rayPayloadEXT bool rtShadowed;
+layout(location = ClosestHitPayloadLocation) rayPayloadEXT Intersection rtIsec;
+layout(location = ShadowPayloadLocation) rayPayloadEXT bool rtShadowed;
 
 vec3 BSDFDot(vec3 albedo, vec3 n, vec3 wi) {
     return albedo * PiInv * satDot(n, wi);
@@ -53,7 +54,7 @@ void main() {
             /* SBT offset & stride */ 0, 0,
             /* miss index          */ 1,
             /* ray attribs         */ pos, MinRayDistance, lightDir, lightDist - 1e-4,
-            /* payload location    */ 1
+            /* payload location    */ ShadowPayloadLocation
         );
 
         if (!rtShadowed && lightPdf > 1e-6) {

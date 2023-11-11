@@ -3,12 +3,18 @@
 
 #include "ray_layouts.glsl"
 
-bool rayQueryTraceShadow(uint rayFlags, uint rayMask, vec3 origin, float minDist, vec3 direction, float maxDist) {
+bool rayQueryTraceShadow(
+    accelerationStructureEXT topLevelAccelStructure,
+    uint rayFlags, uint rayMask,
+    vec3 origin, float minDist, vec3 direction, float maxDist
+) {
     rayQueryEXT rayQuery;
 
     rayQueryInitializeEXT(
-        /* AS, flags, masks */ rayQuery, uTLAS, rayFlags, rayMask,
-        /* ray parameters   */ origin, minDist, direction, maxDist
+        /* rayQueryEXT    */ rayQuery,
+        /* top level AS   */ topLevelAccelStructure,
+        /* flags, masks   */ rayFlags, rayMask,
+        /* ray parameters */ origin, minDist, direction, maxDist
     );
 
     while (rayQueryProceedEXT(rayQuery)) {
@@ -19,13 +25,19 @@ bool rayQueryTraceShadow(uint rayFlags, uint rayMask, vec3 origin, float minDist
     return (rayQueryGetIntersectionTypeEXT(rayQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT);
 }
 
-Intersection rayQueryTrace(uint rayFlags, uint rayMask, vec3 origin, float minDist, vec3 direction, float maxDist) {
+Intersection rayQueryTraceClosestHit(
+    accelerationStructureEXT topLevelAccelStructure,
+    uint rayFlags, uint rayMask,
+    vec3 origin, float minDist, vec3 direction, float maxDist
+) {
     Intersection isec;
     rayQueryEXT rayQuery;
 
     rayQueryInitializeEXT(
-        /* AS, flags, masks */ rayQuery, uTLAS, rayFlags, rayMask,
-        /* ray parameters   */ origin, minDist, direction, maxDist
+        /* rayQueryEXT    */ rayQuery,
+        /* top level AS   */ topLevelAccelStructure,
+        /* flags, masks   */ rayFlags, rayMask,
+        /* ray parameters */ origin, minDist, direction, maxDist
     );
 
     while (rayQueryProceedEXT(rayQuery)) {

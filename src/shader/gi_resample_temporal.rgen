@@ -9,8 +9,8 @@
 #include "light_sampling.glsl"
 #include "gi_reservoir.glsl"
 
-layout(location = 0) rayPayloadEXT Intersection rtIsec;
-layout(location = 1) rayPayloadEXT bool rtShadowed;
+layout(location = ClosestHitPayloadLocation) rayPayloadEXT Intersection rtIsec;
+layout(location = ShadowPayloadLocation) rayPayloadEXT bool rtShadowed;
 
 bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 albedo, int matMeshId, out GIReservoir resv) {
     if (uv.x < 0 || uv.y < 0 || uv.x > 1.0 || uv.y > 1.0) {
@@ -91,7 +91,7 @@ void main() {
                 /* SBT offset & stride */ 0, 0,
                 /* miss index          */ 0,
                 /* ray attribs         */ ray.ori, MinRayDistance, ray.dir, MaxRayDistance,
-                /* payload location    */ 0
+                /* payload location    */ ClosestHitPayloadLocation
             );
 
             if (!rtIsec.hit) {
@@ -138,7 +138,7 @@ void main() {
                 /* SBT offset & stride */ 0, 0,
                 /* miss index          */ 1,
                 /* ray attribs         */ surf.pos, MinRayDistance, lightDir, lightDist - 1e-4,
-                /* payload location    */ 1
+                /* payload location    */ ShadowPayloadLocation
             );
 
             if (!rtShadowed && lightPdf > 1e-6) {

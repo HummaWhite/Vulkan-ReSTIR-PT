@@ -8,7 +8,7 @@
 #include "material.glsl"
 #include "light_sampling.glsl"
 
-layout(location = 0) rayPayloadInEXT Intersection rtIsec;
+layout(location = ClosestHitPayloadLocation) rayPayloadInEXT Intersection rtIsec;
 
 hitAttributeEXT vec2 attribs;
 
