@@ -1,13 +1,13 @@
 #pragma once
 
-#include "zvk.h"
+#include <zvk.hpp>
 
 struct RayTracingRenderParam;
 
-class RayQueryComp : public zvk::BaseVkObject {
+class ComputeRayTrace : public zvk::BaseVkObject {
 public:
-	RayQueryComp(const zvk::Context* ctx) : BaseVkObject(ctx) {}
-	~RayQueryComp() { destroy(); }
+	ComputeRayTrace(const zvk::Context* ctx) : BaseVkObject(ctx) {}
+	~ComputeRayTrace() { destroy(); }
 	void destroy();
 
 	void createPipeline(zvk::ShaderManager* shaderManager, const File::path& shaderPath, const std::vector<vk::DescriptorSetLayout>& descLayoutsh);

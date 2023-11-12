@@ -137,11 +137,11 @@ void Renderer::initVulkan() {
 		auto extent = mSwapchain->extent();
 
 		mGBufferPass = std::make_unique<GBufferPass>(mContext.get(), extent, mScene.resource);
-		mNaiveDIPass = std::make_unique<NaivePathTrace>(mContext.get());
-		mNaiveGIPass = std::make_unique<NaivePathTrace>(mContext.get());
+		mNaiveDIPass = std::make_unique<NaiveRayTrace>(mContext.get());
+		mNaiveGIPass = std::make_unique<NaiveRayTrace>(mContext.get());
 		mResampledDIPass = std::make_unique<DIReSTIR>(mContext.get());
 		mResampledGIPass = std::make_unique<GIReSTIR>(mContext.get());
-		mRayQueryPTPass = std::make_unique<RayQueryComp>(mContext.get());
+		mRayQueryPTPass = std::make_unique<ComputeRayTrace>(mContext.get());
 		mPostProcessPass = std::make_unique<PostProcessFrag>(mContext.get(), mSwapchain.get());
 
 		mScene.clear();
@@ -179,7 +179,7 @@ void Renderer::createPipeline() {
 	mNaiveGIPass->createPipeline(mShaderManager.get(), "shaders/gi_naive.rgen.spv", descLayouts, 2);
 	mResampledDIPass->createPipeline(mShaderManager.get(), descLayouts, 2);
 	mResampledGIPass->createPipeline(mShaderManager.get(), descLayouts, 2);
-	mRayQueryPTPass->createPipeline(mShaderManager.get(), "shaders/naive_pt_ray_query.comp.spv", descLayouts);
+	mRayQueryPTPass->createPipeline(mShaderManager.get(), "shaders/full_naive_ray_query.comp.spv", descLayouts);
 	mPostProcessPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
 
@@ -406,12 +406,10 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 	};
 
 	cmd.begin(beginInfo); {
-		std::string gbufferLabel = "G-buffer Pass [" + std::to_string(mInFlightFrameIdx) + ", " + std::to_string(curFrame) + "]";
-
-		zvk::DebugUtils::cmdBeginLabel(cmd, gbufferLabel, { 1.f, .5f, .3f, 1.f }); {
+		zvk::DebugUtils::cmdBeginLabel(cmd, std::format("G-buffer Pass[{}, {}]", mInFlightFrameIdx, curFrame), { 1.f, .5f, .3f, 1.f }); {
 			mGBufferPass->render(cmd, mSwapchain->extent(), mInFlightFrameIdx, curFrame, GBufferParam);
+			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
-		zvk::DebugUtils::cmdEndLabel(cmd);
 
 		auto GBufferMemoryBarrier = vk::MemoryBarrier(vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eShaderRead);
 
@@ -427,8 +425,8 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			else if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
 				mResampledDIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
 			}
+			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
-		zvk::DebugUtils::cmdEndLabel(cmd);
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "Indirect Lighting", { .6f, .3f, 9.f, 1.f }); {
 			if (mSettings.indirectMethod == RayTracingMethod::Naive) {
@@ -438,8 +436,8 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 				//mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
 				mRayQueryPTPass->render(cmd, mSwapchain->extent(), rayTracingParam);
 			}
+			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
-		zvk::DebugUtils::cmdEndLabel(cmd);
 
 		auto rayImageMemoryBarrier = vk::MemoryBarrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
 
@@ -450,13 +448,13 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "Post Processing", { .8f, .3f, .5f, 1.f }); {
 			mPostProcessPass->render(cmd, imageIdx, mRayImageDescSet[mInFlightFrameIdx][curFrame], mSwapchain->extent(), postProcPushConstant);
+			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
-		zvk::DebugUtils::cmdEndLabel(cmd);
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "GUI", { .3f, .8f, .5f, 1.f }); {
 			mGUIManager->render(cmd, mPostProcessPass->framebuffers[imageIdx], mSwapchain->extent());
+			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
-		zvk::DebugUtils::cmdEndLabel(cmd);
 	}
 	cmd.end();
 }

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "zvk.h"
+#include <zvk.hpp>
+
 #include "Resource.h"
 #include "shader/HostDevice.h"
 

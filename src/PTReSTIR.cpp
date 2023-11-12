@@ -3,94 +3,23 @@
 #include "shader/HostDevice.h"
 
 void PTReSTIR::destroy() {
-	mCtx->device.destroyPipeline(mRayTracingPipeline);
-	mCtx->device.destroyPipelineLayout(mRayTracingPipelineLayout);
 }
 
 void PTReSTIR::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
-	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
-
-	cmd.bindPipeline(bindPoint, mRayTracingPipeline);
-
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, CameraDescSet, param.cameraDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, RayImageDescSet, param.rayImageDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, RayTracingDescSet, param.rayTracingDescSet, {});
-
-	zvk::ExtFunctions::cmdTraceRaysKHR(
-		cmd,
-		mShaderBindingTable->rayGenRegion, mShaderBindingTable->missRegion, mShaderBindingTable->hitRegion, mShaderBindingTable->callableRegion,
-		extent.width, extent.height, param.maxDepth
-	);
 }
 
-void PTReSTIR::createPipeline(zvk::ShaderManager* shaderManager, uint32_t maxDepth, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
-	enum Stages : uint32_t {
-		RayGen,
-		Miss,
-		ShadowMiss,
-		ClosestHit,
-		NumStages
-	};
+void PTReSTIR::createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+    mPathTracePass = std::make_unique<ComputeRayTrace>(mCtx);
+    mSpatialRetracePass = std::make_unique<ComputeRayTrace>(mCtx);
+    mTemporalRetracePass = std::make_unique<ComputeRayTrace>(mCtx);
+    mSpatialReusePass = std::make_unique<ComputeRayTrace>(mCtx);
+    mTemporalReusePass = std::make_unique<ComputeRayTrace>(mCtx);
+    mMISWeightPass = std::make_unique<ComputeRayTrace>(mCtx);
 
-	std::array<vk::PipelineShaderStageCreateInfo, NumStages> stages;
-	std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
-
-	stages[RayGen] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/resampledGIPass.rgen.spv"), vk::ShaderStageFlagBits::eRaygenKHR
-	);
-	stages[Miss] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/rayTracingMiss.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
-	);
-	stages[ShadowMiss] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/rayTracingShadow.rmiss.spv"), vk::ShaderStageFlagBits::eMissKHR
-	);
-	stages[ClosestHit] = zvk::ShaderManager::shaderStageCreateInfo(
-		shaderManager->createShaderModule("shaders/intersection.rchit.spv"), vk::ShaderStageFlagBits::eClosestHitKHR
-	);
-
-	groups.push_back(
-		vk::RayTracingShaderGroupCreateInfoKHR(
-			vk::RayTracingShaderGroupTypeKHR::eGeneral,
-			RayGen, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR
-		)
-	);
-	groups.push_back(
-		vk::RayTracingShaderGroupCreateInfoKHR(
-			vk::RayTracingShaderGroupTypeKHR::eGeneral,
-			Miss, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR
-		)
-	);
-	groups.push_back(
-		vk::RayTracingShaderGroupCreateInfoKHR(
-			vk::RayTracingShaderGroupTypeKHR::eGeneral,
-			ShadowMiss, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR
-		)
-	);
-	groups.push_back(
-		vk::RayTracingShaderGroupCreateInfoKHR(
-			vk::RayTracingShaderGroupTypeKHR::eTrianglesHitGroup,
-			VK_SHADER_UNUSED_KHR, ClosestHit, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR
-		)
-	);
-
-	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts(descLayouts);
-
-	mRayTracingPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
-
-	auto pipelineCreateInfo = vk::RayTracingPipelineCreateInfoKHR()
-		.setLayout(mRayTracingPipelineLayout)
-		.setStages(stages)
-		.setGroups(groups)
-		.setMaxPipelineRayRecursionDepth(maxDepth);
-
-	auto result = zvk::ExtFunctions::createRayTracingPipelineKHR(mCtx->device, {}, {}, pipelineCreateInfo);
-
-	if (result.result != vk::Result::eSuccess) {
-		throw std::runtime_error("Failed to create RayTracingPass pipeline");
-	}
-	mRayTracingPipeline = result.value;
-
-	mShaderBindingTable = std::make_unique<zvk::ShaderBindingTable>(mCtx, 2, 1, mRayTracingPipeline);
+    mPathTracePass->createPipeline(shaderManager, "shaders/gris_path_trace.comp.spv", descLayouts);
+    mSpatialRetracePass->createPipeline(shaderManager, "shaders/gris_retrace_spatial.comp.spv", descLayouts);
+    mTemporalRetracePass->createPipeline(shaderManager, "shaders/gris_retrace_temporal.comp.spv", descLayouts);
+    mSpatialReusePass->createPipeline(shaderManager, "shaders/gris_resample_spatial.comp.spv", descLayouts);
+    mTemporalReusePass->createPipeline(shaderManager, "shaders/gris_resample_temporal.comp.spv", descLayouts);
+    mMISWeightPass->createPipeline(shaderManager, "shaders/gris_mis_weight.comp.spv", descLayouts);
 }

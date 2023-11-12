@@ -1,6 +1,6 @@
 #pragma once
 
-#include "zvk.h"
+#include <zvk.hpp>
 
 struct RayTracingRenderParam;
 

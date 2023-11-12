@@ -6,7 +6,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "zvk.h"
+#include <zvk.hpp>
+
 #include "Model.h"
 #include "Camera.h"
 #include "Resource.h"

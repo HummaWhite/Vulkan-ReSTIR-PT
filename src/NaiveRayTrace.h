@@ -1,13 +1,13 @@
 #pragma once
 
-#include "zvk.h"
+#include <zvk.hpp>
 
 struct RayTracingRenderParam;
 
-class NaivePathTrace : public zvk::BaseVkObject {
+class NaiveRayTrace : public zvk::BaseVkObject {
 public:
-	NaivePathTrace(const zvk::Context* ctx) : BaseVkObject(ctx) {}
-	~NaivePathTrace() { destroy(); }
+	NaiveRayTrace(const zvk::Context* ctx) : BaseVkObject(ctx) {}
+	~NaiveRayTrace() { destroy(); }
 	void destroy();
 
 	void createPipeline(

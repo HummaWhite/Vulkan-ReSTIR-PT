@@ -6,15 +6,16 @@
 #include <limits>
 #include <set>
 
-#include "zvk.h"
+#include <zvk.hpp>
+
 #include "util/Timer.h"
 #include "shader/HostDevice.h"
 #include "Scene.h"
 #include "GBufferPass.h"
-#include "NaivePathTrace.h"
+#include "NaiveRayTrace.h"
 #include "DIReSTIR.h"
 #include "GIReSTIR.h"
-#include "RayQueryComp.h"
+#include "ComputeRayTrace.h"
 #include "PostProcessFrag.h"
 #include "GUIManager.h"
 
@@ -122,11 +123,11 @@ private:
 	std::unique_ptr<zvk::Buffer> mGIReservoir[NumFramesInFlight][2];
 
 	std::unique_ptr<GBufferPass> mGBufferPass;
-	std::unique_ptr<NaivePathTrace> mNaiveDIPass;
-	std::unique_ptr<NaivePathTrace> mNaiveGIPass;
+	std::unique_ptr<NaiveRayTrace> mNaiveDIPass;
+	std::unique_ptr<NaiveRayTrace> mNaiveGIPass;
 	std::unique_ptr<DIReSTIR> mResampledDIPass;
 	std::unique_ptr<GIReSTIR> mResampledGIPass;
-	std::unique_ptr<RayQueryComp> mRayQueryPTPass;
+	std::unique_ptr<ComputeRayTrace> mRayQueryPTPass;
 	std::unique_ptr<PostProcessFrag> mPostProcessPass;
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;

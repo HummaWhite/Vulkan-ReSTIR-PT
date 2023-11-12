@@ -1,6 +1,7 @@
 #pragma once
 
-#include "zvk.h"
+#include <zvk.hpp>
+
 #include "Scene.h"
 
 class PostProcessComp : public zvk::BaseVkObject {

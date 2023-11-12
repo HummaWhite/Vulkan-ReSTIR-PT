@@ -1,14 +1,14 @@
-#include "RayQueryComp.h"
+#include "ComputeRayTrace.h"
 #include "RayTracing.h"
 #include "shader/HostDevice.h"
 
-void RayQueryComp::destroy() {
+void ComputeRayTrace::destroy() {
 	mCtx->device.destroyPipeline(mPipeline);
 	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void RayQueryComp::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
-	auto bindPoint = vk::PipelineBindPoint::eCompute;
+void ComputeRayTrace::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
+	constexpr auto bindPoint = vk::PipelineBindPoint::eCompute;
 
 	cmd.bindPipeline(bindPoint, mPipeline);
 
@@ -20,15 +20,14 @@ void RayQueryComp::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayT
 	cmd.dispatch(zvk::ceilDiv(extent.width, RayQueryBlockSizeX), zvk::ceilDiv(extent.height, RayQueryBlockSizeY), 1);
 }
 
-void RayQueryComp::createPipeline(zvk::ShaderManager* shaderManager, const File::path& shaderPath, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
+void ComputeRayTrace::createPipeline(zvk::ShaderManager* shaderManager, const File::path& shaderPath, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
 	auto stageInfo = zvk::ShaderManager::shaderStageCreateInfo(
 		shaderManager->createShaderModule(shaderPath),
 		vk::ShaderStageFlagBits::eCompute
 	);
-	//vk::PushConstantRange pushConstant(vk::ShaderStageFlagBits::eCompute, 0, sizeof(PushConstant));
 
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts(descLayouts);//.setPushConstantRanges(pushConstant);
+		.setSetLayouts(descLayouts);
 
 	mPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
 
@@ -39,7 +38,7 @@ void RayQueryComp::createPipeline(zvk::ShaderManager* shaderManager, const File:
 	auto result = mCtx->device.createComputePipeline({}, pipelineCreateInfo);
 
 	if (result.result != vk::Result::eSuccess) {
-		throw std::runtime_error("Failed to create RayQueryComp pipeline with shader: " + shaderPath.generic_string());
+		throw std::runtime_error("Failed to create Compute ray tracing pipeline with shader: " + shaderPath.generic_string());
 	}
 	mPipeline = result.value;
 }

@@ -1,13 +1,13 @@
-#include "NaivePathTrace.h"
+#include "NaiveRayTrace.h"
 #include "RayTracing.h"
 #include "shader/HostDevice.h"
 
-void NaivePathTrace::destroy() {
+void NaiveRayTrace::destroy() {
 	mCtx->device.destroyPipeline(mRayTracingPipeline);
 	mCtx->device.destroyPipelineLayout(mRayTracingPipelineLayout);
 }
 
-void NaivePathTrace::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
+void NaiveRayTrace::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
 	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
 
 	cmd.bindPipeline(bindPoint, mRayTracingPipeline);
@@ -24,7 +24,7 @@ void NaivePathTrace::render(vk::CommandBuffer cmd, vk::Extent2D extent, const Ra
 	);
 }
 
-void NaivePathTrace::createPipeline(
+void NaiveRayTrace::createPipeline(
 	zvk::ShaderManager* shaderManager, const File::path& rayGenShaderPath,
 	const std::vector<vk::DescriptorSetLayout>& descLayouts,
 	uint32_t maxDepth
