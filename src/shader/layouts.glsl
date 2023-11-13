@@ -58,11 +58,6 @@ struct GBufferDrawParam {
 	int pad1;
 };
 
-struct Ray {
-	vec3 ori;
-	vec3 dir;
-};
-
 struct MeshVertex {
 	vec3 pos;
 	float uvx;
@@ -137,8 +132,26 @@ struct GIReservoir {
 	float pHat;
 };
 
-struct PTReservoir {
-	uint pad;
+struct GRISPathSample {
+	vec2 rcVertexBary;
+	uint rcVertexInstanceIdx;
+	uint rcVertexTriangleIdx;
+	vec3 rcVertexIrradiance;
+	float rcVertexLightPdf;
+	vec3 rcVertexWi;
+	uint rcVertexRng;
+	vec3 cachedJacobian;
+	uint primaryHitRng;
+	vec3 F;
+	uint pathFlags;
+};
+
+struct GRISReservoir {
+	GRISPathSample pathSample;
+	float sampleCount;
+	float resampleWeight;
+	float contribWeight;
+	float pad0;
 };
 
 layout(set = CameraDescSet, binding = 0) uniform _Camera {
@@ -168,8 +181,5 @@ layout(set = RayImageDescSet, binding = 7) buffer _DIReservoirPrev { DIReservoir
 layout(set = RayImageDescSet, binding = 8) buffer _GIReservoirThis { GIReservoir uGIReservoir[]; };
 layout(set = RayImageDescSet, binding = 9) buffer _GIReservoirPrev { GIReservoir uGIReservoirPrev[]; };
 layout(set = RayImageDescSet, binding = 10) uniform sampler2D uMotionVector;
-
-// in ratTraceLayouts.glsl
-// layout(set = RayTracingDescSet, binding = 0) uniform accelerationStructureEXT uTLAS;
 
 #endif

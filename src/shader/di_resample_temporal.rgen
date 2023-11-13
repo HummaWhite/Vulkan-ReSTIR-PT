@@ -84,7 +84,7 @@ void main() {
             float bsdfPdf = absDot(norm, pathSample.wi) * PiInv;
             float weight = MISWeight(lightPdf, bsdfPdf);
             vec3 pHat = pathSample.radiance * BSDFDot(albedo, norm, pathSample.wi);
-            resampleWeight = luminance(pHat / lightPdf);
+            resampleWeight = DIToScalar(pHat / lightPdf);
         }
 
         if (isnan(resampleWeight)) {

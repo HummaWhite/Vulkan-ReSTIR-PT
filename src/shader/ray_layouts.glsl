@@ -9,6 +9,13 @@ const int ShadowPayloadLocation = 1;
 const float MinRayDistance = 1e-4;
 const float MaxRayDistance = 1e7;
 
+const uint InvalidHitIndex = 0xffffffff;
+
+struct Ray {
+    vec3 ori;
+    vec3 dir;
+};
+
 struct Intersection {
 	vec2 bary;
 	uint instanceIdx;

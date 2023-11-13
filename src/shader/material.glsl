@@ -16,28 +16,6 @@ const uint Dielectric = 3;
 const uint ThinDielectric = 4;
 const uint Light = 5;
 
-/*
-struct Material {
-	vec3 baseColor;
-	uint type;
-
-	int textureIdx;
-	float metallic;
-	float roughness;
-	float ior;
-
-	float specular;
-	float specularTint;
-	float sheen;
-	float sheenTint;
-
-	float clearcoat;
-	float clearcoatGloss;
-	float subsurface;
-	int pad0;
-};
-*/
-
 struct BSDFSample {
 	vec3 wi;
 	float pdf;

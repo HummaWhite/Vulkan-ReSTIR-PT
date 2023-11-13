@@ -15,7 +15,7 @@ layout(local_size_x = RayQueryBlockSizeX, local_size_y = RayQueryBlockSizeY) in;
 #include "math.glsl"
 
 void main() {
-    const int MaxTracingDepth = 3;
+    const int MaxTracingDepth = 15;
     uvec2 threadIdx = gl_GlobalInvocationID.xy;
     uvec2 launchDim = uCamera.filmSize;
 

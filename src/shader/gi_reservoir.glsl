@@ -3,6 +3,7 @@
 
 #include "material.glsl"
 #include "math.glsl"
+#include "ray_layouts.glsl"
 
 GIPathSample GIPathSampleInit() {
 	GIPathSample pathSample;
@@ -13,6 +14,10 @@ GIPathSample GIPathSampleInit() {
 
 bool GIPathSampleIsValid(GIPathSample pathSample) {
 	return pathSample.sampledNorm.x < 10.0;
+}
+
+float GIToScalar(vec3 color) {
+	return luminance(color);
 }
 
 void GIReservoirReset(inout GIReservoir resv) {
@@ -31,7 +36,7 @@ void GIReservoirResetIfInvalid(inout GIReservoir resv) {
 	}
 }
 
-void GIReservoirUpdateContrib(inout GIReservoir resv, float pHat) {
+void GIReservoirUpdateContribWeight(inout GIReservoir resv, float pHat) {
 	resv.contribWeight = resv.resampleWeight / (float(resv.sampleCount) * pHat);
 }
 

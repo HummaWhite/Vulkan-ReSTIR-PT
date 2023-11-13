@@ -3,6 +3,7 @@
 
 #include "material.glsl"
 #include "math.glsl"
+#include "ray_layouts.glsl"
 
 DIPathSample DIPathSampleInit() {
 	DIPathSample pathSample;
@@ -13,6 +14,10 @@ DIPathSample DIPathSampleInit() {
 
 bool DIPathSampleIsValid(DIPathSample pathSample) {
 	return pathSample.dist > 0;
+}
+
+float DIToScalar(vec3 color) {
+	return luminance(color);
 }
 
 void DIReservoirReset(inout DIReservoir resv) {
@@ -31,7 +36,7 @@ void DIReservoirResetIfInvalid(inout DIReservoir resv) {
 	}
 }
 
-void DIReservoirUpdateContrib(inout DIReservoir resv, float pHat) {
+void DIReservoirUpdateContribWeight(inout DIReservoir resv, float pHat) {
 	resv.contribWeight = resv.resampleWeight / (float(resv.sampleCount) * pHat);
 }
 
