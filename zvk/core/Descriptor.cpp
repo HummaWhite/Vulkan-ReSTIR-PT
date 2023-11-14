@@ -116,7 +116,7 @@ namespace Descriptor {
         return vk::DescriptorImageInfo(image->sampler, image->view, image->layout);
     }
 
-    std::vector<vk::DescriptorImageInfo> makeImageArray(const std::vector<Image*>& images) {
+    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<Image*>& images) {
         std::vector<vk::DescriptorImageInfo> info;
 
         for (auto image : images) {
@@ -125,7 +125,7 @@ namespace Descriptor {
         return info;
     }
 
-    std::vector<vk::DescriptorImageInfo> makeImageArray(const std::vector<std::unique_ptr<Image>>& images) {
+    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<std::unique_ptr<Image>>& images) {
         std::vector<vk::DescriptorImageInfo> info;
 
         for (const auto& image : images) {

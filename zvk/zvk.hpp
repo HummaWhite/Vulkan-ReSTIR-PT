@@ -3,6 +3,7 @@
 #include "core/AccelerationStructure.h"
 #include "core/Command.h"
 #include "core/Context.h"
+#include "core/ComputePipeline.h"
 #include "core/DebugUtils.h"
 #include "core/Descriptor.h"
 #include "core/ExtFunctions.h"

@@ -297,7 +297,7 @@ void DeviceScene::destroy() {
 void DeviceScene::initDescriptor() {
 	zvk::DescriptorWrite update(mCtx);
 
-	update.add(resourceDescLayout.get(), resourceDescSet, 0, zvk::Descriptor::makeImageArray(textures));
+	update.add(resourceDescLayout.get(), resourceDescSet, 0, zvk::Descriptor::makeImageDescriptorArray(textures));
 	update.add(resourceDescLayout.get(), resourceDescSet, 1, zvk::Descriptor::makeBuffer(materials.get()));
 	update.add(resourceDescLayout.get(), resourceDescSet, 2, zvk::Descriptor::makeBuffer(materialIds.get()));
 	update.add(resourceDescLayout.get(), resourceDescSet, 3, zvk::Descriptor::makeBuffer(vertices.get()));

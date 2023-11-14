@@ -5,12 +5,15 @@
 #include <optional>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "Context.h"
 #include "Memory.h"
 
 NAMESPACE_BEGIN(zvk)
+
+using DescriptorSetBindingMap = std::map<uint32_t, vk::DescriptorSet>;
 
 class DescriptorSetLayout : public BaseVkObject {
 public:
@@ -95,8 +98,8 @@ namespace Descriptor {
     vk::DescriptorBufferInfo makeBuffer(const zvk::Buffer* buffer);
     vk::DescriptorImageInfo makeImage(const zvk::Image* image);
 
-    std::vector<vk::DescriptorImageInfo> makeImageArray(const std::vector<Image*>& images);
-    std::vector<vk::DescriptorImageInfo> makeImageArray(const std::vector<std::unique_ptr<Image>>& images);
+    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<Image*>& images);
+    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<std::unique_ptr<Image>>& images);
 }
 
 NAMESPACE_END(zvk)

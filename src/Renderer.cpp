@@ -128,7 +128,8 @@ void Renderer::initVulkan() {
 		mNaiveGIPass = std::make_unique<NaiveRayTrace>(mContext.get());
 		mResampledDIPass = std::make_unique<DIReSTIR>(mContext.get());
 		mResampledGIPass = std::make_unique<GIReSTIR>(mContext.get());
-		mRayQueryPTPass = std::make_unique<ComputeRayTrace>(mContext.get());
+		mGRISPass = std::make_unique<GRISReSTIR>(mContext.get());
+		mRayQueryPTPass = std::make_unique<zvk::ComputePipeline>(mContext.get());
 		mPostProcessPass = std::make_unique<PostProcessFrag>(mContext.get(), mSwapchain.get());
 
 		mScene.clear();
@@ -166,6 +167,7 @@ void Renderer::createPipeline() {
 	mNaiveGIPass->createPipeline(mShaderManager.get(), "shaders/gi_naive.rgen.spv", descLayouts, 2);
 	mResampledDIPass->createPipeline(mShaderManager.get(), descLayouts, 2);
 	mResampledGIPass->createPipeline(mShaderManager.get(), descLayouts, 2);
+	mGRISPass->createPipeline(mShaderManager.get(), descLayouts);
 	mRayQueryPTPass->createPipeline(mShaderManager.get(), "shaders/full_naive_ray_query.comp.spv", descLayouts);
 	mPostProcessPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
@@ -397,6 +399,13 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.noIndirect = (mSettings.indirectMethod == RayTracingMethod::None)
 	};
 
+	zvk::DescriptorSetBindingMap computeTracingBindings = {
+		{ CameraDescSet, mCameraDescSet[mInFlightFrameIdx] },
+		{ ResourceDescSet, mDeviceScene->resourceDescSet },
+		{ RayImageDescSet, mRayImageDescSet[mInFlightFrameIdx][curFrame] },
+		{ RayTracingDescSet, mDeviceScene->rayTracingDescSet },
+	};
+
 	cmd.begin(beginInfo); {
 		zvk::DebugUtils::cmdBeginLabel(cmd, std::format("G-buffer Pass[{}, {}]", mInFlightFrameIdx, curFrame), { 1.f, .5f, .3f, 1.f }); {
 			mGBufferPass->render(cmd, mSwapchain->extent(), mInFlightFrameIdx, curFrame, GBufferParam);
@@ -426,7 +435,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			}
 			else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
 				//mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
-				mRayQueryPTPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+				mRayQueryPTPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), computeTracingBindings);
 			}
 			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
@@ -578,6 +587,7 @@ void Renderer::cleanupVulkan() {
 	mNaiveGIPass.reset();
 	mResampledDIPass.reset();
 	mResampledGIPass.reset();
+	mGRISPass.reset();
 	mRayQueryPTPass.reset();
 	mPostProcessPass.reset();
 

@@ -137,12 +137,16 @@ struct GRISPathSample {
 	vec2 rcVertexBary;
 	uint rcVertexInstanceIdx;
 	uint rcVertexTriangleIdx;
-	vec3 rcVertexIrradiance;
+
+	vec3 rcVertexRadiance;
 	float rcVertexLightPdf;
+
 	vec3 rcVertexWi;
 	uint rcVertexRng;
-	vec3 cachedJacobian;
+
+	vec3 rcVertexCachedJacobian;
 	uint primaryHitRng;
+
 	vec3 F;
 	uint pathFlags;
 };

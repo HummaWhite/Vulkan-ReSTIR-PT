@@ -15,7 +15,7 @@
 #include "NaiveRayTrace.h"
 #include "DIReSTIR.h"
 #include "GIReSTIR.h"
-#include "ComputeRayTrace.h"
+#include "GRISReSTIR.h"
 #include "PostProcessFrag.h"
 #include "GUIManager.h"
 
@@ -128,7 +128,8 @@ private:
 	std::unique_ptr<NaiveRayTrace> mNaiveGIPass;
 	std::unique_ptr<DIReSTIR> mResampledDIPass;
 	std::unique_ptr<GIReSTIR> mResampledGIPass;
-	std::unique_ptr<ComputeRayTrace> mRayQueryPTPass;
+	std::unique_ptr<GRISReSTIR> mGRISPass;
+	std::unique_ptr<zvk::ComputePipeline> mRayQueryPTPass;
 	std::unique_ptr<PostProcessFrag> mPostProcessPass;
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
