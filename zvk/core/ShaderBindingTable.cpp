@@ -1,7 +1,7 @@
 #include "ShaderBindingTable.h"
-#include "shader/HostDevice.h"
 #include "core/ExtFunctions.h"
 #include "core/DebugUtils.h"
+#include "util/Math.h"
 
 NAMESPACE_BEGIN(zvk)
 
@@ -13,17 +13,17 @@ ShaderBindingTable::ShaderBindingTable(const Context* ctx, uint32_t numMissGroup
 	uint32_t numGroups = 1 + numMissGroup + numHitGroup;
 	uint32_t handleSize = pipelineProps.shaderGroupHandleSize;
 
-	uint32_t alignedHandleSize = zvk::align(pipelineProps.shaderGroupHandleSize, pipelineProps.shaderGroupHandleAlignment);
+	uint32_t alignedHandleSize = util::align(pipelineProps.shaderGroupHandleSize, pipelineProps.shaderGroupHandleAlignment);
 	uint32_t baseAlignment = pipelineProps.shaderGroupBaseAlignment;
 
-	rayGenRegion.stride = zvk::align(alignedHandleSize, baseAlignment);
+	rayGenRegion.stride = util::align(alignedHandleSize, baseAlignment);
 	rayGenRegion.size = rayGenRegion.stride;
 
 	missRegion.stride = alignedHandleSize;
-	missRegion.size = zvk::align(numMissGroup * alignedHandleSize, baseAlignment);
+	missRegion.size = util::align(numMissGroup * alignedHandleSize, baseAlignment);
 
 	hitRegion.stride = alignedHandleSize;
-	hitRegion.size = zvk::align(numHitGroup * alignedHandleSize, baseAlignment);
+	hitRegion.size = util::align(numHitGroup * alignedHandleSize, baseAlignment);
 
 	uint32_t dataSize = numGroups * handleSize;
 	auto handles = zvk::ExtFunctions::getRayTracingShaderGroupHandlesKHR(mCtx->device, pipeline, 0, numGroups, dataSize);

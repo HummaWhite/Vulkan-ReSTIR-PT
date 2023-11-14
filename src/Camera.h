@@ -6,8 +6,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "util/Alignment.h"
-
 class Camera {
 public:
 	Camera(glm::vec3 pos = glm::vec3(0, 0, 0), glm::vec3 angle = glm::vec3(90.0f, 0.0f, 0.0f));
@@ -45,27 +43,27 @@ public:
 	void update();
 
 private:
-	std140(glm::mat4, mViewMatrix);
-	std140(glm::mat4, mProjMatrix);
-	std140(glm::mat4, mProjView);
-	std140(glm::mat4, mLastProjView);
+	glm::mat4 mViewMatrix;
+	glm::mat4 mProjMatrix;
+	glm::mat4 mProjView;
+	glm::mat4 mLastProjView;
 
-	std140(glm::vec3, mPos);
-	std140(float, mFOV) = 45.0f;
+	glm::vec3 mPos;
+	float mFOV = 45.0f;
 
-	std140(glm::vec3, mAngle);
-	std140(float, mNear) = 1e-3f;
+	glm::vec3 mAngle;
+	float mNear = 1e-3f;
 
-	std140(glm::vec3, mFront);
-	std140(float, mFar) = 1e3f;
+	glm::vec3 mFront;
+	float mFar = 1e3f;
 
-	std140(glm::vec3, mRight);
-	std140(float, mLensRadius) = 0.0f;
+	glm::vec3 mRight;
+	float mLensRadius = 0.0f;
 
-	std140(glm::vec3, mUp) = glm::vec3(0.0f, 0.0f, 1.0f);
-	std140(float, mFocalDist) = 1.0f;
+	glm::vec3 mUp = glm::vec3(0.0f, 0.0f, 1.0f);
+	float mFocalDist = 1.0f;
 
-	std140(glm::uvec2, mFilmSize);
-	std140(uint32_t, mFrameIndex) = 0;
-	std140(uint32_t, seed);
+	glm::uvec2 mFilmSize;
+	uint32_t mFrameIndex = 0;
+	uint32_t seed;
 };

@@ -17,16 +17,6 @@ const vk::ShaderStageFlags RayPipelineShaderStageFlags =
 const vk::ShaderStageFlags RayQueryShaderStageFlags =
     vk::ShaderStageFlagBits::eCompute;
 
-namespace zvk {
-    inline uint32_t ceilDiv(uint32_t x, uint32_t y) {
-        return (x + y - 1) / y;
-    }
-
-    inline uint32_t align(uint32_t size, uint32_t alignment) {
-        return ceilDiv(size, alignment) * alignment;
-    }
-}
-
 #else
   #define ENUM_BEGIN(x) uint
   #define ENUM_END(x) ;
@@ -44,7 +34,7 @@ const uint32_t PostProcBlockSizeX = 32;
 const uint32_t PostProcBlockSizeY = 32;
 
 const uint32_t RayQueryBlockSizeX = 8;
-const uint32_t RayQueryBlockSizeY = 4;
+const uint32_t RayQueryBlockSizeY = 8;
 
 const uint32_t CameraDescSet = 0;
 const uint32_t ResourceDescSet = 1;

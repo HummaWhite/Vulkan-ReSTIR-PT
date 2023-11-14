@@ -19,7 +19,7 @@ public:
 
 	void createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
-	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param);
+	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings);
 
 public:
 	Settings settings = {};

@@ -9,7 +9,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <pugixml.hpp>
 
-#include "util/Alignment.h"
 #include "util/File.h"
 #include "Material.h"
 
@@ -27,10 +26,10 @@ struct MeshVertex {
 		};
 	}
 
-	std140(glm::vec3, pos);
-	std140(float, uvx);
-	std140(glm::vec3, norm);
-	std140(float, uvy);
+	glm::vec3 pos;
+	float uvx;
+	glm::vec3 norm;
+	float uvy;
 };
 
 struct MeshInstance {

@@ -1,4 +1,5 @@
 #include "ComputePipeline.h"
+#include "util/Math.h"
 
 NAMESPACE_BEGIN(zvk)
 
@@ -20,12 +21,7 @@ void ComputePipeline::execute(
 	if (pushConstant) {
 		cmd.pushConstants(mPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, mPushConstantSize, pushConstant);
 	}
-
-	uint32_t blockNumX = (launchSize.width + blockSize.width - 1) / blockSize.width;
-	uint32_t blockNumY = (launchSize.height + blockSize.height - 1) / blockSize.height;
-	uint32_t blockNumZ = (launchSize.depth + blockSize.depth - 1) / blockSize.depth;
-
-	cmd.dispatch(blockNumX, blockNumY, blockNumZ);
+	cmd.dispatch(util::ceilDiv(launchSize.width, blockSize.width), util::ceilDiv(launchSize.height, blockSize.height), util::ceilDiv(launchSize.depth, blockSize.depth));
 }
 
 void ComputePipeline::createPipeline(

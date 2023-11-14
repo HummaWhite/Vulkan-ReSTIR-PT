@@ -435,7 +435,8 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			}
 			else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
 				//mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
-				mRayQueryPTPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), computeTracingBindings);
+				mGRISPass->render(cmd, mSwapchain->extent(), computeTracingBindings);
+				//mRayQueryPTPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), computeTracingBindings);
 			}
 			zvk::DebugUtils::cmdEndLabel(cmd);
 		}

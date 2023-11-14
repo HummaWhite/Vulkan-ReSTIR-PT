@@ -1,5 +1,6 @@
 #include "PostProcessComp.h"
 #include "shader/HostDevice.h"
+#include "util/Math.h"
 
 PostProcessComp::PostProcessComp(const zvk::Context* ctx, const zvk::Swapchain* swapchain) : zvk::BaseVkObject(ctx) {
 	createDescriptor(swapchain->numImages());
@@ -21,7 +22,7 @@ void PostProcessComp::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_
 	PushConstant pushConstant{ frameSize, toneMapping };
 	cmd.pushConstants(mPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(PushConstant), &pushConstant);
 
-	cmd.dispatch(zvk::ceilDiv(extent.width, PostProcBlockSizeX), zvk::ceilDiv(extent.height, PostProcBlockSizeY), 1);
+	cmd.dispatch(util::ceilDiv(extent.width, PostProcBlockSizeX), util::ceilDiv(extent.height, PostProcBlockSizeY), 1);
 }
 
 void PostProcessComp::updateDescriptor(zvk::Image* inImage[2], const zvk::Swapchain* swapchain) {

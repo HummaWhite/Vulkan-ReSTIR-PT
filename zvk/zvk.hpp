@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/AccelerationStructure.h"
+#include "core/Alignment.h"
 #include "core/Command.h"
 #include "core/Context.h"
 #include "core/ComputePipeline.h"
