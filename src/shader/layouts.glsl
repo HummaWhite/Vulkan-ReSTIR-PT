@@ -7,11 +7,11 @@ struct Material {
 	vec3 baseColor;
 	uint type;
 
-	int textureIdx;
+	uint textureIdx;
 	float metallic;
 	float roughness;
 	float ior;
-
+#if !RESTIR_PT_MATERIAL
 	float specular;
 	float specularTint;
 	float sheen;
@@ -21,6 +21,7 @@ struct Material {
 	float clearcoatGloss;
 	float subsurface;
 	int pad0;
+#endif
 };
 
 struct Camera {
@@ -170,16 +171,18 @@ layout(set = ResourceDescSet, binding = 5) readonly buffer _ObjectInstances { Ob
 layout(set = ResourceDescSet, binding = 6) readonly buffer _TriangleLights { TriangleLight uTriangleLights[]; };
 layout(set = ResourceDescSet, binding = 7) readonly buffer _LightSampleTable { LightSampleTableElement uLightSampleTable[]; };
 
-layout(set = RayImageDescSet, binding = 0, rgba16f) uniform image2D uDirectOutput;
-layout(set = RayImageDescSet, binding = 1, rgba16f) uniform image2D uIndirectOutput;
-layout(set = RayImageDescSet, binding = 2) uniform sampler2D uDepthNormal;
-layout(set = RayImageDescSet, binding = 3) uniform sampler2D uDepthNormalPrev;
-layout(set = RayImageDescSet, binding = 4) uniform usampler2D uAlbedoMatId;
-layout(set = RayImageDescSet, binding = 5) uniform usampler2D uAlbedoMatIdPrev;
-layout(set = RayImageDescSet, binding = 6) buffer _DIReservoirThis { DIReservoir uDIReservoir[]; };
-layout(set = RayImageDescSet, binding = 7) buffer _DIReservoirPrev { DIReservoir uDIReservoirPrev[]; };
-layout(set = RayImageDescSet, binding = 8) buffer _GIReservoirThis { GIReservoir uGIReservoir[]; };
-layout(set = RayImageDescSet, binding = 9) buffer _GIReservoirPrev { GIReservoir uGIReservoirPrev[]; };
-layout(set = RayImageDescSet, binding = 10) uniform sampler2D uMotionVector;
+layout(set = RayImageDescSet, binding =  0, rgba16f) uniform image2D uDirectOutput;
+layout(set = RayImageDescSet, binding =  1, rgba16f) uniform image2D uIndirectOutput;
+layout(set = RayImageDescSet, binding =  2) uniform sampler2D uDepthNormal;
+layout(set = RayImageDescSet, binding =  3) uniform sampler2D uDepthNormalPrev;
+layout(set = RayImageDescSet, binding =  4) uniform usampler2D uAlbedoMatId;
+layout(set = RayImageDescSet, binding =  5) uniform usampler2D uAlbedoMatIdPrev;
+layout(set = RayImageDescSet, binding =  6) uniform sampler2D uMotionVector;
+layout(set = RayImageDescSet, binding =  7) buffer _DIReservoirThis { DIReservoir uDIReservoir[]; };
+layout(set = RayImageDescSet, binding =  8) buffer _DIReservoirPrev { DIReservoir uDIReservoirPrev[]; };
+layout(set = RayImageDescSet, binding =  9) buffer _GIReservoirThis { GIReservoir uGIReservoir[]; };
+layout(set = RayImageDescSet, binding = 10) buffer _GIReservoirPrev { GIReservoir uGIReservoirPrev[]; };
+layout(set = RayImageDescSet, binding = 11) buffer _GRISReservoirThis { GRISReservoir uGRISReservoir[]; };
+layout(set = RayImageDescSet, binding = 12) buffer _GRISReservoirPrev { GRISReservoir uGRISReservoirPrev[]; };
 
 #endif

@@ -1,4 +1,5 @@
 #include "GBufferPass.h"
+#include "Resource.h"
 
 GBufferPass::GBufferPass(
 	const zvk::Context* ctx, vk::Extent2D extent, const Resource& resource, vk::ImageLayout outLayout
@@ -62,7 +63,7 @@ void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t in
 
 void GBufferPass::initDescriptor() {
 	zvk::DescriptorWrite update(mCtx);
-	update.add(mDrawParamDescLayout.get(), mDrawParamDescSet, 0, zvk::Descriptor::makeBufferInfo(mDrawParamBuffer.get()));
+	update.add(mDrawParamDescLayout.get(), mDrawParamDescSet, 0, zvk::Descriptor::makeBuffer(mDrawParamBuffer.get()));
 	update.flush();
 }
 
@@ -87,6 +88,7 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 			mDrawParams.push_back({ modelMatrix, modelInvT, mesh.materialIdx, meshIdx++ });
 		}
 	}
+	numDrawMeshes = meshIdx;
 
 	mDrawCommandBuffer = zvk::Memory::createBufferFromHost(
 		mCtx, zvk::QueueIdx::GeneralUse, commands.data(), zvk::sizeOf(commands),

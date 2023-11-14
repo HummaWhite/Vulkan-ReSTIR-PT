@@ -108,15 +108,15 @@ namespace Descriptor {
         return vk::DescriptorSetLayoutBinding(binding, type, count, stages, immutableSamplers);
     }
 
-    vk::DescriptorBufferInfo makeBufferInfo(const zvk::Buffer* buffer) {
+    vk::DescriptorBufferInfo makeBuffer(const zvk::Buffer* buffer) {
         return vk::DescriptorBufferInfo(buffer->buffer, 0, buffer->size);
     }
 
-    vk::DescriptorImageInfo makeImageInfo(const zvk::Image* image) {
+    vk::DescriptorImageInfo makeImage(const zvk::Image* image) {
         return vk::DescriptorImageInfo(image->sampler, image->view, image->layout);
     }
 
-    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<Image*>& images) {
+    std::vector<vk::DescriptorImageInfo> makeImageArray(const std::vector<Image*>& images) {
         std::vector<vk::DescriptorImageInfo> info;
 
         for (auto image : images) {
@@ -125,7 +125,7 @@ namespace Descriptor {
         return info;
     }
 
-    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<std::unique_ptr<Image>>& images) {
+    std::vector<vk::DescriptorImageInfo> makeImageArray(const std::vector<std::unique_ptr<Image>>& images) {
         std::vector<vk::DescriptorImageInfo> info;
 
         for (const auto& image : images) {

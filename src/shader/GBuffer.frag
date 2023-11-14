@@ -25,7 +25,7 @@ void main() {
 	vec3 albedo;
 	float alpha = 1.0;
 
-	int texIdx = uMaterials[param.matIdx].textureIdx;
+	uint texIdx = uMaterials[param.matIdx].textureIdx;
 
 	if (texIdx == InvalidResourceIdx) {
 		albedo = uMaterials[param.matIdx].baseColor;

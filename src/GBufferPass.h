@@ -2,16 +2,19 @@
 
 #include <zvk.hpp>
 
-#include "Resource.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include "shader/HostDevice.h"
 
 struct GBufferDrawParam {
-	std140(glm::mat4, model);
-	std140(glm::mat4, modelInvT);
-	std140(int32_t, matIdx);
-	std140(int32_t, meshIdx);
-	std140(int32_t, pad1);
-	std140(int32_t, pad2);
+	glm::mat4 model;
+	glm::mat4 modelInvT;
+	int32_t matIdx;
+	int32_t meshIdx;
+	int32_t pad1;
+	int32_t pad2;
 };
 
 struct GBufferRenderParam {
@@ -22,6 +25,8 @@ struct GBufferRenderParam {
 	uint32_t offset;
 	uint32_t count;
 };
+
+class Resource;
 
 class GBufferPass : public zvk::BaseVkObject {
 	constexpr static vk::Format DepthNormalFormat = vk::Format::eR32G32B32A32Sfloat;
@@ -63,6 +68,8 @@ public:
 	std::unique_ptr<zvk::Image> albedoMatId[NumFramesInFlight][2];
 	std::unique_ptr<zvk::Image> motionVector[NumFramesInFlight];
 	vk::Framebuffer framebuffer[NumFramesInFlight][2];
+
+	uint32_t numDrawMeshes = 0;
 
 private:
 	vk::Pipeline mPipeline;

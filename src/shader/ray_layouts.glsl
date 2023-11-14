@@ -67,7 +67,7 @@ void loadObjectSurfaceInfo(uint instanceIdx, uint triangleIdx, vec3 bary, out Su
     info.pos = vec3(instance.transform * vec4(pos, 1.0));
     info.norm = normalize(vec3(instance.transformInvT * vec4(norm, 1.0)));
 
-    int texIdx = uMaterials[info.matIndex].textureIdx;
+    uint texIdx = uMaterials[info.matIndex].textureIdx;
 
     if (texIdx == InvalidResourceIdx) {
         info.albedo = uMaterials[info.matIndex].baseColor;

@@ -43,7 +43,7 @@ public:
 	void destroy();
 
 private:
-	ModelInstance* getModelInstanceByPath(const File::path& path);
+	ModelInstance* getModelInstanceByPath(const File::path& path, bool isLight);
 	ModelInstance* createNewModelInstance(const File::path& path, bool isLight);
 	MeshInstance createNewMeshInstance(aiMesh* mesh, const aiScene* scene, bool isLight);
 
@@ -59,5 +59,5 @@ public:
 private:
 	std::vector<zvk::HostImage*> mImagePool;
 	std::map<File::path, uint32_t> mMapPathToImageIndex;
-	std::map<File::path, ModelInstance*> mMapPathToUniqueModelInstance;
+	std::map<File::path, ModelInstance*> mMapPathToUniqueModelInstance[MeshTypeCount];
 };

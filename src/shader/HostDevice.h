@@ -32,11 +32,13 @@ namespace zvk {
   #define ENUM_END(x) ;
   #define SWAPCHAIN_FORMAT rgba8
 
-  #define InvalidResourceIdx -1
-
   #define int32_t int
   #define uint32_t uint
 #endif
+
+#define RESTIR_PT_MATERIAL 1
+
+const uint32_t InvalidResourceIdx = 0xffffffff;
 
 const uint32_t PostProcBlockSizeX = 32;
 const uint32_t PostProcBlockSizeY = 32;

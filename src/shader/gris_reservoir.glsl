@@ -14,12 +14,12 @@ float GRISToScalar(vec3 color) {
 
 void GRISPathSampleReset(inout GRISPathSample pathSample) {
 	pathSample.rcVertexInstanceIdx = InvalidHitIndex;
+	pathSample.F = vec3(0.0);
+	pathSample.pathFlags = 0;
 }
 
 void GRISReservoirReset(inout GRISReservoir resv) {
 	GRISPathSampleReset(resv.pathSample);
-	resv.F = vec3(0.0);
-	resv.pathFlags = 0;
 	resv.sampleCount = 0;
 	resv.resampleWeight = 0;
 }
@@ -67,14 +67,14 @@ bool GRISReservoirMerge(inout GRISReservoir resv, GRISReservoir rhs, inout uint 
 	}
 	resv.resampleWeight += resampleWeight;
 
-	if (sample1f(rng) * resv.resampleWeight < resampleWeight || forceAdd) {
+	if (sample1f(rng) * resv.resampleWeight < resampleWeight) {
 		resv.pathSample = rhs.pathSample;
 		return true;
 	}
 	return false;
 }
 
-bool GRISReservoirMerge(inout GRISReservoir resv, GRISReservoir rhs, vec3 F, float jacobian, inout uint rng, float MISWeight = 1.0, bool forceAdd = false) {
+bool GRISReservoirMerge(inout GRISReservoir resv, GRISReservoir rhs, vec3 F, float jacobian, inout uint rng, float MISWeight, bool forceAdd) {
 	resv.sampleCount += rhs.sampleCount;
 	float resampleWeight = GRISToScalar(F) * jacobian * rhs.sampleCount * rhs.resampleWeight;
 
@@ -91,7 +91,11 @@ bool GRISReservoirMerge(inout GRISReservoir resv, GRISReservoir rhs, vec3 F, flo
 	return false;
 }
 
-bool GRISReservoirMergeWithMISResample(inout GRISReservoir resv, GRISReservoir rhs, vec3 F, float jacobian, inout uint rng, float MISWeight = 1.0, bool forceAdd = false) {
+bool GRISReservoirMerge(inout GRISReservoir resv, GRISReservoir rhs, vec3 F, float jacobian, inout uint rng) {
+	return GRISReservoirMerge(resv, rhs, F, jacobian, rng, 1.0, false);
+}
+
+bool GRISReservoirMergeWithMISResample(inout GRISReservoir resv, GRISReservoir rhs, vec3 F, float jacobian, inout uint rng, float MISWeight, bool forceAdd) {
 	resv.sampleCount += rhs.sampleCount;
 	float resampleWeight = GRISToScalar(F) * jacobian * rhs.resampleWeight;
 
@@ -106,6 +110,10 @@ bool GRISReservoirMergeWithMISResample(inout GRISReservoir resv, GRISReservoir r
 		return true;
 	}
 	return false;
+}
+
+bool GRISReservoirMergeWithMISResample(inout GRISReservoir resv, GRISReservoir rhs, vec3 F, float jacobian, inout uint rng) {
+	return GRISReservoirMergeWithMISResample(resv, rhs, F, jacobian, rng, 1.0, false);
 }
 
 void GRISReservoirCapSample(inout GRISReservoir resv, float cap) {

@@ -297,14 +297,14 @@ void DeviceScene::destroy() {
 void DeviceScene::initDescriptor() {
 	zvk::DescriptorWrite update(mCtx);
 
-	update.add(resourceDescLayout.get(), resourceDescSet, 0, zvk::Descriptor::makeImageDescriptorArray(textures));
-	update.add(resourceDescLayout.get(), resourceDescSet, 1, zvk::Descriptor::makeBufferInfo(materials.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 2, zvk::Descriptor::makeBufferInfo(materialIds.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 3, zvk::Descriptor::makeBufferInfo(vertices.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 4, zvk::Descriptor::makeBufferInfo(indices.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 5, zvk::Descriptor::makeBufferInfo(instances.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 6, zvk::Descriptor::makeBufferInfo(triangleLights.get()));
-	update.add(resourceDescLayout.get(), resourceDescSet, 7, zvk::Descriptor::makeBufferInfo(lightSampleTable.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 0, zvk::Descriptor::makeImageArray(textures));
+	update.add(resourceDescLayout.get(), resourceDescSet, 1, zvk::Descriptor::makeBuffer(materials.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 2, zvk::Descriptor::makeBuffer(materialIds.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 3, zvk::Descriptor::makeBuffer(vertices.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 4, zvk::Descriptor::makeBuffer(indices.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 5, zvk::Descriptor::makeBuffer(instances.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 6, zvk::Descriptor::makeBuffer(triangleLights.get()));
+	update.add(resourceDescLayout.get(), resourceDescSet, 7, zvk::Descriptor::makeBuffer(lightSampleTable.get()));
 
 	update.add(rayTracingDescLayout.get(), rayTracingDescSet, 0, vk::WriteDescriptorSetAccelerationStructureKHR(topAccelStructure->structure));
 

@@ -80,12 +80,12 @@ float Resource::getModelTransformedSurfaceArea(const ModelInstance* modelInstanc
 }
 
 ModelInstance* Resource::openModelInstance(const File::path& path, bool isLight, glm::vec3 pos, glm::vec3 scale, glm::vec3 rotation) {
-	auto model = getModelInstanceByPath(path);
+	auto model = getModelInstanceByPath(path, isLight);
 
 	if (model == nullptr) {
 		model = createNewModelInstance(path, isLight);
 		model->mRefId = static_cast<uint32_t>(uniqueModelInstances[isLight].size());
-		mMapPathToUniqueModelInstance[path] = model;
+		mMapPathToUniqueModelInstance[isLight][path] = model;
 		uniqueModelInstances[isLight].push_back(model);
 	}
 	auto newCopy = model->copy();
@@ -111,7 +111,7 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool isL
 		| aiProcess_FixInfacingNormals
 		//| aiProcess_FindInstances
 		//| aiProcess_JoinIdenticalVertices
-		//| aiProcess_OptimizeMeshes
+		| aiProcess_OptimizeMeshes
 		//| aiProcess_ForceGenNormals
 		//| aiProcess_FindDegenerates
 		;
@@ -181,9 +181,9 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool isL
 	return model;
 }
 
-ModelInstance* Resource::getModelInstanceByPath(const File::path& path) {
-	auto res = mMapPathToUniqueModelInstance.find(path);
-	if (res == mMapPathToUniqueModelInstance.end()) {
+ModelInstance* Resource::getModelInstanceByPath(const File::path& path, bool isLight) {
+	auto res = mMapPathToUniqueModelInstance[isLight].find(path);
+	if (res == mMapPathToUniqueModelInstance[isLight].end()) {
 		return nullptr;
 	}
 	return res->second;
@@ -194,7 +194,10 @@ void Resource::clearDeviceMeshAndImage() {
 		delete image;
 	}
 
-	for (auto m : mMapPathToUniqueModelInstance) {
+	for (auto m : mMapPathToUniqueModelInstance[MeshType::Object]) {
+		delete m.second;
+	}
+	for (auto m : mMapPathToUniqueModelInstance[MeshType::Light]) {
 		delete m.second;
 	}
 
@@ -204,7 +207,8 @@ void Resource::clearDeviceMeshAndImage() {
 	}
 	mImagePool.clear();
 	mMapPathToImageIndex.clear();
-	mMapPathToUniqueModelInstance.clear();
+	mMapPathToUniqueModelInstance[MeshType::Object].clear();
+	mMapPathToUniqueModelInstance[MeshType::Light].clear();
 }
 
 void Resource::destroy() {

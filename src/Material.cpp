@@ -27,6 +27,7 @@ std::optional<Material> loadMaterial(const pugi::xml_node& node) {
 	if (type == "default") {
 		return std::nullopt;
 	}
+#if !RESTIR_PT_MATERIAL
 	else if (type == "principled") {
 		loadVec3f("baseColor", material.baseColor);
 		loadFloat("subsurface", material.subsurface);
@@ -40,11 +41,18 @@ std::optional<Material> loadMaterial(const pugi::xml_node& node) {
 		loadFloat("clearcoatGloss", material.clearcoatGloss);
 		material.type = Material::Principled;
 	}
+#endif
 	else if (type == "metalWorkflow") {
 		loadVec3f("baseColor", material.baseColor);
 		loadFloat("metallic", material.metallic);
 		loadFloat("roughness", material.roughness);
 		material.type = Material::MetalWorkflow;
+	}
+	else if (type == "metal") {
+		loadVec3f("baseColor", material.baseColor);
+		loadFloat("roughness", material.roughness);
+		loadFloat("ior", material.ior);
+		material.type = Material::Metal;
 	}
 	else if (type == "dielectric") {
 		loadVec3f("baseColor", material.baseColor);

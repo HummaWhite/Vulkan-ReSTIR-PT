@@ -92,11 +92,11 @@ namespace Descriptor {
         uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages,
         uint32_t count = 1, const vk::Sampler* immutableSamplers = nullptr);
 
-    vk::DescriptorBufferInfo makeBufferInfo(const zvk::Buffer* buffer);
-    vk::DescriptorImageInfo makeImageInfo(const zvk::Image* image);
+    vk::DescriptorBufferInfo makeBuffer(const zvk::Buffer* buffer);
+    vk::DescriptorImageInfo makeImage(const zvk::Image* image);
 
-    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<Image*>& images);
-    std::vector<vk::DescriptorImageInfo> makeImageDescriptorArray(const std::vector<std::unique_ptr<Image>>& images);
+    std::vector<vk::DescriptorImageInfo> makeImageArray(const std::vector<Image*>& images);
+    std::vector<vk::DescriptorImageInfo> makeImageArray(const std::vector<std::unique_ptr<Image>>& images);
 }
 
 NAMESPACE_END(zvk)
