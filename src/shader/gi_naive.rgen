@@ -122,7 +122,7 @@ void main() {
         throughput *= s.bsdf * cosTheta / s.pdf;
         lastPos = surf.pos;
         
-        wo = -ray.dir;
+        wo = -s.wi;
         ray.dir = s.wi;
         ray.ori = surf.pos + ray.dir * 1e-4;
     }

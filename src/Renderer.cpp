@@ -431,12 +431,14 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "Indirect Lighting", { .6f, .3f, 9.f, 1.f }); {
 			if (mSettings.indirectMethod == RayTracingMethod::Naive) {
-				//mNaiveGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+				mNaiveGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
 				//mRayQueryPTPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), computeTracingBindings);
-				mGRISPass->render(cmd, mSwapchain->extent(), computeTracingBindings);
 			}
 			else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
 				mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+			}
+			else if (mSettings.indirectMethod == RayTracingMethod::ResampledPT) {
+				mGRISPass->render(cmd, mSwapchain->extent(), computeTracingBindings);
 			}
 			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
@@ -539,8 +541,8 @@ void Renderer::processGUI() {
 
 	if (ImGui::BeginMainMenuBar()) {
 		if (ImGui::BeginMenu("Settings")) {
-			const char* directMethods[] = { "None", "Naive", "ReSTIR DI" };
-			const char* indirectMethods[] = { "None", "Naive", "ReSTIR GI" };
+			static const char* directMethods[] = { "None", "Naive", "ReSTIR DI" };
+			static const char* indirectMethods[] = { "None", "Naive", "ReSTIR GI", "ReSTIR PT" };
 
 			if (ImGui::Combo("Direct Method", &mSettings.directMethod, directMethods, IM_ARRAYSIZE(directMethods))) {
 				resetFrame = true;
@@ -554,9 +556,17 @@ void Renderer::processGUI() {
 					clearReservoir = true;
 				}
 			}
-			resetFrame |= ImGui::Checkbox("Accumulate", &mSettings.accumulate);
 
+			if (mSettings.indirectMethod == RayTracingMethod::ResampledPT) {
+				static const char* shiftMethods[] = { "Reconnection", "Hybrid" };
+				if (ImGui::Combo("Shift Mapping", reinterpret_cast<int*>(&mGRISPass->settings.shiftType), shiftMethods, IM_ARRAYSIZE(shiftMethods))) {
+					resetFrame = true;
+					clearReservoir = true;
+				}
+			}
 			ImGui::Separator();
+
+			resetFrame |= ImGui::Checkbox("Accumulate", &mSettings.accumulate);
 
 			const char* toneMappingMethods[] = { "None", "Filmic", "ACES" };
 

@@ -9,7 +9,7 @@ public:
 	enum ShiftType { Reconnection, Hybrid };
 
 	struct Settings {
-		uint32_t ShiftType;
+		uint32_t shiftType;
 	};
 
 public:
