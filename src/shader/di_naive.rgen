@@ -57,6 +57,7 @@ void main() {
         if (!rtShadowed && lightPdf > 1e-6) {
             float bsdfPdf = evalPdf(mat, norm, -ray.dir, lightDir);
             float weight = MISWeight(lightPdf, bsdfPdf);
+            weight = 1.0;
             radiance += lightRadiance * evalBSDF(mat, albedo, norm, wo, lightDir) * satDot(norm, lightDir) / lightPdf * weight;
         }
     }

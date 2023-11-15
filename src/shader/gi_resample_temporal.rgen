@@ -110,20 +110,16 @@ void main() {
             float cosTheta = -dot(ray.dir, surf.norm);
 
             if (/* cosTheta > 0 */ true) {
-                if (bounce == 1) {
-                    //pathSample.radiance = surf.albedo;
-                }
-                else {
-                    float weight = 1.0;
+                float weight = 1.0;
 
-                    if (bounce > 0 && !isSampleTypeDelta(s.type)) {
-                        float dist = length(surf.pos - lastPos);
-                        float sumPower = uLightSampleTable[0].prob;
-                        float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / cosTheta;
-                        weight = MISWeight(s.pdf, lightPdf);
-                    }
-                    pathSample.radiance += surf.albedo * weight * throughputAfter;
+                if (bounce > 0 && !isSampleTypeDelta(s.type)) {
+                    float dist = length(surf.pos - lastPos);
+                    float sumPower = uLightSampleTable[0].prob;
+                    float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / cosTheta;
+                    weight = MISWeight(s.pdf, lightPdf);
                 }
+                vec3 addition = surf.albedo * weight;
+                pathSample.radiance += addition * (bounce == 1 ? vec3(1.0) : throughputAfter);
             }
             break;
         }
@@ -207,12 +203,12 @@ void main() {
         if (GIReservoirIsValid(resv) && resv.sampleCount > 0 && resv.pHat > 1e-6) {
             vec3 primaryWi = normalize(resv.sampledPos - primaryPos);
             radiance = resv.radiance / resv.pHat * resv.resampleWeight / float(resv.sampleCount);
-            radiance *= evalBSDF(uMaterials[matId], albedo, norm, primaryWo, primaryWi) * absDot(norm, primaryWi);
+            radiance *= evalBSDF(uMaterials[matId], albedo, norm, primaryWo, primaryWi) * satDot(norm, primaryWi);
         }
     }
     uGIReservoir[index1D(index)] = resv;
 
-    radiance = fixRadiance(radiance);
+    radiance = clampColor(radiance);
 
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(index)).rgb;
