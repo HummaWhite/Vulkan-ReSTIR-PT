@@ -37,7 +37,7 @@ bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
 }
 
 void main() {
-    const int MaxTracingDepth = 3;
+    const int MaxTracingDepth = 15;
     uvec2 index = gl_LaunchIDEXT.xy;
     vec2 uv = (vec2(index) + 0.5) / vec2(gl_LaunchSizeEXT.xy);
 
@@ -60,9 +60,9 @@ void main() {
     //uint rng = makeSeed(uCamera.frameIndex, uCamera.seed, hash2(index.x) + index.y);
     uint rng = makeSeed(uCamera.seed + gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
 
-    vec3 throughput = vec3(1.0);
+     vec3 throughput = vec3(1.0);
     vec3 lastPos;
-    float lastBsdfPdf;
+    vec3 wo = -ray.dir;
 
     SurfaceInfo surf;
     surf.pos = ray.ori + ray.dir * (depth - 1e-4);
@@ -79,7 +79,9 @@ void main() {
     vec3 primaryWo = -ray.dir;
     vec3 primaryAlbedo = albedo;
     float primaryPdf;
-    int primMatId = matId;
+
+    Material mat = uMaterials[matId];
+    BSDFSample s;
 
 #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
@@ -98,6 +100,7 @@ void main() {
                 break;
             }
             loadSurfaceInfo(rtIsec, surf);
+            mat = uMaterials[surf.matIndex];
 
             if (bounce == 1) {
                 pathSample.sampledPos = surf.pos;
@@ -108,23 +111,21 @@ void main() {
         if (surf.isLight) {
             float cosTheta = -dot(ray.dir, surf.norm);
 
-            if (cosTheta > 0) {
+            if (/* cosTheta > 0 */ true) {
                 float weight = 1.0;
 
-                if (bounce > 0) {
+                if (bounce > 0 && !isSampleTypeDelta(s.type)) {
                     float dist = length(surf.pos - lastPos);
                     float sumPower = uLightSampleTable[0].prob;
                     float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / cosTheta;
-                    weight = MISWeight(lastBsdfPdf, lightPdf);
+                    weight = MISWeight(s.pdf, lightPdf);
                 }
-                weight = 1.0;
                 pathSample.radiance += surf.albedo * weight * throughput;
             }
             break;
         }
 
-        if (/* sample light sources */ bounce > 0)
-        {
+        if (/* sample direct lighting */ bounce > 0 && !isBSDFDelta(mat)) {
             const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
             vec3 lightRadiance, lightDir;
@@ -144,22 +145,31 @@ void main() {
             if (!rtShadowed && lightPdf > 1e-6) {
                 float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
                 float weight = MISWeight(lightPdf, bsdfPdf);
-                weight = 0.0;
-                pathSample.radiance += lightRadiance * (surf.albedo * PiInv) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
+                pathSample.radiance += lightRadiance * evalBSDF(mat, surf.albedo, surf.norm, wo, lightDir) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
             }
         }
+        if (/* russian roulette */ bounce > 4) {
+            float pdfTerminate = max(1.0 - luminance(throughput), 0);
 
-        ray.dir = sampleCosineWeightedHemisphere(surf.norm, sample2f(rng));
-        ray.ori = surf.pos + ray.dir * 1e-4;
-
-        if (bounce == 0) {
-            primaryPdf = dot(surf.norm, ray.dir) * PiInv;
-            surf.albedo = vec3(1.0);
+            if (sample1f(rng) < pdfTerminate) {
+                break;
+            }
+            throughput /= (1.0 - pdfTerminate);
         }
 
-        throughput *= surf.albedo;
-        lastBsdfPdf = absDot(surf.norm, ray.dir) * PiInv;
+        if (!sampleBSDF(mat, (bounce == 0) ? vec3(1.0) : surf.albedo, surf.norm, wo, sample3f(rng), s) || s.pdf < 1e-6) {
+            break;
+        }
+        if (bounce == 0) {
+            primaryPdf = s.pdf;
+        }
+        float cosTheta = isSampleTypeDelta(s.type) ? 1.0 : absDot(surf.norm, s.wi);
+        throughput *= s.bsdf * cosTheta / s.pdf;
         lastPos = surf.pos;
+
+        wo = -ray.dir;
+        ray.dir = s.wi;
+        ray.ori = surf.pos + ray.dir * 1e-4;
     }
     vec3 radiance = pathSample.radiance;
 
@@ -167,7 +177,9 @@ void main() {
     GIReservoirReset(resv);
     
     if (true) {
-        findPreviousReservoir(uv + motion, primaryPos, depth, norm, albedo, matMeshId, resv);
+        if ((uCamera.frameIndex & CameraClearFlag) == 0) {
+            findPreviousReservoir(uv + motion, primaryPos, depth, norm, albedo, matMeshId, resv);
+        }
         float sampleWeight = 0.0;
 
         if (GIPathSampleIsValid(pathSample) && primaryPdf > 1e-6) {
@@ -185,16 +197,14 @@ void main() {
         if (GIReservoirIsValid(resv) && resv.sampleCount > 0 && resv.pHat > 1e-6) {
             vec3 primaryWi = normalize(resv.sampledPos - resv.visiblePos);
             radiance = resv.radiance / resv.pHat * resv.resampleWeight / float(resv.sampleCount);
-            radiance *= absDot(resv.visibleNorm, primaryWi);
+            radiance *= evalBSDF(uMaterials[matId], albedo, norm, primaryWo, primaryWi) * absDot(norm, primaryWi);
         }
     }
     uGIReservoir[index1D(index)] = resv;
 
-    //radiance = pathSample.radiance;
-    radiance *= albedo;
-    radiance = clampColor(radiance);
+    radiance = fixRadiance(radiance);
 
-    float frameCount = float(uCamera.frameIndex);
+    float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(index)).rgb;
     accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
 

@@ -39,6 +39,7 @@ public:
 	glm::mat4 projMatrix() const { return mProjMatrix; }
 
 	void nextFrame(std::default_random_engine& rng);
+	void setClearFlag();
 
 	void update();
 

@@ -78,17 +78,21 @@ void loadObjectSurfaceInfo(uint instanceIdx, uint triangleIdx, vec3 bary, out Su
     info.matIndex = info.matIndex;
 }
 
-void loadSurfaceInfo(Intersection isec, out SurfaceInfo info) {
-    vec3 bary = vec3(1.0 - isec.bary.x - isec.bary.y, isec.bary.x, isec.bary.y);
+void loadSurfaceInfo(uint instanceIdx, uint triangleIdx, vec2 bary, out SurfaceInfo info) {
+    vec3 barycentrics = vec3(1.0 - bary.x - bary.y, bary.x, bary.y);
 
-    if (isec.instanceIdx == 0) {
-        loadLightSurfaceInfo(isec.triangleIdx, bary, info);
+    if (instanceIdx == 0) {
+        loadLightSurfaceInfo(triangleIdx, barycentrics, info);
         info.isLight = true;
     }
     else {
-        loadObjectSurfaceInfo(isec.instanceIdx - 1, isec.triangleIdx, bary, info);
+        loadObjectSurfaceInfo(instanceIdx - 1, triangleIdx, barycentrics, info);
         info.isLight = false;
     }
+}
+
+void loadSurfaceInfo(Intersection isec, out SurfaceInfo info) {
+    loadSurfaceInfo(isec.instanceIdx, isec.triangleIdx, isec.bary, info);
 }
 
 vec3 fixRadiance(vec3 radiance) {

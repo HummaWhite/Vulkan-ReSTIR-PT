@@ -323,10 +323,10 @@ void Renderer::updateDescriptor() {
 }
 
 void Renderer::updateCameraUniform() {
-	mCamera.nextFrame(mRng);
 	Camera write[] = { mCamera, mPrevCamera };
 	memcpy(mCameraBuffer[mInFlightFrameIdx]->data, write, sizeof(write));
 	mPrevCamera = mCamera;
+	mCamera.nextFrame(mRng);
 }
 
 void Renderer::recreateFrame() {
@@ -431,12 +431,12 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "Indirect Lighting", { .6f, .3f, 9.f, 1.f }); {
 			if (mSettings.indirectMethod == RayTracingMethod::Naive) {
-				mNaiveGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+				//mNaiveGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+				//mRayQueryPTPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), computeTracingBindings);
+				mGRISPass->render(cmd, mSwapchain->extent(), computeTracingBindings);
 			}
 			else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
-				//mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
-				mGRISPass->render(cmd, mSwapchain->extent(), computeTracingBindings);
-				//mRayQueryPTPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), computeTracingBindings);
+				mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
 			}
 			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
@@ -535,14 +535,25 @@ void Renderer::initSettings() {
 
 void Renderer::processGUI() {
 	bool resetFrame = false;
+	bool clearReservoir = false;
 
 	if (ImGui::BeginMainMenuBar()) {
 		if (ImGui::BeginMenu("Settings")) {
 			const char* directMethods[] = { "None", "Naive", "ReSTIR DI" };
 			const char* indirectMethods[] = { "None", "Naive", "ReSTIR GI" };
 
-			resetFrame |= ImGui::Combo("Direct Method", &mSettings.directMethod, directMethods, IM_ARRAYSIZE(directMethods));
-			resetFrame |= ImGui::Combo("Indirect method", &mSettings.indirectMethod, indirectMethods, IM_ARRAYSIZE(indirectMethods));
+			if (ImGui::Combo("Direct Method", &mSettings.directMethod, directMethods, IM_ARRAYSIZE(directMethods))) {
+				resetFrame = true;
+				if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
+					clearReservoir = true;
+				}
+			}
+			if (ImGui::Combo("Indirect method", &mSettings.indirectMethod, indirectMethods, IM_ARRAYSIZE(indirectMethods))) {
+				resetFrame = true;
+				if (mSettings.indirectMethod == RayTracingMethod::ResampledGI || mSettings.indirectMethod == RayTracingMethod::ResampledPT) {
+					clearReservoir = true;
+				}
+			}
 			resetFrame |= ImGui::Checkbox("Accumulate", &mSettings.accumulate);
 
 			ImGui::Separator();
@@ -558,6 +569,9 @@ void Renderer::processGUI() {
 	}
 	if (resetFrame || !mSettings.accumulate) {
 		mCamera.update();
+		if (clearReservoir) {
+			mCamera.setClearFlag();
+		}
 	}
 }
 

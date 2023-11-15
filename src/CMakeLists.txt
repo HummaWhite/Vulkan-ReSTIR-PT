@@ -32,7 +32,7 @@ file(GLOB_RECURSE SHADER_INCLUDES
 	${CMAKE_CURRENT_SOURCE_DIR}/*.glsl
 )
 
-source_group("Shaders" FILES ${SHADER_SOURCES})
+source_group("Shaders" FILES ${SHADER_SOURCES} ${SHADER_INCLUDES})
 
 if(MSVC_IDE)
 	# Macro to preserve source files hierarchy in the IDE

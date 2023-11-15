@@ -100,7 +100,11 @@ vec3 GTR2Sample(vec3 n, vec3 wo, float alpha, vec2 r) {
 }
 
 bool isGTR2Connectible(float roughness) {
-    return roughness > 0.01;
+    return roughness > 0.2;
+}
+
+bool isGTR2Delta(float roughness) {
+    return roughness < 0.01;
 }
 
 bool refract(vec3 n, vec3 wi, float ior, out vec3 wt) {
@@ -201,7 +205,7 @@ bool metallicWorkflowSampleBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3
     else {
         vec3 wh = GTR2Sample(n, wo, alpha, vec2(r));
         s.wi = -reflect(wo, wh);
-        s.type |= isGTR2Connectible(mat.roughness) ? Glossy : Specular;
+        s.type |= isGTR2Delta(mat.roughness) ? Specular : Glossy;
     }
 
     if (dot(n, s.wi) < 0.0) {
@@ -216,6 +220,10 @@ bool metallicWorkflowSampleBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3
 }
 
 vec3 metalBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3 wi) {
+    if (isGTR2Delta(mat.roughness)) {
+        return vec3(0.0);
+    }
+
     float alpha = square(mat.roughness);
     vec3 wh = normalize(wo + wi);
 
@@ -225,15 +233,12 @@ vec3 metalBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3 wi) {
     if (cosI * cosO < 1e-7) {
         return vec3(0.0);
     }
-    bool isNotDelta = isGTR2Connectible(mat.roughness);
 
     float f = fresnelSchlick(absDot(wh, wo), mat.ior);
     float g = smithG(cosO, cosI, alpha);
-    float d = isNotDelta ? GTR2Distrib(dot(n, wh), alpha) : 1.0;
+    float d = GTR2Distrib(dot(n, wh), alpha);
 
-    float denom = isNotDelta ? (4.0 * cosI * cosO) : 1.0;
-
-    return albedo * f * g * d / denom;
+    return albedo * f * g * d / (4.0 * cosI * cosO);
 }
 
 float metalPdf(Material mat, vec3 n, vec3 wo, vec3 wi) {
@@ -244,14 +249,14 @@ float metalPdf(Material mat, vec3 n, vec3 wo, vec3 wi) {
 bool metalSampleBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3 r, out BSDFSample s) {
     float alpha = square(mat.roughness);
 
-    bool isNotDelta = isGTR2Connectible(mat.roughness);
+    bool isDelta = isGTR2Delta(mat.roughness);
 
-    if (isNotDelta) {
-        vec3 wh = GTR2Sample(n, wo, alpha, r.xy);
-        s.wi = -reflect(wo, wh);
+    if (isDelta) {
+        s.wi = -reflect(wo, n);
     }
     else {
-        s.wi = -reflect(wo, n);
+        vec3 wh = GTR2Sample(n, wo, alpha, r.xy);
+        s.wi = -reflect(wo, wh);
     }
 
     if (dot(n, s.wi) < 0.0) {
@@ -259,9 +264,9 @@ bool metalSampleBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3 r, out BSD
         return false;
     }
     else {
-        s.bsdf = metalBSDF(mat, albedo, n, wo, s.wi);
-        s.pdf = isNotDelta ? metalPdf(mat, n, wo, s.wi) : 1.0;
-        s.type = Reflection | (isNotDelta ? Glossy : Specular);
+        s.bsdf = isDelta ? fresnelSchlick(absDot(n, wo), mat.ior) * albedo : metalBSDF(mat, albedo, n, wo, s.wi);
+        s.pdf = isDelta ? 1.0 : metalPdf(mat, n, wo, s.wi);
+        s.type = Reflection | (isDelta ? Specular : Glossy);
     }
     return true;
 }
@@ -306,6 +311,20 @@ bool sampleBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3 r, out BSDFSamp
         return dielectricSampleBSDF(mat, albedo, n, wo, r, s);
     }
     return false;
+}
+
+bool isBSDFDelta(Material mat) {
+    switch (mat.type) {
+    case Lambert:
+        return false;
+    case MetallicWorkflow:
+        return (isGTR2Delta(mat.roughness) && mat.metallic > 0.95);
+    case Metal:
+        return isGTR2Delta(mat.roughness);
+    case Dielectric:
+        return true;
+    }
+    return true;
 }
 
 bool isBSDFConnectible(Material mat) {

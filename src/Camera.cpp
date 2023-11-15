@@ -71,6 +71,10 @@ void Camera::nextFrame(std::default_random_engine& rng) {
 	mFrameIndex++;
 }
 
+void Camera::setClearFlag() {
+	mFrameIndex = 0x80000000u;
+}
+
 void Camera::update() {
 	float x = glm::sin(glm::radians(mAngle.x)) * glm::cos(glm::radians(mAngle.y));
 	float y = glm::cos(glm::radians(mAngle.x)) * glm::cos(glm::radians(mAngle.y));

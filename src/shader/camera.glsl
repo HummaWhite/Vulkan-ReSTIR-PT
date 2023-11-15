@@ -1,5 +1,8 @@
 #include "math.glsl"
 
+const uint CameraClearFlag = 0x80000000;
+const uint CameraFrameIndexMask = 0x7fffffff;
+
 struct CameraPdf {
 	float pdfPos;
 	float pdfDir;

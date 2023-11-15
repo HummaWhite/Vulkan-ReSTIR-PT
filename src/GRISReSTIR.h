@@ -22,7 +22,7 @@ public:
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings);
 
 public:
-	Settings settings = {};
+	Settings settings = { Reconnection };
 
 private:
 	std::unique_ptr<zvk::ComputePipeline> mPathTracePass;

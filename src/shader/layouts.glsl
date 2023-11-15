@@ -159,6 +159,10 @@ struct GRISReservoir {
 	float pad0;
 };
 
+struct GRISSettings {
+	uint shiftType;
+};
+
 layout(set = CameraDescSet, binding = 0) uniform _Camera {
 	Camera uCamera;
 	Camera uPrevCamera;

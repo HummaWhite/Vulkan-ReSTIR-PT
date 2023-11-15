@@ -7,14 +7,10 @@
 #include "camera.glsl"
 #include "gbuffer_util.glsl"
 #include "light_sampling.glsl"
-#include "math.glsl"
+#include "material.glsl"
 
 layout(location = ClosestHitPayloadLocation) rayPayloadEXT Intersection rtIsec;
 layout(location = ShadowPayloadLocation) rayPayloadEXT bool rtShadowed;
-
-vec3 BSDFDot(vec3 albedo, vec3 n, vec3 wi) {
-    return albedo * PiInv * satDot(n, wi);
-}
 
 void main() {
     uvec2 index = gl_LaunchIDEXT.xy;
@@ -37,10 +33,11 @@ void main() {
     uint rng = makeSeed(uCamera.seed + gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
 
     vec3 radiance = vec3(0.0);
-
     vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
+    vec3 wo = -ray.dir;
+    Material mat = uMaterials[matId];
 
-    if (/* sample direct lighting */ true) {
+    if (/* sample direct lighting */ !isBSDFDelta(mat)) {
         const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
         vec3 lightRadiance, lightDir;
@@ -58,14 +55,14 @@ void main() {
         );
 
         if (!rtShadowed && lightPdf > 1e-6) {
-            float bsdfPdf = absDot(norm, lightDir) * PiInv;
+            float bsdfPdf = evalPdf(mat, norm, -ray.dir, lightDir);
             float weight = MISWeight(lightPdf, bsdfPdf);
-            radiance = lightRadiance * BSDFDot(albedo, norm, lightDir) / lightPdf;
+            radiance += lightRadiance * evalBSDF(mat, albedo, norm, wo, lightDir) * satDot(norm, lightDir) / lightPdf * weight;
         }
     }
     radiance = clampColor(radiance);
 
-    float frameCount = float(uCamera.frameIndex);
+    float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uDirectOutput, ivec2(index)).rgb;
     accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
 

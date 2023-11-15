@@ -65,6 +65,8 @@ void main() {
     uint rng = makeSeed(uCamera.seed + gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
 
     vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
+    vec3 wo = -ray.dir;
+    Material mat = uMaterials[matId];
 
     DIReservoir resv;
     DIReservoirReset(resv);
@@ -83,7 +85,7 @@ void main() {
         if (lightPdf > 1e-6) {
             float bsdfPdf = absDot(norm, pathSample.wi) * PiInv;
             float weight = MISWeight(lightPdf, bsdfPdf);
-            vec3 pHat = pathSample.radiance * BSDFDot(albedo, norm, pathSample.wi);
+            vec3 pHat = pathSample.radiance * evalBSDF(mat, albedo, norm, wo, pathSample.wi) * satDot(norm, pathSample.wi);
             resampleWeight = DIToScalar(pHat / lightPdf);
         }
 
@@ -112,10 +114,10 @@ void main() {
 
     DIReservoir temporalResv;
 
-    if (findPreviousReservoir(uv + motion, pos, depth, norm, albedo, matMeshId, temporalResv)) {
+    if (((uCamera.frameIndex & CameraClearFlag) == 0) && findPreviousReservoir(uv + motion, pos, depth, norm, albedo, matMeshId, temporalResv)) {
         if (DIReservoirIsValid(temporalResv)) {
             DIReservoirMerge(resv, temporalResv, sample1f(rng));
-            DIReservoirCapSample(resv, ResampleNum * 20);
+            DIReservoirCapSample(resv, ResampleNum * 10);
         }
     }
     DIReservoirResetIfInvalid(resv);
@@ -124,12 +126,12 @@ void main() {
     vec3 radiance = vec3(0.0);
 
     if (DIReservoirIsValid(resv) && resv.sampleCount > 0) {
-        vec3 pHat = resv.radiance * BSDFDot(albedo, norm, resv.wi);
+        vec3 pHat = resv.radiance * evalBSDF(mat, albedo, norm, wo, resv.wi) * satDot(norm, resv.wi);
         radiance = pHat / luminance(pHat) * resv.resampleWeight / float(resv.sampleCount);
     }
     radiance = clampColor(radiance);
     
-    float frameCount = float(uCamera.frameIndex);
+    float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uDirectOutput, ivec2(index)).rgb;
     accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
 
