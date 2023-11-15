@@ -16,6 +16,4 @@ void main() {
     rtIsec.bary = attribs;
     rtIsec.instanceIdx = gl_InstanceCustomIndexEXT;
     rtIsec.triangleIdx = gl_PrimitiveID;
-    rtIsec.dist = gl_HitTEXT;
-    rtIsec.hit = true;
 }

@@ -96,6 +96,12 @@ struct LightSampleTableElement {
 	uint failId;
 };
 
+struct Intersection {
+	vec2 bary;
+	uint instanceIdx;
+	uint triangleIdx;
+};
+
 struct DIPathSample {
 	vec3 radiance;
 	float pHat;
@@ -134,9 +140,7 @@ struct GIReservoir {
 };
 
 struct GRISPathSample {
-	vec2 rcVertexBary;
-	uint rcVertexInstanceIdx;
-	uint rcVertexTriangleIdx;
+	Intersection rcVertexIsec;
 
 	vec3 rcVertexRadiance;
 	float rcVertexLightPdf;

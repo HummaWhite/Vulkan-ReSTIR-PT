@@ -63,7 +63,7 @@ void main() {
                 ray.ori, MinRayDistance, ray.dir, MaxRayDistance
             );
 
-            if (!isec.hit) {
+            if (!IntersectionIsValid(isec)) {
                 break;
             }
             loadSurfaceInfo(isec, surf);

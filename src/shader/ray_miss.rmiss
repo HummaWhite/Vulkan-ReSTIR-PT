@@ -8,5 +8,5 @@
 layout(location = ClosestHitPayloadLocation) rayPayloadInEXT Intersection rtIsec;
 
 void main() {
-    rtIsec.hit = false;
+    rtIsec.instanceIdx = InvalidHitIndex;
 }

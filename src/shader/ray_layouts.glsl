@@ -16,14 +16,6 @@ struct Ray {
     vec3 dir;
 };
 
-struct Intersection {
-	vec2 bary;
-	uint instanceIdx;
-	uint triangleIdx;
-    float dist;
-	bool hit;
-};
-
 struct SurfaceInfo {
     vec3 pos;
     vec3 norm;
@@ -36,6 +28,10 @@ layout(set = RayTracingDescSet, binding = 0) uniform accelerationStructureEXT uT
 
 uint index1D(uvec2 index) {
     return uCamera.filmSize.x * index.y + index.x;
+}
+
+bool IntersectionIsValid(Intersection isec) {
+    return isec.instanceIdx != InvalidHitIndex;
 }
 
 void loadLightSurfaceInfo(uint triangleIdx, vec3 bary, out SurfaceInfo info) {

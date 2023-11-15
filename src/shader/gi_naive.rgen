@@ -50,8 +50,6 @@ void main() {
 #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
         if (bounce > 0) {
-            rtIsec.hit = false;
-
             traceRayEXT(
                 /* AS, flags, masks    */ uTLAS, gl_RayFlagsOpaqueEXT, 0xff,
                 /* SBT offset & stride */ 0, 0,
@@ -60,7 +58,7 @@ void main() {
                 /* payload location    */ ClosestHitPayloadLocation
             );
 
-            if (!rtIsec.hit) {
+            if (!IntersectionIsValid(rtIsec)) {
                 break;
             }
             loadSurfaceInfo(rtIsec, surf);

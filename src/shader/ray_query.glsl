@@ -50,11 +50,9 @@ Intersection rayQueryTraceClosestHit(
         isec.bary = rayQueryGetIntersectionBarycentricsEXT(rayQuery, true).xy;
         isec.instanceIdx = rayQueryGetIntersectionInstanceCustomIndexEXT(rayQuery, true);
         isec.triangleIdx = rayQueryGetIntersectionPrimitiveIndexEXT(rayQuery, true);
-        isec.dist = rayQueryGetIntersectionTEXT(rayQuery, true);
-        isec.hit = true;
     }
     else {
-        isec.hit = false;
+        isec.instanceIdx = InvalidHitIndex;
     }
     return isec;
 }
