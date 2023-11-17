@@ -188,11 +188,11 @@ void main() {
         }
         float sampleWeight = 0.0;
 
-        if (GIPathSampleIsValid(pathSample) && primaryPdf > 1e-6) {
+        if (GIPathSampleIsValid(pathSample)) {
             float pHat = luminance(pathSample.radiance);
             sampleWeight = pHat / primaryPdf;
 
-            if (isnan(sampleWeight) || sampleWeight < 0.0) {
+            if (isnan(sampleWeight) || sampleWeight < 0.0 || primaryPdf < 1e-6) {
                 sampleWeight = 0.0;
             }
             GIReservoirAddSample(resv, pathSample, pHat, sampleWeight, sample1f(rng));
@@ -200,7 +200,7 @@ void main() {
         GIReservoirResetIfInvalid(resv);
         GIReservoirCapSample(resv, 40);
 
-        if (GIReservoirIsValid(resv) && resv.sampleCount > 0 && resv.pHat > 1e-6) {
+        if (GIReservoirIsValid(resv) && resv.sampleCount > 0 && resv.pHat > 1e-6 && isBSDFConnectible(uMaterials[matId])) {
             vec3 primaryWi = normalize(resv.sampledPos - primaryPos);
             radiance = resv.radiance / resv.pHat * resv.resampleWeight / float(resv.sampleCount);
             radiance *= evalBSDF(uMaterials[matId], albedo, norm, primaryWo, primaryWi) * satDot(norm, primaryWi);

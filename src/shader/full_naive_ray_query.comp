@@ -127,7 +127,7 @@ void main() {
         ray.dir = s.wi;
         ray.ori = surf.pos + ray.dir * 1e-4;
     }
-    radiance = fixRadiance(radiance);
+    radiance = clampColor(radiance);
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(threadIdx)).rgb;
     accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);

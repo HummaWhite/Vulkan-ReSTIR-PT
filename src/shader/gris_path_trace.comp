@@ -13,6 +13,7 @@ layout(local_size_x = RayQueryBlockSizeX, local_size_y = RayQueryBlockSizeY) in;
 #include "gbuffer_util.glsl"
 #include "light_sampling.glsl"
 #include "material.glsl"
+#include "gris_reservoir.glsl"
 
 const uint Reconnection = 0;
 const uint Hybrid = 1;
@@ -66,6 +67,7 @@ void main() {
     Intersection isec;
 
     GRISPathSample pathSample;
+    pathSample.primaryHitRng = rng;
 
 #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
@@ -95,12 +97,24 @@ void main() {
                     float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / cosTheta;
                     weight = MISWeight(s.pdf, lightPdf);
                 }
+                if (rcVertexFound && GRISPathFlagsGetRcVertexId(pathSample.pathFlags) < bounce) {
+                    pathSample.rcVertexRadiance += surf.albedo * weight * rcVertexThroughput;
+                }
                 radiance += surf.albedo * weight * throughput;
             }
             break;
         }
+        bool isThisVertexConnectible = isBSDFConnectible(mat);
 
-        if (/* sample direct lighting */ bounce > 0 && !isBSDFDelta(mat)) {
+        if (!rcVertexFound && isLastVertexConnectible && isThisVertexConnectible) {
+            rcVertexFound = true;
+            pathSample.rcVertexIsec = isec;
+            pathSample.rcVertexRadiance = vec3(0.0);
+            pathSample.rcVertexRng = rng;
+            GRISPathFlagsSetRcVertexId(pathSample.pathFlags, bounce);
+        }
+
+        if (/* sample direct lighting */ bounce > 0 && !isBSDFDelta(mat) && rcVertexFound) {
             const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
             vec3 lightRadiance, lightDir;
@@ -117,7 +131,9 @@ void main() {
             if (!shadowed && lightPdf > 1e-6) {
                 float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
                 float weight = MISWeight(lightPdf, bsdfPdf);
-                radiance += lightRadiance * evalBSDF(mat, surf.albedo, surf.norm, wo, lightDir) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
+                vec3 lightTerms = lightRadiance * evalBSDF(mat, surf.albedo, surf.norm, wo, lightDir) * satDot(surf.norm, lightDir) / lightPdf;
+                radiance += lightTerms * weight * throughput;
+                pathSample.rcVertexRadiance += lightTerms * weight * rcVertexThroughput;
             }
         }
         if (/* russian roulette */ bounce > 4) {
@@ -132,15 +148,28 @@ void main() {
         if (!sampleBSDF(mat, surf.albedo, surf.norm, wo, sample3f(rng), s) || s.pdf < 1e-6) {
             break;
         }
+
         float cosTheta = isSampleTypeDelta(s.type) ? 1.0 : absDot(surf.norm, s.wi);
-        throughput *= s.bsdf * cosTheta / s.pdf;
+        vec3 scatterTerm = s.bsdf * cosTheta / s.pdf;
+        throughput *= scatterTerm;
+
+        if (rcVertexFound) {
+            if (GRISPathFlagsGetRcVertexId(pathSample.pathFlags) == bounce) {
+                //pathSample.rcVertexLightPdf
+                pathSample.rcVertexWi = s.wi;
+            }
+            rcVertexThroughput *= scatterTerm;
+        }
+
         lastPos = surf.pos;
-        
         wo = -s.wi;
         ray.dir = s.wi;
         ray.ori = surf.pos + ray.dir * 1e-4;
+        isLastVertexConnectible = isThisVertexConnectible;
     }
-    radiance = fixRadiance(radiance);
+    radiance = colorWheel(float(GRISPathFlagsGetRcVertexId(pathSample.pathFlags)) * float(rcVertexFound) / 6);
+
+    radiance = clampColor(radiance);
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(threadIdx)).rgb;
     accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);

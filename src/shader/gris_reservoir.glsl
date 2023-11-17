@@ -12,8 +12,24 @@ float GRISToScalar(vec3 color) {
 	return luminance(color);
 }
 
+uint GRISPathFlagsGetRcVertexId(uint flags) {
+	return flags & 0xff;
+}
+
+uint GRISPathFlagsGetRcVertexPathLength(uint flags) {
+	return (flags >> 8) & 0xff;
+}
+
+void GRISPathFlagsSetRcVertexId(inout uint flags, uint id) {
+	flags = (flags & 0xffffff00) | (id & 0xff);
+}
+
+void GRISPathFlagsSetRcVertexPathLength(inout uint flags, uint id) {
+	flags = (flags & 0xffff00ff) | ((id & 0xff) << 8);
+}
+
 void GRISPathSampleReset(inout GRISPathSample pathSample) {
-	pathSample.rcVertexInstanceIdx = InvalidHitIndex;
+	pathSample.rcVertexIsec.instanceIdx = InvalidHitIndex;
 	pathSample.F = vec3(0.0);
 	pathSample.pathFlags = 0;
 }
