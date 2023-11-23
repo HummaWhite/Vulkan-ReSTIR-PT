@@ -66,7 +66,7 @@ foreach(SHADER_SOURCE ${SHADER_SOURCES})
         get_filename_component(fname ${SHADER_SOURCE} NAME)
         add_custom_target(${fname}.spv
             COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_DIR} && 
-            $ENV{VK_SDK_PATH}/Bin/glslc.exe ${SHADER_SOURCE} -o ${SHADER_DIR}/${fname}.spv --target-env=vulkan1.2
+            $ENV{VK_SDK_PATH}/Bin/glslc.exe ${SHADER_SOURCE} -o ${SHADER_DIR}/${fname}.spv --target-env=vulkan1.2 -O
             SOURCES ${SHADER_SOURCE}
         )
         ExternalTarget("Shaders" ${fname}.spv)

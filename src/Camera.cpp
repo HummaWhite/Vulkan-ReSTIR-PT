@@ -36,10 +36,10 @@ void Camera::setFOV(float fov) {
 void Camera::setDir(glm::vec3 dir) {
 	dir = glm::normalize(dir);
 	mAngle.y = glm::degrees(asin(dir.z / length(dir)));
-	mAngle.x = glm::degrees(asin(dir.y / length(glm::vec2(dir))));
+	mAngle.x = glm::degrees(asin(dir.y / length(glm::vec2(dir)))) - 90.f;
 
 	if (dir.x < 0) {
-		mAngle.x = 180.0f - mAngle.x;
+		mAngle.x += 360.f;
 	}
 	update();
 }

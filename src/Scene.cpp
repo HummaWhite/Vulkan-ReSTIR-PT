@@ -115,25 +115,36 @@ void Scene::loadSampler(pugi::xml_node samplerNode) {
 }
 
 void Scene::loadCamera(pugi::xml_node cameraNode) {
-	glm::vec3 pos, angle;
+	glm::vec3 pos, angleOrLookAt;
 	std::string posStr(cameraNode.child("position").attribute("value").as_string());
 	std::stringstream posSS(posStr);
 	posSS >> pos.x >> pos.y >> pos.z;
-
-	std::string angleStr(cameraNode.child("angle").attribute("value").as_string());
-	std::stringstream angleSS(angleStr);
-	angleSS >> angle.x >> angle.y >> angle.z;
-
 	camera.setPos(pos);
-	camera.setAngle(angle);
+
+	std::string angleOrLookAtStr;
+
+	if (cameraNode.child("angle")) {
+		angleOrLookAtStr = cameraNode.child("angle").attribute("value").as_string();
+		std::stringstream ss(angleOrLookAtStr);
+		ss >> angleOrLookAt.x >> angleOrLookAt.y >> angleOrLookAt.z;
+		camera.setAngle(angleOrLookAt);
+		angleOrLookAtStr = "Angle " + angleOrLookAtStr;
+	}
+	else {
+		angleOrLookAtStr = cameraNode.child("lookAt").attribute("value").as_string();
+		std::stringstream ss(angleOrLookAtStr);
+		ss >> angleOrLookAt.x >> angleOrLookAt.y >> angleOrLookAt.z;
+		camera.lookAt(angleOrLookAt);
+		angleOrLookAtStr = "LookAt " + angleOrLookAtStr;
+	}
+
 	camera.setFOV(cameraNode.child("fov").attribute("value").as_float());
 	camera.setLensRadius(cameraNode.child("lensRadius").attribute("value").as_float());
 	camera.setFocalDist(cameraNode.child("focalDistance").attribute("value").as_float());
-	// originalCamera = previewCamera = camera;
 
 	Log::line<1>("Camera " + std::string(cameraNode.attribute("type").as_string()));
 	Log::line<2>("Position " + posStr);
-	Log::line<2>("Angle " + angleStr);
+	Log::line<2>(angleOrLookAtStr);
 	Log::line<2>("FOV " + std::to_string(camera.FOV()));
 	Log::line<2>("LensRadius " + std::to_string(camera.lensRadius()));
 	Log::line<2>("FocalDistance " + std::to_string(camera.focalDist()));
