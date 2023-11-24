@@ -130,6 +130,7 @@ void Renderer::initVulkan() {
 		mResampledGIPass = std::make_unique<GIReSTIR>(mContext.get());
 		mGRISPass = std::make_unique<GRISReSTIR>(mContext.get());
 		mRayQueryPTPass = std::make_unique<zvk::ComputePipeline>(mContext.get());
+		mVisualizeASPass = std::make_unique<zvk::ComputePipeline>(mContext.get());
 		mPostProcessPass = std::make_unique<PostProcessFrag>(mContext.get(), mSwapchain.get());
 
 		mScene.clear();
@@ -169,6 +170,7 @@ void Renderer::createPipeline() {
 	mResampledGIPass->createPipeline(mShaderManager.get(), descLayouts, 2);
 	mGRISPass->createPipeline(mShaderManager.get(), descLayouts);
 	mRayQueryPTPass->createPipeline(mShaderManager.get(), "shaders/full_naive_ray_query.comp.spv", descLayouts);
+	mVisualizeASPass->createPipeline(mShaderManager.get(), "shaders/as_visualize.comp.spv", descLayouts);
 	mPostProcessPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
 
@@ -426,6 +428,9 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			else if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
 				mResampledDIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
 			}
+			else if (mSettings.directMethod == RayTracingMethod::VisualizeAS) {
+				mVisualizeASPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), computeTracingBindings);
+			}
 			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
 
@@ -541,7 +546,7 @@ void Renderer::processGUI() {
 
 	if (ImGui::BeginMainMenuBar()) {
 		if (ImGui::BeginMenu("Settings")) {
-			static const char* directMethods[] = { "None", "Naive", "ReSTIR DI" };
+			static const char* directMethods[] = { "None", "Naive", "ReSTIR DI", "Visualize AS" };
 			static const char* indirectMethods[] = { "None", "Naive", "ReSTIR GI", "ReSTIR PT" };
 
 			if (ImGui::Combo("Direct Method", &mSettings.directMethod, directMethods, IM_ARRAYSIZE(directMethods))) {
@@ -614,6 +619,7 @@ void Renderer::cleanupVulkan() {
 	mResampledGIPass.reset();
 	mGRISPass.reset();
 	mRayQueryPTPass.reset();
+	mVisualizeASPass.reset();
 	mPostProcessPass.reset();
 
 	mCameraDescLayout.reset();

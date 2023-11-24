@@ -31,7 +31,7 @@ public:
 
 	zvk::HostImage* getImageByIndex(uint32_t index);
 	zvk::HostImage* getImageByPath(const File::path& path);
-	std::optional<uint32_t> addImage(const File::path& path, zvk::HostImageType type);
+	std::optional<uint32_t> addImage(const File::path& path, zvk::HostImageType type, zvk::HostImageFilter filter);
 	std::vector<zvk::HostImage*>& imagePool() { return mImagePool; }
 	const std::vector<zvk::HostImage*>& imagePool() const { return mImagePool; }
 

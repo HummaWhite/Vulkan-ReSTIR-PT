@@ -49,10 +49,10 @@ private:
 	glm::mat4 mProjView;
 	glm::mat4 mLastProjView;
 
-	glm::vec3 mPos;
+	glm::vec3 mPos = glm::vec3(0.f);
 	float mFOV = 45.0f;
 
-	glm::vec3 mAngle;
+	glm::vec3 mAngle = glm::vec3(0.f);
 	float mNear = 1e-3f;
 
 	glm::vec3 mFront;

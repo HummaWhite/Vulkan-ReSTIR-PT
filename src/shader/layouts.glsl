@@ -76,7 +76,7 @@ struct ObjectInstance {
 
 	uint indexOffset;
 	uint indexCount;
-	float pad1;
+	uint matIndex;
 	float pad2;
 };
 

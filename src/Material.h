@@ -37,4 +37,4 @@ struct Material {
 #endif
 };
 
-std::optional<Material> loadMaterial(const pugi::xml_node& node);
+std::optional<Material> loadMaterialNoBaseColor(const pugi::xml_node& node);

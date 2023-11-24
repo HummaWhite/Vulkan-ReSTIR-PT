@@ -62,6 +62,7 @@ public:
 	std::vector<TriangleLight> triangleLights;
 	DiscreteSampler1D<float> lightSampleTable;
 	uint32_t numObjectInstances = 0;
+	File::path path;
 };
 
 class DeviceScene : public zvk::BaseVkObject {

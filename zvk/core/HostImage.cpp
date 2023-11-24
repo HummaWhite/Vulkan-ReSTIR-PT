@@ -62,7 +62,7 @@ uint8_t* addAlphaChannel(const uint8_t* data, int width, int height, HostImageTy
 	return newData;
 }
 
-HostImage* HostImage::createFromFile(const File::path& path, HostImageType type, int channels) {
+HostImage* HostImage::createFromFile(const File::path& path, HostImageType type, HostImageFilter filter, int channels) {
 	//Log::bracketLine<0>("Image " + path.generic_string());
 
 	auto image = new HostImage();
@@ -94,10 +94,11 @@ HostImage* HostImage::createFromFile(const File::path& path, HostImageType type,
 		memcpy(image->mData, data, size);
 	}
 	stbi_image_free(data);
+	image->filter = filter;
 	return image;
 }
 
-HostImage* HostImage::createEmpty(int width, int height, HostImageType type, int channels) {
+HostImage* HostImage::createEmpty(int width, int height, HostImageType type, HostImageFilter filter, int channels) {
 	Log::check(channels <= 4 && channels >= 1, "Invalid image channel parameter");
 
 	auto image = new HostImage();
@@ -108,6 +109,7 @@ HostImage* HostImage::createEmpty(int width, int height, HostImageType type, int
 	image->channels = channels;
 	image->dataType = type;
 	image->mData = new uint8_t[size];
+	image->filter = filter;
 	return image;
 }
 

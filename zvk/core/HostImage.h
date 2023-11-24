@@ -14,6 +14,10 @@ enum class HostImageType {
 	Int8, Float32
 };
 
+enum class HostImageFilter {
+	Nearest, Linear
+};
+
 class HostImage {
 public:
 	HostImage() = default;
@@ -35,13 +39,14 @@ public:
 	vk::Extent2D extent() const { return vk::Extent2D(width, height); }
 	vk::Format format() const;
 
-	static HostImage* createFromFile(const File::path& path, HostImageType type, int channels = 3);
-	static HostImage* createEmpty(int width, int height, HostImageType type, int channels = 3);
+	static HostImage* createFromFile(const File::path& path, HostImageType type, HostImageFilter filter, int channels = 4);
+	static HostImage* createEmpty(int width, int height, HostImageType type, HostImageFilter filter, int channels = 4);
 
 public:
 	int width, height;
 	int channels;
 	HostImageType dataType;
+	HostImageFilter filter;
 
 private:
 	uint8_t* mData = nullptr;

@@ -57,4 +57,27 @@ Intersection rayQueryTraceClosestHit(
     return isec;
 }
 
+float rayQueryDebugVisualizeAS(accelerationStructureEXT topLevelAccelStructure, vec3 origin, vec3 direction) {
+    rayQueryEXT rayQuery;
+
+    rayQueryInitializeEXT(
+        /* rayQueryEXT    */ rayQuery,
+        /* top level AS   */ topLevelAccelStructure,
+        /* flags, masks   */ gl_RayFlagsNoneEXT, 0xff,
+        /* ray parameters */ origin, MinRayDistance, direction, MaxRayDistance
+    );
+
+    float level = 0;
+
+    while (rayQueryProceedEXT(rayQuery)) {
+        if (rayQueryGetIntersectionTypeEXT(rayQuery, false) == gl_RayQueryCandidateIntersectionTriangleEXT) {
+            level += 1.0;
+        }
+    }
+    if (rayQueryGetIntersectionTypeEXT(rayQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT) {
+        //level = 100.0;
+    }
+    return level;
+}
+
 #endif

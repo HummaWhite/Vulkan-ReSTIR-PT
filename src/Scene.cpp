@@ -35,11 +35,12 @@ std::pair<ModelInstance*, glm::vec3> Scene::loadModelInstance(const pugi::xml_no
 	}
 
 	auto modelPath = modelNode.attribute("path").as_string();
-	auto model = resource.openModelInstance(modelPath, isLight, glm::vec3(0.0f));
+	File::path absolutePath = path.parent_path() / modelPath;
+	auto model = resource.openModelInstance(absolutePath, isLight, glm::vec3(0.0f));
 
 	std::string name(modelNode.attribute("name").as_string());
 	model->setName(name);
-	model->setPath(modelPath);
+	model->setPath(absolutePath.c_str());
 
 	auto transNode = modelNode.child("transform");
 	auto [pos, scale, rot] = loadTransform(transNode);
@@ -48,14 +49,42 @@ std::pair<ModelInstance*, glm::vec3> Scene::loadModelInstance(const pugi::xml_no
 	model->setScale(scale.x, scale.y, scale.z);
 	model->setRotation(rot);
 
-	if (!isLight) {
+	if (!isLight && modelNode.child("material")) {
 		auto matNode = modelNode.child("material");
-		auto material = loadMaterial(matNode);
+		auto material = loadMaterialNoBaseColor(matNode);
 
 		if (material) {
+			uint32_t textureIdx = InvalidResourceIdx;
+			glm::vec3 baseColor = glm::vec3(1.0);
+
+			if (auto baseColorNode = matNode.child("baseColor")) {
+				if (auto valAttrib = baseColorNode.attribute("value")) {
+					std::stringstream ss(valAttrib.as_string());
+					ss >> baseColor.r >> baseColor.g >> baseColor.b;
+				}
+				if (auto imgAttrib = baseColorNode.attribute("image")) {
+					auto imagePath = path.parent_path() / imgAttrib.as_string();
+
+					auto filter = zvk::HostImageFilter::Linear;
+
+					if (auto filterAttrib = baseColorNode.attribute("filter")) {
+						if (std::string(filterAttrib.as_string()) == "nearest") {
+							filter = zvk::HostImageFilter::Nearest;
+						}
+					}
+					auto loadedTexIdx = resource.addImage(imagePath, zvk::HostImageType::Int8, filter);
+
+					if (loadedTexIdx) {
+						textureIdx = *loadedTexIdx;
+						Log::line<2>("Albedo texture " + imagePath.generic_string());
+					}
+				}
+			}
+
 			for (uint32_t i = 0; i < model->numMeshes(); i++) {
 				uint32_t materialIdx = resource.meshInstances[Resource::Object][i + model->meshOffset()].materialIdx;
-				material->textureIdx = resource.materials[materialIdx].textureIdx;
+				material->textureIdx = (textureIdx != InvalidResourceIdx) ? textureIdx : resource.materials[materialIdx].textureIdx;
+				material->baseColor = baseColor;
 				resource.materials[materialIdx] = *material;
 			}
 		}
@@ -65,6 +94,7 @@ std::pair<ModelInstance*, glm::vec3> Scene::loadModelInstance(const pugi::xml_no
 
 void Scene::load(const File::path& path) {
 	//clear();
+	this->path = path;
 	Log::line<0>("Scene " + path.generic_string());
 
 	pugi::xml_document doc;
@@ -385,7 +415,7 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 	auto images = scene.resource.imagePool();
 
 	// Load one extra texture to ensure the array is not empty
-	auto extImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, 4);
+	auto extImage = zvk::HostImage::createFromFile("res/texture.jpg", zvk::HostImageType::Int8, zvk::HostImageFilter::Nearest, 4);
 	images.push_back(extImage);
 
 	for (auto hostImage : images) {
@@ -396,7 +426,7 @@ void DeviceScene::createBufferAndImages(const Scene& scene, zvk::QueueIdx queueI
 			vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
 			vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
-		image->createSampler(vk::Filter::eLinear);
+		image->createSampler(hostImage->filter == zvk::HostImageFilter::Linear ? vk::Filter::eLinear : vk::Filter::eNearest);
 		textures.push_back(std::move(image));
 	}
 	delete extImage;

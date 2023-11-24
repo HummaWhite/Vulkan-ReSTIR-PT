@@ -23,7 +23,7 @@ class Renderer {
 public:
 	struct RayTracingMethod {
 		enum _RayTracingMethod {
-			None = 0, Naive = 1, ResampledDI = 2, ResampledGI = 2, ResampledPT = 3
+			None = 0, Naive = 1, ResampledDI = 2, ResampledGI = 2, ResampledPT = 3, VisualizeAS = 3
 		};
 	};
 
@@ -130,6 +130,7 @@ private:
 	std::unique_ptr<GIReSTIR> mResampledGIPass;
 	std::unique_ptr<GRISReSTIR> mGRISPass;
 	std::unique_ptr<zvk::ComputePipeline> mRayQueryPTPass;
+	std::unique_ptr<zvk::ComputePipeline> mVisualizeASPass;
 	std::unique_ptr<PostProcessFrag> mPostProcessPass;
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;

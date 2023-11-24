@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-std::optional<Material> loadMaterial(const pugi::xml_node& node) {
+std::optional<Material> loadMaterialNoBaseColor(const pugi::xml_node& node) {
 	Material material;
 	std::string type(node.attribute("type").as_string());
 
@@ -29,7 +29,6 @@ std::optional<Material> loadMaterial(const pugi::xml_node& node) {
 	}
 #if !RESTIR_PT_MATERIAL
 	else if (type == "principled") {
-		loadVec3f("baseColor", material.baseColor);
 		loadFloat("subsurface", material.subsurface);
 		loadFloat("metallic", material.metallic);
 		loadFloat("roughness", material.roughness);
@@ -43,30 +42,25 @@ std::optional<Material> loadMaterial(const pugi::xml_node& node) {
 	}
 #endif
 	else if (type == "metalWorkflow") {
-		loadVec3f("baseColor", material.baseColor);
 		loadFloat("metallic", material.metallic);
 		loadFloat("roughness", material.roughness);
 		material.type = Material::MetalWorkflow;
 	}
 	else if (type == "metal") {
-		loadVec3f("baseColor", material.baseColor);
 		loadFloat("roughness", material.roughness);
 		loadFloat("ior", material.ior);
 		material.type = Material::Metal;
 	}
 	else if (type == "dielectric") {
-		loadVec3f("baseColor", material.baseColor);
 		loadFloat("ior", material.ior);
 		loadFloat("roughness", material.roughness);
 		material.type = Material::Dielectric;
 	}
 	else if (type == "thinDielectric") {
-		loadVec3f("baseColor", material.baseColor);
 		loadFloat("ior", material.ior);
 		material.type = Material::ThinDielectric;
 	}
 	else if (type == "lambertian") {
-		loadVec3f("baseColor", material.baseColor);
 		material.type = Material::Lambertian;
 	}
 	return material;

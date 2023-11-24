@@ -17,13 +17,13 @@ zvk::HostImage* Resource::getImageByPath(const File::path& path) {
 	return getImageByIndex(res->second);
 }
 
-std::optional<uint32_t> Resource::addImage(const File::path& path, zvk::HostImageType type) {
+std::optional<uint32_t> Resource::addImage(const File::path& path, zvk::HostImageType type, zvk::HostImageFilter filter) {
 	auto res = mMapPathToImageIndex.find(path);
 
 	if (res != mMapPathToImageIndex.end()) {
 		return res->second;
 	}
-	auto img = zvk::HostImage::createFromFile(path, type, 4);
+	auto img = zvk::HostImage::createFromFile(path, type, filter, 4);
 
 	if (!img) {
 		return std::nullopt;
@@ -167,7 +167,7 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool isL
 				}
 				Log::line<2>("Albedo texture " + imagePath.generic_string());
 
-				auto imageIdx = addImage(imagePath, zvk::HostImageType::Int8);
+				auto imageIdx = addImage(imagePath, zvk::HostImageType::Int8, zvk::HostImageFilter::Linear);
 				material.textureIdx = imageIdx ? *imageIdx : InvalidResourceIdx;
 			}
 			else {
@@ -182,6 +182,7 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool isL
 }
 
 ModelInstance* Resource::getModelInstanceByPath(const File::path& path, bool isLight) {
+	return nullptr;
 	auto res = mMapPathToUniqueModelInstance[isLight].find(path);
 	if (res == mMapPathToUniqueModelInstance[isLight].end()) {
 		return nullptr;

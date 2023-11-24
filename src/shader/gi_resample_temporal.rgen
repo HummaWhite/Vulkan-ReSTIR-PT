@@ -156,7 +156,7 @@ void main() {
             throughputAfter /= (1.0 - pdfTerminate);
         }
 
-        if (!sampleBSDF(mat, (bounce == 0) ? vec3(1.0) : surf.albedo, surf.norm, wo, sample3f(rng), s) || s.pdf < 1e-6) {
+        if (!sampleBSDF(mat, (bounce == 0 && !isBSDFDelta(mat)) ? vec3(1.0) : surf.albedo, surf.norm, wo, sample3f(rng), s) || s.pdf < 1e-6) {
             break;
         }
         if (bounce == 0) {
