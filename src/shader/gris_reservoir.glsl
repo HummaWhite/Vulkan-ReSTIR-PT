@@ -30,21 +30,21 @@ void GRISPathFlagsSetPathLength(inout uint flags, uint id) {
 	flags = (flags & 0xfffffc1f) | ((id & 0x1f) << 5);
 }
 
-bool GRISPathFlagsIsLight(uint flags) {
+bool GRISPathFlagsIsNEE(uint flags) {
 	return (flags & 0x80000000) > 0;
 }
 
-void GRISPathFlagsSetIsLight(inout uint flags, bool isLight) {
-	flags = (flags & 0x7fffffff) | (uint(isLight) << 31);
+void GRISPathFlagsSetIsNEE(inout uint flags, bool isNEE) {
+	flags = (flags & 0x7fffffff) | (uint(isNEE) << 31);
 }
 
 void GRISPathSampleReset(inout GRISPathSample pathSample) {
 	pathSample.rcVertexIsec.instanceIdx = InvalidHitIndex;
-	pathSample.rcVertexRadiance = vec3(0.0);
-	pathSample.rcVertexScatterPdf = 0;
+	pathSample.rcVertexLi = vec3(0.0);
+	pathSample.rcScatterPdf = 0;
 	pathSample.rcPrevScatterPdf = 0;
-	pathSample.rcGeometryJacobian = 0;
 	pathSample.rcLightPdf = 0;
+	pathSample.rcGeometryTerm = 0;
 	pathSample.F = vec3(0.0);
 	pathSample.flags = 0;
 }

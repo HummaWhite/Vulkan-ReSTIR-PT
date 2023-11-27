@@ -142,13 +142,13 @@ struct GIReservoir {
 struct GRISPathSample {
 	Intersection rcVertexIsec;
 
-	vec3 rcVertexRadiance;
+	vec3 rcVertexLi;
 	uint rcVertexRng;
 
-	float rcVertexScatterPdf;
+	float rcScatterPdf;
 	float rcPrevScatterPdf;
-	float rcGeometryJacobian; // rcPrev -> rcVertex jacobian (half geometry term)
-	float rcLightPdf; // used when rcVertex is on a light source, solid angle measure
+	float rcLightPdf;
+	float rcGeometryTerm;
 
 	vec3 rcVertexWi;
 	uint primaryHitRng;
