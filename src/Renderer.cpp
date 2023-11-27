@@ -254,12 +254,12 @@ void Renderer::createDescriptor() {
 		zvk::Descriptor::makeBinding(4, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
 		zvk::Descriptor::makeBinding(5, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
 		zvk::Descriptor::makeBinding(6, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
-		zvk::Descriptor::makeBinding( 7, vk::DescriptorType::eStorageBuffer, RayPipelineShaderStageFlags),
-		zvk::Descriptor::makeBinding( 8, vk::DescriptorType::eStorageBuffer, RayPipelineShaderStageFlags),
-		zvk::Descriptor::makeBinding( 9, vk::DescriptorType::eStorageBuffer, RayPipelineShaderStageFlags),
-		zvk::Descriptor::makeBinding(10, vk::DescriptorType::eStorageBuffer, RayPipelineShaderStageFlags),
-		zvk::Descriptor::makeBinding(11, vk::DescriptorType::eStorageBuffer, RayPipelineShaderStageFlags),
-		zvk::Descriptor::makeBinding(12, vk::DescriptorType::eStorageBuffer, RayPipelineShaderStageFlags),
+		zvk::Descriptor::makeBinding( 7, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding( 8, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding( 9, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding(10, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding(11, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding(12, vk::DescriptorType::eStorageBuffer, rayImageFlags),
 	};
 	mRayImageDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), rayImageBindings);
 

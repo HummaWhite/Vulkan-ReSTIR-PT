@@ -7,31 +7,50 @@
 
 const uint GRISMergeModeRegular = 0;
 const uint GRISMergeModeWithMISResample = 1;
+const uint GRISMaxPathLength = 15;
+const float GRISDistanceThreshold = 0.01;
 
 float GRISToScalar(vec3 color) {
 	return luminance(color);
 }
 
-uint GRISPathFlagsGetRcVertexId(uint flags) {
-	return flags & 0xff;
-}
-
-uint GRISPathFlagsGetRcVertexPathLength(uint flags) {
-	return (flags >> 8) & 0xff;
+uint GRISPathFlagsRcVertexId(uint flags) {
+	return flags & 0x1f;
 }
 
 void GRISPathFlagsSetRcVertexId(inout uint flags, uint id) {
-	flags = (flags & 0xffffff00) | (id & 0xff);
+	flags = (flags & 0xffffffe0) | (id & 0x1f);
 }
 
-void GRISPathFlagsSetRcVertexPathLength(inout uint flags, uint id) {
-	flags = (flags & 0xffff00ff) | ((id & 0xff) << 8);
+uint GRISPathFlagsPathLength(uint flags) {
+	return (flags >> 5) & 0x1f;
+}
+
+void GRISPathFlagsSetPathLength(inout uint flags, uint id) {
+	flags = (flags & 0xfffffc1f) | ((id & 0x1f) << 5);
+}
+
+bool GRISPathFlagsIsLight(uint flags) {
+	return (flags & 0x80000000) > 0;
+}
+
+void GRISPathFlagsSetIsLight(inout uint flags, bool isLight) {
+	flags = (flags & 0x7fffffff) | (uint(isLight) << 31);
 }
 
 void GRISPathSampleReset(inout GRISPathSample pathSample) {
 	pathSample.rcVertexIsec.instanceIdx = InvalidHitIndex;
+	pathSample.rcVertexRadiance = vec3(0.0);
+	pathSample.rcVertexScatterPdf = 0;
+	pathSample.rcPrevScatterPdf = 0;
+	pathSample.rcGeometryJacobian = 0;
+	pathSample.rcLightPdf = 0;
 	pathSample.F = vec3(0.0);
-	pathSample.pathFlags = 0;
+	pathSample.flags = 0;
+}
+
+bool GRISPathSampleFoundRcVertex(GRISPathSample pathSample) {
+	return pathSample.rcVertexIsec.instanceIdx != InvalidHitIndex;
 }
 
 void GRISReservoirReset(inout GRISReservoir resv) {

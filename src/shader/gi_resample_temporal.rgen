@@ -115,7 +115,7 @@ void main() {
                 if (bounce > 0 && !isSampleTypeDelta(s.type)) {
                     float dist = length(surf.pos - lastPos);
                     float sumPower = uLightSampleTable[0].prob;
-                    float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / cosTheta;
+                    float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / abs(cosTheta);
                     weight = MISWeight(s.pdf, lightPdf);
                 }
                 vec3 addition = surf.albedo * weight;

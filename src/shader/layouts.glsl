@@ -143,16 +143,18 @@ struct GRISPathSample {
 	Intersection rcVertexIsec;
 
 	vec3 rcVertexRadiance;
-	float rcVertexLightPdf;
-
-	vec3 rcVertexWi;
 	uint rcVertexRng;
 
-	vec3 rcVertexCachedJacobian;
+	float rcVertexScatterPdf;
+	float rcPrevScatterPdf;
+	float rcGeometryJacobian; // rcPrev -> rcVertex jacobian (half geometry term)
+	float rcLightPdf; // used when rcVertex is on a light source, solid angle measure
+
+	vec3 rcVertexWi;
 	uint primaryHitRng;
 
 	vec3 F;
-	uint pathFlags;
+	uint flags;
 };
 
 struct GRISReservoir {

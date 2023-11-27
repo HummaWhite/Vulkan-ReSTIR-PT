@@ -7,7 +7,6 @@
 #include "camera.glsl"
 #include "gbuffer_util.glsl"
 #include "light_sampling.glsl"
-#include "math.glsl"
 #include "di_reservoir.glsl"
 
 layout(location = ClosestHitPayloadLocation) rayPayloadEXT Intersection rtIsec;
@@ -35,10 +34,6 @@ bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     }
     resv = uDIReservoirPrev[index1D(uvec2(pixelId))];
     return true;
-}
-
-vec3 BSDFDot(vec3 albedo, vec3 n, vec3 wi) {
-    return albedo * PiInv * satDot(n, wi);
 }
 
 void main() {

@@ -266,4 +266,8 @@ float square(float x) {
 	return x * x;
 }
 
+float distSquare(vec3 a, vec3 b) {
+	return dot(a - b, a - b);
+}
+
 #endif
