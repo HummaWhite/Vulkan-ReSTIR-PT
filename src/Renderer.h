@@ -80,6 +80,7 @@ private:
 	std::string mName;
 
 	int mWidth, mHeight;
+	int mDisplayWidth, mDisplayHeight;
 	GLFWwindow* mMainWindow = nullptr;
 	bool mShouldResetSwapchain = false;
 	Timer mFPSTimer;

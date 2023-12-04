@@ -67,6 +67,10 @@ void Renderer::initWindow() {
 	WindowInput::setCamera(mCamera);
 
 	glfwMakeContextCurrent(mMainWindow);
+
+	glfwGetFramebufferSize(mMainWindow, &mDisplayWidth, &mDisplayHeight);
+
+	std::cout << std::format("{} {}\n", mDisplayWidth, mDisplayHeight);
 }
 
 void Renderer::initVulkan() {
@@ -567,6 +571,9 @@ void Renderer::processGUI() {
 				if (ImGui::Combo("Shift Mapping", reinterpret_cast<int*>(&mGRISPass->settings.shiftType), shiftMethods, IM_ARRAYSIZE(shiftMethods))) {
 					resetFrame = true;
 					clearReservoir = true;
+				}
+
+				if (ImGui::SliderFloat("RR Scale", &mGRISPass->settings.rrScale, 0.1, 4.0)) {
 				}
 			}
 			ImGui::Separator();

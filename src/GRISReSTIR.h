@@ -10,6 +10,7 @@ public:
 
 	struct Settings {
 		uint32_t shiftType;
+		float rrScale;
 	};
 
 public:
@@ -22,7 +23,7 @@ public:
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings);
 
 public:
-	Settings settings = { Reconnection };
+	Settings settings = { Reconnection, 1.f };
 
 private:
 	std::unique_ptr<zvk::ComputePipeline> mPathTracePass;

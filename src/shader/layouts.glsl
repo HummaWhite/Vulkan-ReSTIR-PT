@@ -165,8 +165,17 @@ struct GRISReservoir {
 	float pad0;
 };
 
+struct GRISReconnectionData {
+	Intersection isec;
+	vec3 rcPrevWo;
+	float pad0;
+	vec3 throughput;
+	float pad1;
+};
+
 struct GRISSettings {
 	uint shiftType;
+	float rrScale;
 };
 
 layout(set = CameraDescSet, binding = 0) uniform _Camera {
@@ -198,5 +207,6 @@ layout(set = RayImageDescSet, binding =  9) buffer _GIReservoirThis { GIReservoi
 layout(set = RayImageDescSet, binding = 10) buffer _GIReservoirPrev { GIReservoir uGIReservoirPrev[]; };
 layout(set = RayImageDescSet, binding = 11) buffer _GRISReservoirThis { GRISReservoir uGRISReservoir[]; };
 layout(set = RayImageDescSet, binding = 12) buffer _GRISReservoirPrev { GRISReservoir uGRISReservoirPrev[]; };
+//layout(set = RatImageDescSet, binding = 13) buffer _GRISReconnectionData { GRISReconnectionData uGRISReconnectionData[]; };
 
 #endif

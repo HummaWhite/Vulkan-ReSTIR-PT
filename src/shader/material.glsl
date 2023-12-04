@@ -100,7 +100,7 @@ vec3 GTR2Sample(vec3 n, vec3 wo, float alpha, vec2 r) {
 }
 
 bool isGTR2Connectible(float roughness) {
-    return roughness > 0.2;
+    return roughness > 0.1;
 }
 
 bool isGTR2Delta(float roughness) {

@@ -69,8 +69,9 @@ void main() {
 
     GRISPathSample pathSample;
     GRISPathSampleReset(pathSample);
-
     pathSample.primaryHitRng = rng;
+
+    GRISReservoir resv = uGRISReservoir[index1D(threadIdx)];
 
 #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
@@ -103,15 +104,31 @@ void main() {
                 if (bounce > 0 && !isSampleTypeDelta(s.type)) {
                     weight = MISWeight(s.pdf, lightPdf);
                 }
-                if (rcVertexFound && bounce > rcVertexId) {
-                    pathSample.rcVertexLi += surf.albedo * weight * throughputAfter;
+                if (rcVertexFound) {
+                    if (bounce == rcVertexId + 1) {
+                        // the scattered ray at rcVertex hits a light source
+                        pathSample.rcVertexLi = surf.albedo;
+                        pathSample.F = surf.albedo * throughput;
+                        radiance += surf.albedo * throughput;
+                    }
+                    else {
+                        // the scattered ray after rcVertex indirectly hits a light source
+                        pathSample.rcVertexLi += surf.albedo * weight * throughputAfter;
+                        pathSample.F += surf.albedo * weight * throughput;
+                        radiance += surf.albedo * weight * throughput;
+                    }
                 }
-                radiance += surf.albedo * weight * throughput;
+                else {
+                    radiance += surf.albedo * weight * throughput;
+                }
             }
         }
         bool isThisVertexConnectible = isBSDFConnectible(mat);
 
         if (!rcVertexFound && isLastVertexConnectible && isThisVertexConnectible && distToPrev > GRISDistanceThreshold) {
+            // found an rcVertex that satisfy connectibility conditions
+            // it can either be a regular surface, or an emitter
+            // if emitter, the emittance is recorded and the path is terminated
             rcVertexFound = true;
 
             pathSample.rcVertexIsec = isec;
@@ -148,31 +165,42 @@ void main() {
                 float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
                 float weight = MISWeight(lightPdf, bsdfPdf);
                 vec3 lightTerms = lightRadiance * evalBSDF(mat, surf.albedo, surf.norm, wo, lightDir) * satDot(surf.norm, lightDir) / lightPdf;
-                radiance += lightTerms * weight * throughput;
 
                 if (rcVertexFound) {
+                    // if successfully sampled a light source and an rcVertex is found priorly
                     if (bounce == rcVertexId) {
-                        pathSample.rcVertexLi = lightTerms * weight;
+                        // if rcVertex is the same as our reference point, mark its type as direct light sampling at rcVertex (isNEE = true)
+                        // in theory we can continue tracing another BSDF sample (indirect lighting at rcVertex), and do RIS to choose one
+                        //   between
+                        // for simplicity we can just terminate here
+                        // and I doubt if it worths to have multiple sample candidates of longer path, since they are harder to connect to
+                        pathSample.rcVertexLi = lightRadiance;
                         pathSample.rcVertexWi = lightDir;
                         pathSample.rcLightPdf = lightPdf;
                         GRISPathFlagsSetIsNEE(pathSample.flags, true);
+                        pathSample.F = lightTerms * throughput;
+                        radiance += lightTerms * throughput;
                         break;
                     }
                     else {
+                        // otherwise, it is not NEE, we continue the path to collect radiance from lights
                         pathSample.rcVertexLi += lightTerms * weight * throughputAfter;
+                        pathSample.F += lightTerms * weight * throughput;
                     }
                 }
+                radiance += lightTerms * weight * throughput;
             }
         }
         bool skipRouletteForRcVertex = (rcVertexFound && (bounce == rcVertexId));
 
         if (/* russian roulette */ bounce > 4 && !skipRouletteForRcVertex) {
-            float pdfTerminate = max(1.0 - luminance(throughput), 0);
+            float pdfTerminate = max(1.0 - luminance(throughput) * uSettings.rrScale, 0);
 
             if (sample1f(rng) < pdfTerminate) {
                 break;
             }
             throughput /= (1.0 - pdfTerminate);
+            throughputAfter /= (1.0 - pdfTerminate);
         }
 
         if (!sampleBSDF(mat, surf.albedo, surf.norm, wo, sample3f(rng), s) || s.pdf < 1e-6) {
@@ -199,16 +227,25 @@ void main() {
         ray.ori = surf.pos + ray.dir * 1e-4;
         isLastVertexConnectible = isThisVertexConnectible;
     }
-    uGRISReservoir[index1D(threadIdx)].pathSample = pathSample;
+    float pHat = 1.0;
+    bool added = GRISReservoirAdd(resv, pathSample.F, pHat, rng);
+    GRISReservoirCapSample(resv, 20.0);
+    uGRISReservoir[index1D(threadIdx)] = resv;
+
     uint pathLength = GRISPathFlagsPathLength(pathSample.flags);
 
     //radiance = colorWheel(float(rcVertexId) / float(pathLength));
-    //radiance = pathSample.rcVertexLi;
-    //radiance = vec3(pathSample.rcScatterPdf);
     //radiance = vec3(pathSample.rcScatterPdf);
     //radiance = vec3(GRISPathFlagsRcVertexId(pathSample.flags) == 1);
     //radiance = vec3(pathSample.rcPrevScatterPdf);
+    //radiance = colorWheel(pathSample.rcLightPdf);
     //radiance = vec3(pathSample.rcGeometryTerm);
+    //radiance = colorWheel(pathSample.rcGeometryTerm);
+    //radiance = pathSample.F;
+    //radiance = radiance - pathSample.F;
+    //radiance = pathSample.rcVertexLi;
+    //radiance = colorWheel(float(GRISPathFlagsIsNEE(pathSample.flags)));
+    //radiance = vec3(resv.resampleWeight / resv.sampleCount);
 
     radiance = clampColor(radiance);
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
