@@ -10,6 +10,10 @@ const uint GRISMergeModeWithMISResample = 1;
 const uint GRISMaxPathLength = 15;
 const float GRISDistanceThreshold = 0.01;
 
+const uint Reconnection = 0;
+const uint Replay = 1;
+const uint Hybrid = 2;
+
 float GRISToScalar(vec3 color) {
 	return luminance(color);
 }

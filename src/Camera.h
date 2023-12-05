@@ -24,16 +24,16 @@ public:
 	void setLensRadius(float radius) { mLensRadius = radius; }
 	void setFocalDist(float dist) { mFocalDist = dist; }
 
-	glm::vec3 pos() const { return mPos; }
-	glm::vec3 angle() const { return mAngle; }
-	glm::vec3 front() const { return mFront; }
-	glm::vec3 right() const { return mRight; }
-	glm::vec3 up() const { return mUp; }
-	glm::ivec2 filmSize() const { return mFilmSize; }
-	float FOV() const { return mFOV; }
+	glm::vec3& pos() { return mPos; }
+	glm::vec3& angle() { return mAngle; }
+	glm::vec3& front() { return mFront; }
+	glm::vec3& right() { return mRight; }
+	glm::vec3& up() { return mUp; }
+	glm::uvec2& filmSize() { return mFilmSize; }
+	float& FOV() { return mFOV; }
 	float aspect() const { return static_cast<float>(mFilmSize.x) / mFilmSize.y; }
-	float lensRadius() const { return mLensRadius; }
-	float focalDist() const { return mFocalDist; }
+	float& lensRadius() { return mLensRadius; }
+	float& focalDist() { return mFocalDist; }
 
 	glm::mat4 viewMatrix() const { return mViewMatrix; }
 	glm::mat4 projMatrix() const { return mProjMatrix; }

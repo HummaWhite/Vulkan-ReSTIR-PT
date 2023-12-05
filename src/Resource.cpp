@@ -111,7 +111,7 @@ ModelInstance* Resource::createNewModelInstance(const File::path& path, bool isL
 		| aiProcess_FixInfacingNormals
 		//| aiProcess_FindInstances
 		//| aiProcess_JoinIdenticalVertices
-		| aiProcess_OptimizeMeshes
+		//| aiProcess_OptimizeMeshes
 		//| aiProcess_ForceGenNormals
 		//| aiProcess_FindDegenerates
 		;

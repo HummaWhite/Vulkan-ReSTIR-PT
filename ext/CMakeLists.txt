@@ -26,5 +26,4 @@ target_include_directories(imgui PUBLIC
 	"${CMAKE_CURRENT_SOURCE_DIR}/imgui"
 	"${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends")
 
-add_subdirectory(assimp)
 add_subdirectory(pugixml)

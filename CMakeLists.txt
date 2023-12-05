@@ -63,25 +63,30 @@ ENDIF(WIN32)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/")
 
-set(Assimp_dir "ext/assimp")
+set(Assimp_dir "${PROJECT_SOURCE_DIR}/ext/assimp")
 set(Assimp_include_dir "${Assimp_dir}/include")
+set(Assimp_build_dir "${PROJECT_SOURCE_DIR}/build/ext/assimp")
+set(Assimp_build_include_dir "${Assimp_build_dir}/include")
+set(Assimp_dll "${Assimp_build_dir}/bin/Release/assimp.dll")
+set(Assimp_lib "${Assimp_build_dir}/lib/Release/assimp.lib")
 
 set(GLFW_dir "ext/GLFW")
 set(GLFW_include_dir "${GLFW_dir}/include")
 
 include_directories(
-	"${CMAKE_CURRENT_SOURCE_DIR}/${Assimp_include_dir}"
-	"${PROJECT_SOURCE_DIR}/build/${Assimp_include_dir}"
-	"${CMAKE_CURRENT_SOURCE_DIR}/${GLFW_include_dir}"
-	"${CMAKE_CURRENT_SOURCE_DIR}/ext/pugixml/src"
-	"${CMAKE_CURRENT_SOURCE_DIR}/zvk"
+	"${Assimp_include_dir}"
+	"${Assimp_build_include_dir}"
+	"${PROJECT_SOURCE_DIR}/${GLFW_include_dir}"
+	"${PROJECT_SOURCE_DIR}/ext/pugixml/src"
+	"${PROJECT_SOURCE_DIR}/zvk"
 	"${Vulkan_INCLUDE_DIRS}"
 )
 
 include_directories(${Vulkan_INCLUDE_DIRS})
 
 message("${Vulkan_INCLUDE_DIRS}")
-message("${PROJECT_SOURCE_DIR}/build/${Assimp_include_dir}")
+message("${Assimp_include_dir}")
+message("${Assimp_build_include_dir}")
 
 add_subdirectory(ext)
 add_subdirectory(zvk)

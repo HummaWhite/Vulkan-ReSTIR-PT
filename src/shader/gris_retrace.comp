@@ -15,71 +15,37 @@ layout(local_size_x = RayQueryBlockSizeX, local_size_y = RayQueryBlockSizeY) in;
 #include "material.glsl"
 #include "gris_reservoir.glsl"
 
-struct GRISTraceSettings {
-	uint shiftType;
-	float rrScale;
+const uint Temporal = 0;
+const uint Spatial = 1;
+
+struct GRISRetraceSettings {
+    uint mode;
+    uint writeIndex;
+    float rrScale;
 };
 
 layout(push_constant) uniform _PushConstant {
-    GRISTraceSettings uSettings;
+    GRISRetraceSettings uSettings;
 };
 
-#define WRITE_OUTPUT false
-
-void main() {
+vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFlags, uint rng, out Intersection rcPrevIsec, out vec3 rcPrevWo) {
     const int MaxTracingDepth = 15;
-    uvec2 threadIdx = gl_GlobalInvocationID.xy;
-    uvec2 launchDim = uCamera.filmSize;
-
-    if (threadIdx.x >= launchDim.x || threadIdx.y >= launchDim.y) {
-        return;
-    }
-    vec2 uv = (vec2(threadIdx) + 0.5) / vec2(launchDim);
-
-    vec4 depthNormal = texture(uDepthNormal, uv);
-    float depth = depthNormal.x;
-    vec3 norm = depthNormal.yzw;
-
-    if (depth == 0.0) {
-#if WRITE_OUTPUT
-        imageStore(uIndirectOutput, ivec2(threadIdx), vec4(vec3(0.0), 1.0));
-#endif
-        return;
-    }
-    uvec2 albedoMatId = texelFetch(uAlbedoMatId, ivec2(threadIdx), 0).rg;
-    vec3 albedo = unpackAlbedo(albedoMatId.x);
-    int matMeshId = int(albedoMatId.y);
-    int matId = matMeshId >> 16;
-    
-    Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + threadIdx.x, threadIdx.y);
 
     vec3 radiance = vec3(0.0);
     vec3 throughput = vec3(1.0);
-    vec3 throughputAfter = vec3(1.0);
-    vec3 wo = -ray.dir;
     vec3 lastPos;
+    vec3 wo = -ray.dir;
     bool isLastVertexConnectible = false;
     bool rcVertexFound = false;
     uint rcVertexId = 0;
 
-    SurfaceInfo surf;
-    surf.pos = ray.ori + ray.dir * (depth - 1e-4);
-    surf.norm = norm;
-    surf.albedo = albedo;
-    surf.isLight = false;
-
-    Material mat = uMaterials[matId];
+    Material mat = uMaterials[surf.matIndex];
     BSDFSample s;
     Intersection isec;
 
     GRISPathSample pathSample;
-    GRISPathSampleReset(pathSample);
-    pathSample.primaryHitRng = rng;
 
-    GRISReservoir resv = uGRISReservoir[index1D(threadIdx)];
-
-#pragma unroll
+    #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
         GRISPathFlagsSetPathLength(pathSample.flags, bounce + 1);
 
@@ -119,7 +85,6 @@ void main() {
                     }
                     else {
                         // the scattered ray after rcVertex indirectly hits a light source
-                        pathSample.rcVertexLi += surf.albedo * weight * throughputAfter;
                         pathSample.F += surf.albedo * weight * throughput;
                         radiance += surf.albedo * weight * throughput;
                     }
@@ -190,7 +155,6 @@ void main() {
                     }
                     else {
                         // otherwise, it is not NEE, we continue the path to collect radiance from lights
-                        pathSample.rcVertexLi += lightTerms * weight * throughputAfter;
                         pathSample.F += lightTerms * weight * throughput;
                     }
                 }
@@ -206,7 +170,6 @@ void main() {
                 break;
             }
             throughput /= (1.0 - pdfTerminate);
-            throughputAfter /= (1.0 - pdfTerminate);
         }
 
         if (!sampleBSDF(mat, surf.albedo, surf.norm, wo, sample3f(rng), s) || s.pdf < 1e-6) {
@@ -223,7 +186,6 @@ void main() {
                 pathSample.rcScatterPdf = s.pdf;
             }
             else {
-                throughputAfter *= scatterTerm;
             }
         }
 
@@ -233,32 +195,46 @@ void main() {
         ray.ori = surf.pos + ray.dir * 1e-4;
         isLastVertexConnectible = isThisVertexConnectible;
     }
-    float pHat = 1.0;
-    bool added = GRISReservoirAdd(resv, pathSample.F, pHat, rng);
-    GRISReservoirCapSample(resv, 20.0);
-    uGRISReservoir[index1D(threadIdx)] = resv;
+    return vec3(0.0);
+}
 
-    uint pathLength = GRISPathFlagsPathLength(pathSample.flags);
+void main() {
+/*
+    uvec2 threadIdx = gl_GlobalInvocationID.xy;
+    uvec2 launchDim = uCamera.filmSize;
 
-    //radiance = colorWheel(float(rcVertexId) / float(pathLength));
-    //radiance = vec3(pathSample.rcScatterPdf);
-    //radiance = vec3(GRISPathFlagsRcVertexId(pathSample.flags) == 1);
-    //radiance = vec3(pathSample.rcPrevScatterPdf);
-    //radiance = colorWheel(pathSample.rcLightPdf);
-    //radiance = vec3(pathSample.rcGeometryTerm);
-    //radiance = colorWheel(pathSample.rcGeometryTerm);
-    //radiance = pathSample.F;
-    //radiance = radiance - pathSample.F;
-    //radiance = pathSample.rcVertexLi;
-    //radiance = colorWheel(float(GRISPathFlagsIsNEE(pathSample.flags)));
-    //radiance = vec3(resv.resampleWeight / resv.sampleCount);
+    if (threadIdx.x >= launchDim.x || threadIdx.y >= launchDim.y) {
+        return;
+    }
+    vec2 uv = (vec2(threadIdx) + 0.5) / vec2(launchDim);
 
-    radiance = clampColor(radiance);
-    float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
-    vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(threadIdx)).rgb;
-    accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
+    vec4 depthNormal = texture(uDepthNormal, uv);
+    float depth = depthNormal.x;
+    vec3 norm = depthNormal.yzw;
 
-#if WRITE_OUTPUT
-    imageStore(uIndirectOutput, ivec2(threadIdx), vec4(accumulatedRadaince, 1.0));
-#endif
+    if (depth == 0.0) {
+        imageStore(uIndirectOutput, ivec2(threadIdx), vec4(vec3(0.0), 1.0));
+        return;
+    }
+    uvec2 albedoMatId = texelFetch(uAlbedoMatId, ivec2(threadIdx), 0).rg;
+    vec3 albedo = unpackAlbedo(albedoMatId.x);
+    int matMeshId = int(albedoMatId.y);
+    int matId = matMeshId >> 16;
+    
+    Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
+    uint rng = makeSeed(uCamera.seed + threadIdx.x, threadIdx.y);
+
+    SurfaceInfo surf;
+    surf.pos = ray.ori + ray.dir * (depth - 1e-4);
+    surf.norm = norm;
+    surf.albedo = albedo;
+    surf.isLight = false;
+    surf.matIndex = matId;
+
+    GRISReservoir resv = uGRISReservoir[index1D(threadIdx)];
+
+    Intersection rcPrevIsec;
+    vec3 rcPrevwo;
+    vec3 throughput = traceReplayPathForHybridShift(surf, -ray.dir, resv.pathSample.primaryHitRng, rcPrevIsec, rcPrevWo);
+    */
 }

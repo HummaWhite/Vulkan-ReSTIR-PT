@@ -166,16 +166,11 @@ struct GRISReservoir {
 };
 
 struct GRISReconnectionData {
-	Intersection isec;
+	Intersection rcPrevIsec;
 	vec3 rcPrevWo;
 	float pad0;
 	vec3 throughput;
 	float pad1;
-};
-
-struct GRISSettings {
-	uint shiftType;
-	float rrScale;
 };
 
 layout(set = CameraDescSet, binding = 0) uniform _Camera {

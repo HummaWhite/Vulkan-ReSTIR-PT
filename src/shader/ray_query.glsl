@@ -25,6 +25,18 @@ bool rayQueryTraceShadow(
     return (rayQueryGetIntersectionTypeEXT(rayQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT);
 }
 
+bool rayQueryTraceVisibility(
+    accelerationStructureEXT topLevelAccelStructure,
+    uint rayFlags, uint rayMask,
+    vec3 from, vec3 to
+) {
+    return rayQueryTraceShadow(
+        topLevelAccelStructure,
+        rayFlags, rayMask,
+        from, MinRayDistance, normalize(to - from), distance(to, from) - MinRayDistance
+    );
+}
+
 Intersection rayQueryTraceClosestHit(
     accelerationStructureEXT topLevelAccelStructure,
     uint rayFlags, uint rayMask,

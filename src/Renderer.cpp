@@ -567,13 +567,13 @@ void Renderer::processGUI() {
 			}
 
 			if (mSettings.indirectMethod == RayTracingMethod::ResampledPT) {
-				static const char* shiftMethods[] = { "Reconnection", "Hybrid" };
+				static const char* shiftMethods[] = { "Reconnection", "Replay", "Hybrid" };
 				if (ImGui::Combo("Shift Mapping", reinterpret_cast<int*>(&mGRISPass->settings.shiftType), shiftMethods, IM_ARRAYSIZE(shiftMethods))) {
 					resetFrame = true;
 					clearReservoir = true;
 				}
 
-				if (ImGui::SliderFloat("RR Scale", &mGRISPass->settings.rrScale, 0.1, 4.0)) {
+				if (ImGui::SliderFloat("RR Scale", &mGRISPass->settings.rrScale, 0.1f, 4.f)) {
 				}
 			}
 			ImGui::Separator();
@@ -587,6 +587,16 @@ void Renderer::processGUI() {
 
 			ImGui::EndMenu();
 		}
+
+		if (ImGui::BeginMenu("Camera")) {
+			if (ImGui::DragFloat3("Position", &mCamera.pos().x) ||
+				ImGui::DragFloat3("Angle", &mCamera.angle().x) ||
+				ImGui::SliderFloat("FOV", &mCamera.FOV(), 0.f, 90.f)) {
+				mCamera.update();
+			}
+			ImGui::EndMenu();
+		}
+
 		ImGui::EndMainMenuBar();
 	}
 	if (resetFrame || !mSettings.accumulate) {
