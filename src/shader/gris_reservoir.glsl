@@ -14,6 +14,10 @@ const uint Reconnection = 0;
 const uint Replay = 1;
 const uint Hybrid = 2;
 
+const uint RcVertexSource = 0;
+const uint RcVertexDirectLight = 1;
+const uint RcVertexScattered = 2;
+
 float GRISToScalar(vec3 color) {
 	return luminance(color);
 }
@@ -34,12 +38,12 @@ void GRISPathFlagsSetPathLength(inout uint flags, uint id) {
 	flags = (flags & 0xfffffc1f) | ((id & 0x1f) << 5);
 }
 
-bool GRISPathFlagsIsNEE(uint flags) {
-	return (flags & 0x80000000) > 0;
+uint GRISPathFlagsRcVertexType(uint flags) {
+	return flags >> 30;
 }
 
-void GRISPathFlagsSetIsNEE(inout uint flags, bool isNEE) {
-	flags = (flags & 0x7fffffff) | (uint(isNEE) << 31);
+void GRISPathFlagsSetRcVertexType(inout uint flags, uint type) {
+	flags = (flags & 0x3fffffff) | (type << 30);
 }
 
 void GRISPathSampleReset(inout GRISPathSample pathSample) {

@@ -16,9 +16,9 @@ bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     if (uv.x < 0 || uv.y < 0 || uv.x > 1.0 || uv.y > 1.0) {
         return false;
     }
-    ivec2 pixelId = ivec2(uv * vec2(gl_LaunchSizeEXT.xy));
+    ivec2 pixelId = ivec2(uv * vec2(uCamera.filmSize.xy));
 
-    vec4 depthNormalPrev = texture(uDepthNormal, uv);
+    vec4 depthNormalPrev = texture(uDepthNormalPrev, uv);
     uvec2 albedoMatIdPrev = texelFetch(uAlbedoMatIdPrev, pixelId, 0).rg;
     
     float depthPrev = depthNormalPrev.x;

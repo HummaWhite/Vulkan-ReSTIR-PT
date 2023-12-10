@@ -24,7 +24,7 @@ layout(push_constant) uniform _PushConstant {
     GRISTraceSettings uSettings;
 };
 
-#define WRITE_OUTPUT false
+#define WRITE_OUTPUT
 
 void main() {
     const int MaxTracingDepth = 15;
@@ -41,7 +41,7 @@ void main() {
     vec3 norm = depthNormal.yzw;
 
     if (depth == 0.0) {
-#if WRITE_OUTPUT
+#ifdef WRITE_OUTPUT
         imageStore(uIndirectOutput, ivec2(threadIdx), vec4(vec3(0.0), 1.0));
 #endif
         return;
@@ -78,6 +78,9 @@ void main() {
     pathSample.primaryHitRng = rng;
 
     GRISReservoir resv = uGRISReservoir[index1D(threadIdx)];
+
+    // Target function        - pathSample.F = indirect illumination (full illumination - direct illumination without MIS)
+    // Path incident radiance - pathSample.rcVertexWi = 
 
 #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
@@ -132,9 +135,10 @@ void main() {
         bool isThisVertexConnectible = isBSDFConnectible(mat);
 
         if (!rcVertexFound && isLastVertexConnectible && isThisVertexConnectible && distToPrev > GRISDistanceThreshold) {
-            // found an rcVertex that satisfy connectibility conditions
-            // it can either be a regular surface, or an emitter
-            // if emitter, the emittance is recorded and the path is terminated
+            // found an rcVertex that satisfies connectibility conditions
+            // it can either be a regular surface or an emitter:
+            //   - if emitter, the emittance is recorded to rcVertexWi and the path is terminated
+            //   - if regular surface, the path continues to gather radiance to add to rcVertexWi
             rcVertexFound = true;
 
             pathSample.rcVertexIsec = isec;
@@ -145,6 +149,10 @@ void main() {
 
             rcVertexId = bounce;
             GRISPathFlagsSetRcVertexId(pathSample.flags, rcVertexId);
+
+            if (surf.isLight) {
+                GRISPathFlagsSetRcVertexType(pathSample.flags, RcVertexSource);
+            }
         }
 
         if (surf.isLight) {
@@ -175,16 +183,16 @@ void main() {
                 if (rcVertexFound) {
                     // if successfully sampled a light source and an rcVertex is found priorly
                     if (bounce == rcVertexId) {
-                        // if rcVertex is the same as our reference point, mark its type as direct light sampling at rcVertex (isNEE = true)
+                        // if rcVertex is the same as our reference point, mark its type as direct light sampling at rcVertex (RcVertexDirectLight)
                         // in theory we can continue tracing another BSDF sample (indirect lighting at rcVertex), and do RIS to choose one
-                        //   between
                         // for simplicity we can just terminate here
                         // and I doubt if it worths to have multiple sample candidates of longer path, since they are harder to connect to
                         pathSample.rcVertexLi = lightRadiance;
                         pathSample.rcVertexWi = lightDir;
                         pathSample.rcLightPdf = lightPdf;
-                        GRISPathFlagsSetIsNEE(pathSample.flags, true);
                         pathSample.F = lightTerms * throughput;
+
+                        GRISPathFlagsSetRcVertexType(pathSample.flags, RcVertexDirectLight);
                         radiance += lightTerms * throughput;
                         break;
                     }
@@ -219,8 +227,10 @@ void main() {
 
         if (rcVertexFound) {
             if (bounce == rcVertexId) {
+                // if direct light sampling fails at rcVertex, this is a scattered path sample (RcVertexScattered)
                 pathSample.rcVertexWi = s.wi;
                 pathSample.rcScatterPdf = s.pdf;
+                GRISPathFlagsSetRcVertexType(pathSample.flags, RcVertexScattered);
             }
             else {
                 throughputAfter *= scatterTerm;
@@ -241,6 +251,7 @@ void main() {
     uint pathLength = GRISPathFlagsPathLength(pathSample.flags);
 
     //radiance = colorWheel(float(rcVertexId) / float(pathLength));
+    //radiance = colorWheel(float(rcVertexId) / 6.0);
     //radiance = vec3(pathSample.rcScatterPdf);
     //radiance = vec3(GRISPathFlagsRcVertexId(pathSample.flags) == 1);
     //radiance = vec3(pathSample.rcPrevScatterPdf);
@@ -252,13 +263,15 @@ void main() {
     //radiance = pathSample.rcVertexLi;
     //radiance = colorWheel(float(GRISPathFlagsIsNEE(pathSample.flags)));
     //radiance = vec3(resv.resampleWeight / resv.sampleCount);
+    //radiance = colorWheel(float(GRISPathFlagsRcVertexType(pathSample.flags)) / 2.0);
+    //radiance = vec3(0.0);
 
     radiance = clampColor(radiance);
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(threadIdx)).rgb;
     accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
 
-#if WRITE_OUTPUT
+#ifdef WRITE_OUTPUT
     imageStore(uIndirectOutput, ivec2(threadIdx), vec4(accumulatedRadaince, 1.0));
 #endif
 }

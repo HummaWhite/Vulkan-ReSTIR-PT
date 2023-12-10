@@ -34,6 +34,10 @@ bool IntersectionIsValid(Intersection isec) {
     return isec.instanceIdx != InvalidHitIndex;
 }
 
+void IntersectionSetInvalid(inout Intersection isec) {
+    isec.instanceIdx = InvalidHitIndex;
+}
+
 void loadLightSurfaceInfo(uint triangleIdx, vec3 bary, out SurfaceInfo info) {
     TriangleLight light = uTriangleLights[triangleIdx];
 
