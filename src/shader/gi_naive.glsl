@@ -1,44 +1,29 @@
-#version 460
-#extension GL_EXT_ray_tracing : enable
-#extension GL_EXT_ray_query : enable
-#extension GL_GOOGLE_include_directive : enable
-#extension GL_EXT_nonuniform_qualifier : enable
+#ifndef GI_NAIVE_GLSL
+#define GI_NAIVE_GLSL
 
-#include "HostDevice.h"
-
-layout(local_size_x = RayQueryBlockSizeX, local_size_y = RayQueryBlockSizeY) in;
-
-#include "ray_query.glsl"
 #include "camera.glsl"
 #include "gbuffer_util.glsl"
 #include "light_sampling.glsl"
 #include "material.glsl"
 
-void main() {
-    const int MaxTracingDepth = 4;
-    uvec2 threadIdx = gl_GlobalInvocationID.xy;
-    uvec2 launchDim = uCamera.filmSize;
-
-    if (threadIdx.x >= launchDim.x || threadIdx.y >= launchDim.y) {
-        return;
-    }
-    vec2 uv = (vec2(threadIdx) + 0.5) / vec2(launchDim);
+vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
+    const int MaxTracingDepth = 15;
+    vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
 
     vec4 depthNormal = texture(uDepthNormal, uv);
     float depth = depthNormal.x;
     vec3 norm = depthNormal.yzw;
 
     if (depth == 0.0) {
-        imageStore(uIndirectOutput, ivec2(threadIdx), vec4(vec3(0.0), 1.0));
-        return;
+        return vec3(0.0);
     }
-    uvec2 albedoMatId = texelFetch(uAlbedoMatId, ivec2(threadIdx), 0).rg;
+    uvec2 albedoMatId = texelFetch(uAlbedoMatId, ivec2(index), 0).rg;
     vec3 albedo = unpackAlbedo(albedoMatId.x);
     int matMeshId = int(albedoMatId.y);
     int matId = matMeshId >> 16;
     
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + threadIdx.x, threadIdx.y);
+    uint rng = makeSeed(uCamera.seed + index.x, index.y);
 
     vec3 radiance = vec3(0.0);
     vec3 throughput = vec3(1.0);
@@ -53,11 +38,12 @@ void main() {
 
     Material mat = uMaterials[matId];
     BSDFSample s;
+    Intersection isec;
 
-#pragma unroll
+    #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
         if (bounce > 0) {
-            Intersection isec = rayQueryTraceClosestHit(
+            isec = traceClosestHit(
                 uTLAS,
                 gl_RayFlagsOpaqueEXT, 0xff,
                 ray.ori, MinRayDistance, ray.dir, MaxRayDistance
@@ -73,7 +59,7 @@ void main() {
         if (surf.isLight) {
             float cosTheta = -dot(ray.dir, surf.norm);
 
-            if (/* cosTheta > 0 */ true) {
+             if (/* cosTheta > 0 */ true) {
                 float weight = 1.0;
 
                 if (bounce > 0 && !isSampleTypeDelta(s.type)) {
@@ -87,7 +73,7 @@ void main() {
             break;
         }
 
-        if (/* sample direct lighting */ !isBSDFDelta(mat)) {
+        if (/* sample direct lighting */ bounce > 0 && !isBSDFDelta(mat)) {
             const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
             vec3 lightRadiance, lightDir;
@@ -95,10 +81,10 @@ void main() {
 
             lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, rng);
 
-            bool shadowed = rayQueryTraceShadow(
+            bool shadowed = traceShadow(
                 uTLAS,
                 shadowRayFlags, 0xff,
-                surf.pos, MinRayDistance, lightDir, lightDist - 1e-4
+                surf.pos, MinRayDistance, lightDir, lightDist - MinRayDistance
             );
 
             if (!shadowed && lightPdf > 1e-6) {
@@ -119,6 +105,7 @@ void main() {
         if (!sampleBSDF(mat, surf.albedo, surf.norm, wo, sample3f(rng), s) || s.pdf < 1e-6) {
             break;
         }
+
         float cosTheta = isSampleTypeDelta(s.type) ? 1.0 : absDot(surf.norm, s.wi);
         throughput *= s.bsdf * cosTheta / s.pdf;
         lastPos = surf.pos;
@@ -127,10 +114,7 @@ void main() {
         ray.dir = s.wi;
         ray.ori = surf.pos + ray.dir * 1e-4;
     }
-    radiance = clampColor(radiance);
-    float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
-    vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(threadIdx)).rgb;
-    accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
-
-    imageStore(uIndirectOutput, ivec2(threadIdx), vec4(accumulatedRadaince, 1.0));
+    return clampColor(radiance);
 }
+
+#endif

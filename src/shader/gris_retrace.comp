@@ -76,7 +76,7 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFla
         }
 
         if (bounce > 0) {
-            isec = rayQueryTraceClosestHit(
+            isec = traceClosestHit(
                 uTLAS,
                 gl_RayFlagsOpaqueEXT, 0xff,
                 ray.ori, MinRayDistance, ray.dir, MaxRayDistance
@@ -120,7 +120,7 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFla
 
             lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, lightRandSample);
 
-            bool shadowed = rayQueryTraceShadow(
+            bool shadowed = traceShadow(
                 uTLAS,
                 shadowRayFlags, 0xff,
                 surf.pos, MinRayDistance, lightDir, lightDist - MinRayDistance

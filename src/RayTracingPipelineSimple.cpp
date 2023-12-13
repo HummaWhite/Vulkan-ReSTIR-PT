@@ -1,33 +1,36 @@
-#include "NaiveRayTrace.h"
-#include "RayTracing.h"
+#include "RayTracingPipelineSimple.h"
 #include "shader/HostDevice.h"
 
-void NaiveRayTrace::destroy() {
-	mCtx->device.destroyPipeline(mRayTracingPipeline);
-	mCtx->device.destroyPipelineLayout(mRayTracingPipelineLayout);
+void RayTracingPipelineSimple::destroy() {
+	mCtx->device.destroyPipeline(mPipeline);
+	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void NaiveRayTrace::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
-	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
+void RayTracingPipelineSimple::execute(
+	vk::CommandBuffer cmd, vk::Extent2D extent,
+	const zvk::DescriptorSetBindingMap& descSetBindings, const void* pushConstant, uint32_t maxDepth
+) {
+	cmd.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, mPipeline);
 
-	cmd.bindPipeline(bindPoint, mRayTracingPipeline);
+	for (const auto& binding : descSetBindings) {
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR, mPipelineLayout, binding.first, binding.second, {});
+	}
 
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, CameraDescSet, param.cameraDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, RayImageDescSet, param.rayImageDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, RayTracingDescSet, param.rayTracingDescSet, {});
+	if (pushConstant) {
+		cmd.pushConstants(mPipelineLayout, vk::ShaderStageFlagBits::eRaygenKHR, 0, mPushConstantSize, pushConstant);
+	}
 
 	zvk::ExtFunctions::cmdTraceRaysKHR(
 		cmd,
 		mShaderBindingTable->rayGenRegion, mShaderBindingTable->missRegion, mShaderBindingTable->hitRegion, mShaderBindingTable->callableRegion,
-		extent.width, extent.height, param.maxDepth
+		extent.width, extent.height, maxDepth
 	);
 }
 
-void NaiveRayTrace::createPipeline(
+void RayTracingPipelineSimple::createPipeline(
 	zvk::ShaderManager* shaderManager, const File::path& rayGenShaderPath,
 	const std::vector<vk::DescriptorSetLayout>& descLayouts,
-	uint32_t maxDepth
+	uint32_t pushConstantSize, uint32_t maxDepth
 ) {
 	enum Stages : uint32_t {
 		RayGen,
@@ -78,13 +81,23 @@ void NaiveRayTrace::createPipeline(
 		)
 	);
 
+	auto pushConstantRange = vk::PushConstantRange()
+		.setStageFlags(vk::ShaderStageFlagBits::eRaygenKHR)
+		.setOffset(0)
+		.setSize(pushConstantSize);
+
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
 		.setSetLayouts(descLayouts);
 
-	mRayTracingPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
+	if (pushConstantSize > 0) {
+		pipelineLayoutCreateInfo.setPushConstantRanges(pushConstantRange);
+		mPushConstantSize = pushConstantSize;
+	}
+
+	mPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
 
 	auto pipelineCreateInfo = vk::RayTracingPipelineCreateInfoKHR()
-		.setLayout(mRayTracingPipelineLayout)
+		.setLayout(mPipelineLayout)
 		.setStages(stages)
 		.setGroups(groups)
 		.setMaxPipelineRayRecursionDepth(maxDepth);
@@ -92,9 +105,9 @@ void NaiveRayTrace::createPipeline(
 	auto result = zvk::ExtFunctions::createRayTracingPipelineKHR(mCtx->device, {}, {}, pipelineCreateInfo);
 
 	if (result.result != vk::Result::eSuccess) {
-		throw std::runtime_error("Failed to create RayTracingPass pipeline");
+		throw std::runtime_error("Failed to create RayTracingPipelineSimple");
 	}
-	mRayTracingPipeline = result.value;
 
-	mShaderBindingTable = std::make_unique<zvk::ShaderBindingTable>(mCtx, 2, 1, mRayTracingPipeline);
+	mPipeline = result.value;
+	mShaderBindingTable = std::make_unique<zvk::ShaderBindingTable>(mCtx, 2, 1, mPipeline);
 }

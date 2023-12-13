@@ -21,7 +21,7 @@ void main() {
     vec2 uv = (vec2(threadIdx) + 0.5) / vec2(launchDim);
   
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    float depth = rayQueryDebugVisualizeAS(uTLAS, ray.ori, ray.dir);
+    float depth = debugVisualizeAS(uTLAS, ray.ori, ray.dir);
 
     vec3 color = vec3(depth / 100.0);
     imageStore(uDirectOutput, ivec2(threadIdx), vec4(color, 1.0));

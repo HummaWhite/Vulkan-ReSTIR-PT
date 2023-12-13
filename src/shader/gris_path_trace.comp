@@ -87,7 +87,7 @@ void main() {
         GRISPathFlagsSetPathLength(pathSample.flags, bounce + 1);
 
         if (bounce > 0) {
-            isec = rayQueryTraceClosestHit(
+            isec = traceClosestHit(
                 uTLAS,
                 gl_RayFlagsOpaqueEXT, 0xff,
                 ray.ori, MinRayDistance, ray.dir, MaxRayDistance
@@ -170,7 +170,7 @@ void main() {
 
             lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, lightRandSample);
 
-            bool shadowed = rayQueryTraceShadow(
+            bool shadowed = traceShadow(
                 uTLAS,
                 shadowRayFlags, 0xff,
                 surf.pos, MinRayDistance, lightDir, lightDist - MinRayDistance

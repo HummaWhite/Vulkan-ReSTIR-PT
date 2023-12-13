@@ -43,6 +43,32 @@ void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 	appPtr->setShoudResetSwapchain(true);
 }
 
+void RayTracing::createPipeline(
+	zvk::ShaderManager* shaderManager, const File::path& rayQueryShader, const File::path& rayGenShader,
+	const std::vector<vk::DescriptorSetLayout>& descLayouts, uint32_t pushConstantSize
+) {
+	rayQuery = std::make_unique<zvk::ComputePipeline>(mCtx);
+	rayPipeline = std::make_unique<RayTracingPipelineSimple>(mCtx);
+
+	rayQuery->createPipeline(shaderManager, rayQueryShader, descLayouts, pushConstantSize);
+	rayPipeline->createPipeline(shaderManager, rayGenShader, descLayouts, pushConstantSize);
+}
+
+void RayTracing::execute(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings, const void* pushConstant) {
+	if (mode == RayQuery) {
+		rayQuery->execute(cmd, vk::Extent3D(extent, 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), descSetBindings);
+	}
+	else {
+		rayPipeline->execute(cmd, extent, descSetBindings);
+	}
+}
+
+bool RayTracing::GUI() {
+	static const char* modes[] = { "Ray Query", "Ray Pipeline" };
+	return ImGui::Combo("Mode", reinterpret_cast<int*>(&mode), modes, IM_ARRAYSIZE(modes));
+}
+
+
 void Renderer::initWindow() {
 	if (!glfwInit()) {
 		throw "Failed to init GLFW";
@@ -128,12 +154,11 @@ void Renderer::initVulkan() {
 		auto extent = mSwapchain->extent();
 
 		mGBufferPass = std::make_unique<GBufferPass>(mContext.get(), extent, mScene.resource);
-		mNaiveDIPass = std::make_unique<NaiveRayTrace>(mContext.get());
-		mNaiveGIPass = std::make_unique<NaiveRayTrace>(mContext.get());
-		mResampledDIPass = std::make_unique<DIReSTIR>(mContext.get());
-		mResampledGIPass = std::make_unique<GIReSTIR>(mContext.get());
+		mNaiveDIPass = std::make_unique<RayTracing>(mContext.get());
+		mNaiveGIPass = std::make_unique<RayTracing>(mContext.get());
+		mResampledDIPass = std::make_unique<RayTracing>(mContext.get());
+		mResampledGIPass = std::make_unique<RayTracing>(mContext.get());
 		mGRISPass = std::make_unique<GRISReSTIR>(mContext.get());
-		mRayQueryPTPass = std::make_unique<zvk::ComputePipeline>(mContext.get());
 		mVisualizeASPass = std::make_unique<zvk::ComputePipeline>(mContext.get());
 		mPostProcessPass = std::make_unique<PostProcessFrag>(mContext.get(), mSwapchain.get());
 
@@ -168,12 +193,11 @@ void Renderer::createPipeline() {
 		mDeviceScene->rayTracingDescLayout->layout,
 	};
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager.get(), descLayouts);
-	mNaiveDIPass->createPipeline(mShaderManager.get(), "shaders/di_naive.rgen.spv", descLayouts, 2);
-	mNaiveGIPass->createPipeline(mShaderManager.get(), "shaders/gi_naive.rgen.spv", descLayouts, 2);
-	mResampledDIPass->createPipeline(mShaderManager.get(), descLayouts, 2);
-	mResampledGIPass->createPipeline(mShaderManager.get(), descLayouts, 2);
+	mNaiveDIPass->createPipeline(mShaderManager.get(), "shaders/di_naive.comp.spv", "shaders/di_naive.rgen.spv", descLayouts);
+	mNaiveGIPass->createPipeline(mShaderManager.get(), "shaders/gi_naive.comp.spv", "shaders/gi_naive.rgen.spv", descLayouts);
+	mResampledDIPass->createPipeline(mShaderManager.get(), "shaders/di_resample_temporal.comp.spv", "shaders/di_resample_temporal.rgen.spv", descLayouts);
+	mResampledGIPass->createPipeline(mShaderManager.get(), "shaders/gi_resample_temporal.comp.spv", "shaders/gi_resample_temporal.rgen.spv", descLayouts);
 	mGRISPass->createPipeline(mShaderManager.get(), descLayouts);
-	mRayQueryPTPass->createPipeline(mShaderManager.get(), "shaders/full_naive_ray_query.comp.spv", descLayouts);
 	mVisualizeASPass->createPipeline(mShaderManager.get(), "shaders/as_visualize.comp.spv", descLayouts);
 	mPostProcessPass->createPipeline(mShaderManager.get(), mSwapchain->extent(), descLayouts);
 }
@@ -390,14 +414,6 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.count = static_cast<uint32_t>(mGBufferPass->numDrawMeshes)
 	};
 
-	auto rayTracingParam = RayTracingRenderParam {
-		.cameraDescSet = mCameraDescSet[mInFlightFrameIdx],
-		.resourceDescSet = mDeviceScene->resourceDescSet,
-		.rayImageDescSet = mRayImageDescSet[mInFlightFrameIdx][curFrame],
-		.rayTracingDescSet = mDeviceScene->rayTracingDescSet,
-		.maxDepth = 1
-	};
-
 	auto postProcPushConstant = PostProcessFrag::PushConstant {
 		.toneMapping = static_cast<uint32_t>(mSettings.toneMapping),
 		.correctGamma = static_cast<uint32_t>(mSettings.correctGamma),
@@ -405,7 +421,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.noIndirect = (mSettings.indirectMethod == RayTracingMethod::None)
 	};
 
-	zvk::DescriptorSetBindingMap computeTracingBindings = {
+	zvk::DescriptorSetBindingMap rayTracingBindings = {
 		{ CameraDescSet, mCameraDescSet[mInFlightFrameIdx] },
 		{ ResourceDescSet, mDeviceScene->resourceDescSet },
 		{ RayImageDescSet, mRayImageDescSet[mInFlightFrameIdx][curFrame] },
@@ -427,27 +443,26 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "Direct Lighting", { .5f, .3f, 1.f, 1.f }); {
 			if (mSettings.directMethod == RayTracingMethod::Naive) {
-				mNaiveDIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+				mNaiveDIPass->execute(cmd, mSwapchain->extent(), rayTracingBindings);
 			}
 			else if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
-				mResampledDIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+				mResampledDIPass->execute(cmd, mSwapchain->extent(), rayTracingBindings);
 			}
 			else if (mSettings.directMethod == RayTracingMethod::VisualizeAS) {
-				mVisualizeASPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), computeTracingBindings);
+				mVisualizeASPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), rayTracingBindings);
 			}
 			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
 
 		zvk::DebugUtils::cmdBeginLabel(cmd, "Indirect Lighting", { .6f, .3f, 9.f, 1.f }); {
 			if (mSettings.indirectMethod == RayTracingMethod::Naive) {
-				mNaiveGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
-				//mRayQueryPTPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), computeTracingBindings);
+				mNaiveGIPass->execute(cmd, mSwapchain->extent(), rayTracingBindings);
 			}
 			else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
-				mResampledGIPass->render(cmd, mSwapchain->extent(), rayTracingParam);
+				mResampledGIPass->execute(cmd, mSwapchain->extent(), rayTracingBindings);
 			}
 			else if (mSettings.indirectMethod == RayTracingMethod::ResampledPT) {
-				mGRISPass->render(cmd, mSwapchain->extent(), computeTracingBindings);
+				mGRISPass->render(cmd, mSwapchain->extent(), rayTracingBindings);
 			}
 			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
@@ -559,11 +574,26 @@ void Renderer::processGUI() {
 					clearReservoir = true;
 				}
 			}
+
+			if (mSettings.directMethod == RayTracingMethod::Naive) {
+				mNaiveDIPass->GUI();
+			}
+			else if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
+				mResampledDIPass->GUI();
+			}
+
 			if (ImGui::Combo("Indirect method", &mSettings.indirectMethod, indirectMethods, IM_ARRAYSIZE(indirectMethods))) {
 				resetFrame = true;
 				if (mSettings.indirectMethod == RayTracingMethod::ResampledGI || mSettings.indirectMethod == RayTracingMethod::ResampledPT) {
 					clearReservoir = true;
 				}
+			}
+
+			if (mSettings.indirectMethod == RayTracingMethod::Naive) {
+				mNaiveGIPass->GUI();
+			}
+			else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
+				mResampledGIPass->GUI();
 			}
 
 			if (mSettings.indirectMethod == RayTracingMethod::ResampledPT) {
@@ -635,7 +665,6 @@ void Renderer::cleanupVulkan() {
 	mResampledDIPass.reset();
 	mResampledGIPass.reset();
 	mGRISPass.reset();
-	mRayQueryPTPass.reset();
 	mVisualizeASPass.reset();
 	mPostProcessPass.reset();
 

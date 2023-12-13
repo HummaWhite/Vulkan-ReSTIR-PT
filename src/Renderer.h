@@ -12,12 +12,32 @@
 #include "shader/HostDevice.h"
 #include "Scene.h"
 #include "GBufferPass.h"
-#include "NaiveRayTrace.h"
+#include "RayTracingPipelineSimple.h"
 #include "DIReSTIR.h"
 #include "GIReSTIR.h"
 #include "GRISReSTIR.h"
 #include "PostProcessFrag.h"
 #include "GUIManager.h"
+
+struct RayTracing : public zvk::BaseVkObject {
+	enum Mode : uint32_t {
+		RayQuery = 0, RayPipeline = 1
+	};
+
+	RayTracing(const zvk::Context* ctx) : BaseVkObject(ctx) {}
+
+	void createPipeline(
+		zvk::ShaderManager* shaderManager, const File::path& rayQueryShader, const File::path& rayGenShader,
+		const std::vector<vk::DescriptorSetLayout>& descLayouts,
+		uint32_t pushConstantSize = 0);
+
+	void execute(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings, const void* pushConstant = nullptr);
+	bool GUI();
+
+	std::unique_ptr<zvk::ComputePipeline> rayQuery;
+	std::unique_ptr<RayTracingPipelineSimple> rayPipeline;
+	Mode mode = RayQuery;
+};
 
 class Renderer {
 public:
@@ -125,12 +145,11 @@ private:
 	std::unique_ptr<zvk::Buffer> mGRISReservoir[NumFramesInFlight][2];
 
 	std::unique_ptr<GBufferPass> mGBufferPass;
-	std::unique_ptr<NaiveRayTrace> mNaiveDIPass;
-	std::unique_ptr<NaiveRayTrace> mNaiveGIPass;
-	std::unique_ptr<DIReSTIR> mResampledDIPass;
-	std::unique_ptr<GIReSTIR> mResampledGIPass;
+	std::unique_ptr<RayTracing> mNaiveDIPass;
+	std::unique_ptr<RayTracing> mNaiveGIPass;
+	std::unique_ptr<RayTracing> mResampledDIPass;
+	std::unique_ptr<RayTracing> mResampledGIPass;
 	std::unique_ptr<GRISReSTIR> mGRISPass;
-	std::unique_ptr<zvk::ComputePipeline> mRayQueryPTPass;
 	std::unique_ptr<zvk::ComputePipeline> mVisualizeASPass;
 	std::unique_ptr<PostProcessFrag> mPostProcessPass;
 

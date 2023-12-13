@@ -3,7 +3,7 @@
 
 #include "ray_layouts.glsl"
 
-bool rayQueryTraceShadow(
+bool traceShadow(
     accelerationStructureEXT topLevelAccelStructure,
     uint rayFlags, uint rayMask,
     vec3 origin, float minDist, vec3 direction, float maxDist
@@ -25,19 +25,19 @@ bool rayQueryTraceShadow(
     return (rayQueryGetIntersectionTypeEXT(rayQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT);
 }
 
-bool rayQueryTraceVisibility(
+bool traceVisibility(
     accelerationStructureEXT topLevelAccelStructure,
     uint rayFlags, uint rayMask,
     vec3 from, vec3 to
 ) {
-    return rayQueryTraceShadow(
+    return traceShadow(
         topLevelAccelStructure,
         rayFlags, rayMask,
         from, MinRayDistance, normalize(to - from), distance(to, from) - MinRayDistance
     );
 }
 
-Intersection rayQueryTraceClosestHit(
+Intersection traceClosestHit(
     accelerationStructureEXT topLevelAccelStructure,
     uint rayFlags, uint rayMask,
     vec3 origin, float minDist, vec3 direction, float maxDist
@@ -69,7 +69,7 @@ Intersection rayQueryTraceClosestHit(
     return isec;
 }
 
-float rayQueryDebugVisualizeAS(accelerationStructureEXT topLevelAccelStructure, vec3 origin, vec3 direction) {
+float debugVisualizeAS(accelerationStructureEXT topLevelAccelStructure, vec3 origin, vec3 direction) {
     rayQueryEXT rayQuery;
 
     rayQueryInitializeEXT(

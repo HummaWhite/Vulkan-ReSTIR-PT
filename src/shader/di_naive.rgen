@@ -3,65 +3,14 @@
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 
-#include "ray_layouts.glsl"
-#include "camera.glsl"
-#include "gbuffer_util.glsl"
-#include "light_sampling.glsl"
-#include "material.glsl"
-
-layout(location = ClosestHitPayloadLocation) rayPayloadEXT Intersection rtIsec;
-layout(location = ShadowPayloadLocation) rayPayloadEXT bool rtShadowed;
+#include "ray_pipeline.glsl"
+#include "di_naive.glsl"
 
 void main() {
     uvec2 index = gl_LaunchIDEXT.xy;
-    vec2 uv = (vec2(index) + 0.5) / vec2(gl_LaunchSizeEXT.xy);
+    uvec2 launchDim = gl_LaunchSizeEXT.xy; //uCamera.filmSize
 
-    vec4 depthNormal = texture(uDepthNormal, uv);
-    float depth = depthNormal.x;
-    vec3 norm = depthNormal.yzw;
-
-    if (depth == 0.0) {
-        imageStore(uDirectOutput, ivec2(index), vec4(vec3(0.0), 1.0));
-        return;
-    }
-    uvec2 albedoMatId = texelFetch(uAlbedoMatId, ivec2(index), 0).rg;
-    vec3 albedo = unpackAlbedo(albedoMatId.x);
-    int matMeshId = int(albedoMatId.y);
-    int matId = matMeshId >> 16;
-    
-    Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + gl_LaunchIDEXT.x, gl_LaunchIDEXT.y);
-
-    vec3 radiance = vec3(0.0);
-    vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
-    vec3 wo = -ray.dir;
-    Material mat = uMaterials[matId];
-
-    if (/* sample direct lighting */ !isBSDFDelta(mat)) {
-        const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
-
-        vec3 lightRadiance, lightDir;
-        float lightDist, lightPdf;
-
-        rtShadowed = true;
-        lightRadiance = sampleLight(pos, lightDir, lightDist, lightPdf, rng);
-
-        traceRayEXT(
-            /* AS, flags, masks    */ uTLAS, shadowRayFlags, 0xff,
-            /* SBT offset & stride */ 0, 0,
-            /* miss index          */ 1,
-            /* ray attribs         */ pos, MinRayDistance, lightDir, lightDist - 1e-4,
-            /* payload location    */ ShadowPayloadLocation
-        );
-
-        if (!rtShadowed && lightPdf > 1e-6) {
-            float bsdfPdf = evalPdf(mat, norm, -ray.dir, lightDir);
-            float weight = MISWeight(lightPdf, bsdfPdf);
-            weight = 1.0;
-            radiance += lightRadiance * evalBSDF(mat, albedo, norm, wo, lightDir) * satDot(norm, lightDir) / lightPdf * weight;
-        }
-    }
-    radiance = clampColor(radiance);
+    vec3 radiance = directIllumination(index, launchDim);
 
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uDirectOutput, ivec2(index)).rgb;
