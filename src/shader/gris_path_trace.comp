@@ -161,7 +161,8 @@ void main() {
         // make sure sample space is aligned for all paths
         vec4 lightRandSample = sample4f(rng);
 
-        if (/* sample direct lighting */ bounce > 0 && !isBSDFDelta(mat)) {
+        if (bounce > 0 && !isBSDFDelta(mat) && rcVertexFound) {
+            // try to sample direct lighting on rcVertex and after
             const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
 
             vec3 lightRadiance, lightDir;
@@ -176,31 +177,29 @@ void main() {
             );
 
             if (!shadowed && lightPdf > 1e-6) {
+                // if successfully sampled a light source
                 float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
                 float weight = MISWeight(lightPdf, bsdfPdf);
                 vec3 lightTerms = lightRadiance * evalBSDF(mat, surf.albedo, surf.norm, wo, lightDir) * satDot(surf.norm, lightDir) / lightPdf;
+                
+                if (bounce == rcVertexId) {
+                    // if rcVertex is the same as our reference point, mark its type as direct light sampling at rcVertex (RcVertexDirectLight)
+                    // in theory we can continue tracing another BSDF sample (indirect lighting at rcVertex), and do RIS to choose one
+                    // for simplicity we can just terminate here
+                    // and I doubt if it worths to have multiple sample candidates of longer path, since they are harder to connect to
+                    pathSample.rcVertexLi = lightRadiance;
+                    pathSample.rcVertexWi = lightDir;
+                    pathSample.rcLightPdf = lightPdf;
+                    pathSample.F = lightTerms * throughput;
 
-                if (rcVertexFound) {
-                    // if successfully sampled a light source and an rcVertex is found priorly
-                    if (bounce == rcVertexId) {
-                        // if rcVertex is the same as our reference point, mark its type as direct light sampling at rcVertex (RcVertexDirectLight)
-                        // in theory we can continue tracing another BSDF sample (indirect lighting at rcVertex), and do RIS to choose one
-                        // for simplicity we can just terminate here
-                        // and I doubt if it worths to have multiple sample candidates of longer path, since they are harder to connect to
-                        pathSample.rcVertexLi = lightRadiance;
-                        pathSample.rcVertexWi = lightDir;
-                        pathSample.rcLightPdf = lightPdf;
-                        pathSample.F = lightTerms * throughput;
-
-                        GRISPathFlagsSetRcVertexType(pathSample.flags, RcVertexDirectLight);
-                        radiance += lightTerms * throughput;
-                        break;
-                    }
-                    else {
-                        // otherwise, it is not NEE, we continue the path to collect radiance from lights
-                        pathSample.rcVertexLi += lightTerms * weight * throughputAfter;
-                        pathSample.F += lightTerms * weight * throughput;
-                    }
+                    GRISPathFlagsSetRcVertexType(pathSample.flags, RcVertexDirectLight);
+                    radiance += lightTerms * throughput;
+                    break;
+                }
+                else {
+                    // otherwise, it is not NEE, we continue the path to collect radiance from lights
+                    pathSample.rcVertexLi += lightTerms * weight * throughputAfter;
+                    pathSample.F += lightTerms * weight * throughput;
                 }
                 radiance += lightTerms * weight * throughput;
             }

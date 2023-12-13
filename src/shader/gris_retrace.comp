@@ -113,33 +113,25 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFla
         if (rcPrevFound && (targetRcVertexType != RcVertexSource)) {
             bool isLightSamplable = bounce > 0 && !isBSDFDelta(mat);
 
-            if (isLightSamplable) {
-                /*
-                const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
+            const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
 
-                vec3 lightRadiance, lightDir;
-                float lightDist, lightPdf;
+            vec3 lightRadiance, lightDir;
+            float lightDist, lightPdf;
 
-                lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, lightRandSample);
+            lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, lightRandSample);
 
-                bool shadowed = rayQueryTraceShadow(
-                    uTLAS,
-                    shadowRayFlags, 0xff,
-                    surf.pos, MinRayDistance, lightDir, lightDist - MinRayDistance
-                );
-                */
-                if (/*!shadowed && lightPdf > 1e-6*/ true) {
-                    if (targetRcVertexType != RcVertexDirectLight) {
-                        // another case violating bijectibility
-                        IntersectionSetInvalid(rcPrevIsec);
-                    }
-                }
-            }
-            else {
-                if (targetRcVertexType != RcVertexScattered) {
-                    // another case violating bijectibility
-                    IntersectionSetInvalid(rcPrevIsec);
-                }
+            bool shadowed = rayQueryTraceShadow(
+                uTLAS,
+                shadowRayFlags, 0xff,
+                surf.pos, MinRayDistance, lightDir, lightDist - MinRayDistance
+            );
+            
+            if ((!shadowed && lightPdf > 1e-6) && targetRcVertexType != RcVertexDirectLight) {
+                // another case violating bijectibility
+                IntersectionSetInvalid(rcPrevIsec);
+            } else if (targetRcVertexType != RcVertexScattered) {
+                // another case violating bijectibility
+                IntersectionSetInvalid(rcPrevIsec);
             }
             break;
         }
