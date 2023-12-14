@@ -37,6 +37,10 @@ struct GRISReservoirData {
 	uint32_t reservoirData[4];
 };
 
+struct GRISReconnectionData {
+	uint32_t data[12];
+};
+
 void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 	// Log::bracketLine<0>("Resize to " + std::to_string(width) + "x" + std::to_string(height));
 	auto appPtr = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
@@ -266,6 +270,11 @@ void Renderer::createRayImage() {
 			);
 			zvk::DebugUtils::nameVkObject(mContext->device, mGRISReservoir[i][j]->buffer, std::format("GRISReservoir[{}, {}]", i, j));
 		}
+
+		mReconnectionData[i] = zvk::Memory::createBuffer(
+			mContext.get(), sizeof(GRISReconnectionData) * numPixels, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+		zvk::DebugUtils::nameVkObject(mContext->device, mReconnectionData[i]->buffer, std::format("GRISReconnectionData[{}]", i));
 	}
 }
 
@@ -288,6 +297,7 @@ void Renderer::createDescriptor() {
 		zvk::Descriptor::makeBinding(10, vk::DescriptorType::eStorageBuffer, rayImageFlags),
 		zvk::Descriptor::makeBinding(11, vk::DescriptorType::eStorageBuffer, rayImageFlags),
 		zvk::Descriptor::makeBinding(12, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding(13, vk::DescriptorType::eStorageBuffer, rayImageFlags)
 	};
 	mRayImageDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), rayImageBindings);
 
@@ -342,6 +352,7 @@ void Renderer::initDescriptor() {
 			update.add(rayImageLayout, rayImageSet, 10, zvk::Descriptor::makeBuffer(mGIReservoir[i][lastFrame].get()));
 			update.add(rayImageLayout, rayImageSet, 11, zvk::Descriptor::makeBuffer(mGRISReservoir[i][thisFrame].get()));
 			update.add(rayImageLayout, rayImageSet, 12, zvk::Descriptor::makeBuffer(mGRISReservoir[i][lastFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 13, zvk::Descriptor::makeBuffer(mReconnectionData[i].get()));
 			update.flush();
 		}
 		update.add(mCameraDescLayout.get(), mCameraDescSet[i], 0, vk::DescriptorBufferInfo(mCameraBuffer[i]->buffer, 0, mCameraBuffer[i]->size));
@@ -404,6 +415,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 	auto& DIReservoir = mDIReservoir[mInFlightFrameIdx][curFrame];
 	auto& GIReservoir = mGIReservoir[mInFlightFrameIdx][curFrame];
 	auto& GRISReservoir = mGRISReservoir[mInFlightFrameIdx][curFrame];
+	auto& reconnectionData = mReconnectionData[mInFlightFrameIdx];
 
 	auto GBufferParam = GBufferRenderParam {
 		.cameraDescSet = mCameraDescSet[mInFlightFrameIdx],
@@ -555,7 +567,7 @@ void Renderer::drawFrame() {
 
 void Renderer::initSettings() {
 	mSettings.directMethod = RayTracingMethod::None;
-	mSettings.indirectMethod = RayTracingMethod::ResampledGI;
+	mSettings.indirectMethod = RayTracingMethod::ResampledPT;
 	mSettings.frameLimit = 0;
 }
 
@@ -576,9 +588,11 @@ void Renderer::processGUI() {
 			}
 
 			if (mSettings.directMethod == RayTracingMethod::Naive) {
+				ImGui::SameLine();
 				mNaiveDIPass->GUI();
 			}
 			else if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
+				ImGui::SameLine();
 				mResampledDIPass->GUI();
 			}
 
@@ -590,14 +604,18 @@ void Renderer::processGUI() {
 			}
 
 			if (mSettings.indirectMethod == RayTracingMethod::Naive) {
+				ImGui::SameLine();
 				mNaiveGIPass->GUI();
 			}
 			else if (mSettings.indirectMethod == RayTracingMethod::ResampledGI) {
+				ImGui::SameLine();
 				mResampledGIPass->GUI();
 			}
 
 			if (mSettings.indirectMethod == RayTracingMethod::ResampledPT) {
+				ImGui::SameLine();
 				static const char* shiftMethods[] = { "Reconnection", "Replay", "Hybrid" };
+
 				if (ImGui::Combo("Shift Mapping", reinterpret_cast<int*>(&mGRISPass->settings.shiftType), shiftMethods, IM_ARRAYSIZE(shiftMethods))) {
 					resetFrame = true;
 					clearReservoir = true;
@@ -656,6 +674,7 @@ void Renderer::cleanupVulkan() {
 			mGIReservoir[i][j].reset();
 			mGRISReservoir[i][j].reset();
 		}
+		mReconnectionData[i].reset();
 	}
 
 	mDeviceScene.reset();

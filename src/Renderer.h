@@ -143,6 +143,7 @@ private:
 	std::unique_ptr<zvk::Buffer> mDIReservoir[NumFramesInFlight][2];
 	std::unique_ptr<zvk::Buffer> mGIReservoir[NumFramesInFlight][2];
 	std::unique_ptr<zvk::Buffer> mGRISReservoir[NumFramesInFlight][2];
+	std::unique_ptr<zvk::Buffer> mReconnectionData[NumFramesInFlight];
 
 	std::unique_ptr<GBufferPass> mGBufferPass;
 	std::unique_ptr<RayTracing> mNaiveDIPass;
