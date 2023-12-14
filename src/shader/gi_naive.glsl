@@ -10,16 +10,14 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
     const int MaxTracingDepth = 15;
     vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
 
-    vec4 depthNormal = texture(uDepthNormal, uv);
-    float depth = depthNormal.x;
-    vec3 norm = depthNormal.yzw;
+    float depth;
+    vec3 norm;
+    vec3 albedo;
+    int matMeshId;
 
-    if (depth == 0.0) {
+    if (!unpackGBuffer(texture(uDepthNormal, uv), texelFetch(uAlbedoMatId, ivec2(index), 0), depth, norm, albedo, matMeshId)) {
         return vec3(0.0);
     }
-    uvec2 albedoMatId = texelFetch(uAlbedoMatId, ivec2(index), 0).rg;
-    vec3 albedo = unpackAlbedo(albedoMatId.x);
-    int matMeshId = int(albedoMatId.y);
     int matId = matMeshId >> 16;
     
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));

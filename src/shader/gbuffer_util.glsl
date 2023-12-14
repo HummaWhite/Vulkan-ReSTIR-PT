@@ -21,6 +21,19 @@ vec3 unpackNormal(uvec2 packed) {
     return normalize(v);
 }
 
+bool unpackGBuffer(vec4 depthNormal, uvec4 albedoMatId, out float depth, out vec3 normal, out vec3 albedo, out int matMeshId) {
+    depth = depthNormal.x;
+
+    if (depth == 0.0) {
+        return false;
+    }
+    normal = depthNormal.yzw;
+    albedo = unpackAlbedo(albedoMatId.x);
+    matMeshId = int(albedoMatId.y);
+
+    return true;
+}
+
 uint packMotionVector(vec2 motion) {
     return packSnorm2x16(motion);
 }

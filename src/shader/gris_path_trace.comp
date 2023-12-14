@@ -82,7 +82,7 @@ void main() {
     // Target function        - pathSample.F = indirect illumination (full illumination - direct illumination without MIS)
     // Path incident radiance - pathSample.rcVertexWi = 
 
-#pragma unroll
+    #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
         GRISPathFlagsSetPathLength(pathSample.flags, bounce + 1);
 

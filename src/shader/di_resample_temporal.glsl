@@ -12,13 +12,14 @@ bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     }
     ivec2 pixelId = ivec2(uv * vec2(uCamera.filmSize.xy));
 
-    vec4 depthNormalPrev = texture(uDepthNormalPrev, uv);
-    uvec2 albedoMatIdPrev = texelFetch(uAlbedoMatIdPrev, pixelId, 0).rg;
-    
-    float depthPrev = depthNormalPrev.x;
-    vec3 normalPrev = depthNormalPrev.yzw;
-    vec3 albedoPrev = unpackAlbedo(albedoMatIdPrev.x);
-    int matMeshIdPrev = int(albedoMatIdPrev.y);
+    float depthPrev;
+    vec3 normalPrev;
+    vec3 albedoPrev;
+    int matMeshIdPrev;
+
+    if (!unpackGBuffer(texture(uDepthNormalPrev, uv), texelFetch(uAlbedoMatIdPrev, pixelId, 0), depthPrev, normalPrev, albedoPrev, matMeshIdPrev)) {
+        return false;
+    }
 
     Ray ray = pinholeCameraSampleRay(uPrevCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
     vec3 posPrev = ray.ori + ray.dir * (depthPrev - 1e-4);
@@ -35,18 +36,16 @@ vec3 directIllumination(uvec2 index, uvec2 filmSize) {
 
     vec2 uv = (vec2(index) + 0.5) / vec2(filmSize);
 
-    vec4 depthNormal = texture(uDepthNormal, uv);
-    float depth = depthNormal.x;
-    vec3 norm = depthNormal.yzw;
+    float depth;
+    vec3 norm;
+    vec3 albedo;
+    int matMeshId;
 
-    if (depth == 0.0) {
+    if (!unpackGBuffer(texture(uDepthNormal, uv), texelFetch(uAlbedoMatId, ivec2(index), 0), depth, norm, albedo, matMeshId)) {
         return vec3(0.0);
     }
-    uvec2 albedoMatId = texelFetch(uAlbedoMatId, ivec2(index), 0).rg;
-    vec3 albedo = unpackAlbedo(albedoMatId.x);
-    int matMeshId = int(albedoMatId.y);
-    int matId = matMeshId >> 16;
     vec2 motion = texelFetch(uMotionVector, ivec2(index), 0).xy;
+    int matId = matMeshId >> 16;
 
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
     uint rng = makeSeed(uCamera.seed + index.x, index.y);
@@ -106,7 +105,7 @@ vec3 directIllumination(uvec2 index, uvec2 filmSize) {
         }
     }
     DIReservoirResetIfInvalid(resv);
-    uDIReservoirPrev[index1D(uvec2(index))] = resv;
+    uDIReservoir[index1D(uvec2(index))] = resv;
 
     vec3 radiance = vec3(0.0);
 
