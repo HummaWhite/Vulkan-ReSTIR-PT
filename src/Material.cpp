@@ -63,5 +63,8 @@ std::optional<Material> loadMaterialNoBaseColor(const pugi::xml_node& node) {
 	else if (type == "lambertian") {
 		material.type = Material::Lambertian;
 	}
+	else if (type == "fake") {
+		material.type = Material::Fake;
+	}
 	return material;
 }

@@ -13,7 +13,7 @@
 
 struct Material {
 	enum Type {
-		Principled = 0, Lambertian, MetalWorkflow, Metal, Dielectric, ThinDielectric, Light
+		Principled = 0, Lambertian, MetalWorkflow, Metal, Dielectric, ThinDielectric, Fake, Light
 	};
 
 	glm::vec3 baseColor = glm::vec3(1.0f);

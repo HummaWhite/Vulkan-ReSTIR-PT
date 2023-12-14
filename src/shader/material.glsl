@@ -16,7 +16,8 @@ const uint MetallicWorkflow = 2;
 const uint Metal = 3;
 const uint Dielectric = 4;
 const uint ThinDielectric = 5;
-const uint Light = 6;
+const uint Fake = 6;
+const uint Light = 7;
 
 #define MATERIAL_DIELECTRIC_USE_SCHLICK_APPROX true
 
@@ -242,6 +243,9 @@ vec3 metalBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3 wi) {
 }
 
 float metalPdf(Material mat, vec3 n, vec3 wo, vec3 wi) {
+    if (isGTR2Delta(mat.roughness)) {
+        return 0.0;
+    }
     vec3 wh = normalize(wo + wi);
     return GTR2Pdf(n, wh, wo, square(mat.roughness)) / (4.0 * absDot(wh, wo));
 }
@@ -271,6 +275,14 @@ bool metalSampleBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3 r, out BSD
     return true;
 }
 
+bool fakeSampleBSDF(Material mat, vec3 albedo, vec3 wo, out BSDFSample s) {
+    s.wi = -wo;
+    s.bsdf = albedo;
+    s.pdf = 1.0;
+    s.type = Specular | Transmission;
+    return true;
+}
+
 vec3 evalBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3 wi) {
     switch (mat.type) {
     case Lambert:
@@ -280,6 +292,7 @@ vec3 evalBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3 wi) {
     case Metal:
         return metalBSDF(mat, albedo, n, wo, wi);
     case Dielectric:
+    case Fake:
         return vec3(0.0);
     }
     return vec3(0.0);
@@ -294,6 +307,7 @@ float evalPdf(Material mat, vec3 n, vec3 wo, vec3 wi) {
     case Metal:
         return metalPdf(mat, n, wo, wi);
     case Dielectric:
+    case Fake:
         return 0.0;
     }
     return 0.0;
@@ -309,6 +323,8 @@ bool sampleBSDF(Material mat, vec3 albedo, vec3 n, vec3 wo, vec3 r, out BSDFSamp
         return metalSampleBSDF(mat, albedo, n, wo, r, s);
     case Dielectric:
         return dielectricSampleBSDF(mat, albedo, n, wo, r, s);
+    case Fake:
+        return fakeSampleBSDF(mat, albedo, wo, s);
     }
     return false;
 }
@@ -322,6 +338,7 @@ bool isBSDFDelta(Material mat) {
     case Metal:
         return isGTR2Delta(mat.roughness);
     case Dielectric:
+    case Fake:
         return true;
     }
     return true;
@@ -336,6 +353,7 @@ bool isBSDFConnectible(Material mat) {
     case Metal:
         return isGTR2Connectible(mat.roughness);
     case Dielectric:
+    case Fake:
         return false;
     }
     return false;
