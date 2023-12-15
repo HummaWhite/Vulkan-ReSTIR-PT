@@ -121,22 +121,28 @@ struct DIReservoir {
 };
 
 struct GIPathSample {
-	vec3 radiance;
-	vec3 visiblePos;
-	vec3 visibleNorm;
-	vec3 sampledPos;
-	vec3 sampledNorm;
+	Intersection rcIsec;
+
+	vec3 rcLi;
+	float rcPrevScatterPdf;
+
+	vec3 rcWi;
+	uint rcRng;
+
+	vec3 rcLs;
+	float rcJacobian;
+
+	vec3 rcWs;
+	uint rcPrevCoord;
 };
 
 struct GIReservoir {
-	vec3 radiance;
+	GIPathSample pathSample;
+
 	uint sampleCount;
-	vec3 visiblePos;
 	float resampleWeight;
-	vec3 visibleNorm;
 	float contribWeight;
-	vec3 sampledPos;
-	float pHat;
+	float pad0;
 };
 
 struct GRISPathSample {

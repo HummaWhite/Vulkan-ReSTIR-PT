@@ -7,13 +7,12 @@
 
 GIPathSample GIPathSampleInit() {
 	GIPathSample pathSample;
-	pathSample.radiance = vec3(0.0);
-	pathSample.sampledNorm = vec3(100.0);
+	pathSample.rcIsec.instanceIdx = InvalidHitIndex;
 	return pathSample;
 }
 
 bool GIPathSampleIsValid(GIPathSample pathSample) {
-	return pathSample.sampledNorm.x < 10.0;
+	return pathSample.rcIsec.instanceIdx != InvalidHitIndex;
 }
 
 float GIToScalar(vec3 color) {
@@ -36,20 +35,12 @@ void GIReservoirResetIfInvalid(inout GIReservoir resv) {
 	}
 }
 
-void GIReservoirUpdateContribWeight(inout GIReservoir resv, float pHat) {
-	resv.contribWeight = resv.resampleWeight / (float(resv.sampleCount) * pHat);
-}
-
-void GIReservoirAddSample(inout GIReservoir resv, GIPathSample pathSample, float pHat, float resampleWeight, float r) {
+void GIReservoirAddSample(inout GIReservoir resv, GIPathSample pathSample, float resampleWeight, float r) {
 	resv.resampleWeight += resampleWeight;
 	resv.sampleCount++;
 
 	if (r * resv.resampleWeight < resampleWeight) {
-		resv.radiance = pathSample.radiance;
-		resv.visiblePos = pathSample.visiblePos;
-		resv.visibleNorm = pathSample.visibleNorm;
-		resv.sampledPos = pathSample.sampledPos;
-		resv.pHat = pHat;
+		resv.pathSample = pathSample;
 	}
 }
 
@@ -58,10 +49,6 @@ void GIReservoirCapSample(inout GIReservoir resv, uint cap) {
 		resv.resampleWeight *= float(cap) / float(resv.sampleCount);
 		resv.sampleCount = cap;
 	}
-}
-
-float GIPathSamplePHat(GIPathSample pathSample) {
-	return luminance(pathSample.radiance);
 }
 
 #endif

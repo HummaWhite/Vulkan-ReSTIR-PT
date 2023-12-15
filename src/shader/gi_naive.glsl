@@ -91,6 +91,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
                 radiance += lightRadiance * evalBSDF(mat, surf.albedo, surf.norm, wo, lightDir) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
             }
         }
+
         if (/* russian roulette */ bounce > 4) {
             float pdfTerminate = max(1.0 - luminance(throughput), 0);
 
