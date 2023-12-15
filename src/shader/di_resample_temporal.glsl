@@ -59,21 +59,29 @@ vec3 directIllumination(uvec2 index, uvec2 filmSize) {
 
     float blockRand = sample1f(rng);
 
+    DIPathSample pathSample;
+
     #pragma unroll
     for (uint i = 0; i < ResampleNum; i++) {
-        DIPathSample pathSample = DIPathSampleInit();
-        float lightPdf;
+        DIPathSampleInit(pathSample);
 
-        //pathSample.radiance = sampleLight(pos, pathSample.wi, pathSample.dist, lightPdf, rng);
-        pathSample.radiance = sampleLightThreaded(pos, blockRand, pathSample.wi, pathSample.dist, lightPdf, rng);
+        vec3 lightDir;
+        float lightPdf;
+        float lightDist;
+
+        pathSample.Li = sampleLight(pos, lightDir, lightDist, lightPdf, rng);
+        //pathSample.Li = sampleLightThreaded(pos, blockRand, pathSample.wi, pathSample.dist, lightPdf, rng);
+        pathSample.rcPos = pos + lightDir * lightDist;
+
         float resampleWeight = 0;
 
         if (lightPdf > 1e-6) {
-            float bsdfPdf = evalPdf(mat, norm, wo, pathSample.wi) * PiInv;
+            float bsdfPdf = evalPdf(mat, norm, wo, lightDir) * PiInv;
             float weight = MISWeight(lightPdf, bsdfPdf);
             weight = 1.0;
-            vec3 pHat = pathSample.radiance * evalBSDF(mat, albedo, norm, wo, pathSample.wi) * satDot(norm, pathSample.wi) * weight;
-            resampleWeight = DIToScalar(pHat / lightPdf);
+
+            vec3 Li = pathSample.Li * evalBSDF(mat, albedo, norm, wo, lightDir) * satDot(norm, lightDir) * weight;
+            resampleWeight = luminance(Li) / lightPdf;
         }
 
         if (isnan(resampleWeight)) {
@@ -85,17 +93,10 @@ vec3 directIllumination(uvec2 index, uvec2 filmSize) {
     if (/* shadow ray */ true) {
         const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
-        bool shadowed = traceShadow(
-            uTLAS,
-            shadowRayFlags, 0xff,
-            pos, MinRayDistance, resv.wi, resv.dist - 1e-4
-        );
-
-        if (shadowed) {
+        if (!traceVisibility(uTLAS, shadowRayFlags, 0xff, pos, resv.pathSample.rcPos)) {
             resv.resampleWeight = 0;
         }
     }
-
     DIReservoir temporalResv;
 
     if (((uCamera.frameIndex & CameraClearFlag) == 0) && findPreviousReservoir(uv + motion, pos, depth, norm, albedo, matMeshId, temporalResv)) {
@@ -107,11 +108,17 @@ vec3 directIllumination(uvec2 index, uvec2 filmSize) {
     DIReservoirResetIfInvalid(resv);
     uDIReservoir[index1D(uvec2(index))] = resv;
 
+    pathSample = resv.pathSample;
+
     vec3 radiance = vec3(0.0);
+    vec3 wi = normalize(pathSample.rcPos - pos);
 
     if (DIReservoirIsValid(resv) && resv.sampleCount > 0) {
-        vec3 pHat = resv.radiance * evalBSDF(mat, albedo, norm, wo, resv.wi) * satDot(norm, resv.wi);
-        radiance = pHat / luminance(pHat) * resv.resampleWeight / float(resv.sampleCount);
+        vec3 Li = pathSample.Li * evalBSDF(mat, albedo, norm, wo, wi) * satDot(norm, wi);
+
+        if (!isBlack(Li)) {
+            radiance = Li / luminance(Li) * resv.resampleWeight / float(resv.sampleCount);
+        }
     }
     return clampColor(radiance);
 }

@@ -24,23 +24,15 @@ const std::vector<const char*> DeviceExtensions = {
 	VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
 };
 
-struct DIReservoirData {
-	uint32_t data[12];
+
+template<uint32_t N> struct Data32 {
+	uint32_t data[N];
 };
 
-struct GIReservoirData {
-	uint32_t pathSampleData[8];
-	uint32_t reservoirData[4];
-};
-
-struct GRISReservoirData {
-	uint32_t pathSampleData[20];
-	uint32_t reservoirData[4];
-};
-
-struct GRISReconnectionData {
-	uint32_t data[12];
-};
+using DIReservoirData = Data32<8 + 4>;
+using GIReservoirData = Data32<8 + 4>;
+using GRISReservoirData = Data32<20 + 4>;
+using GRISReconnectionData = Data32<12>;
 
 void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 	// Log::bracketLine<0>("Resize to " + std::to_string(width) + "x" + std::to_string(height));

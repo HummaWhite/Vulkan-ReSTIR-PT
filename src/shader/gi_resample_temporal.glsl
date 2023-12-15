@@ -188,6 +188,8 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
         pathSample = resv.pathSample;
 
         if (GIReservoirIsValid(resv) && resv.sampleCount > 0 && !isBSDFDelta(primaryMat)) {
+            const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
+
             isec = pathSample.rcIsec;
             loadSurfaceInfo(isec, surf);
 
@@ -196,7 +198,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
 
             vec3 Li = pathSample.rcLo * evalBSDF(uMaterials[matId], albedo, norm, primaryWo, primaryWi) * satDot(norm, primaryWi);
 
-            if (!isBlack(Li) && traceVisibility(uTLAS, gl_RayFlagsNoneEXT, 0xff, primaryPos, surf.pos)) {
+            if (!isBlack(Li) && traceVisibility(uTLAS, shadowRayFlags, 0xff, primaryPos, surf.pos)) {
                 radiance = Li / luminance(Li) * weight;
             }
         }

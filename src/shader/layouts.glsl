@@ -103,17 +103,15 @@ struct Intersection {
 };
 
 struct DIPathSample {
-	vec3 radiance;
-	float pHat;
-	vec3 wi;
-	float dist;
+	vec3 Li;
+	float pad0;
+	vec3 rcPos;
+	bool valid;
 };
 
 struct DIReservoir {
-	vec3 radiance;
-	float pad0;
-	vec3 wi;
-	float dist;
+	DIPathSample pathSample;
+
 	uint sampleCount;
 	float resampleWeight;
 	float contribWeight;

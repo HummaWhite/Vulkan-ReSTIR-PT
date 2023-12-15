@@ -5,15 +5,12 @@
 #include "math.glsl"
 #include "ray_layouts.glsl"
 
-DIPathSample DIPathSampleInit() {
-	DIPathSample pathSample;
-	pathSample.radiance = vec3(0.0);
-	pathSample.dist = -1.0;
-	return pathSample;
+void DIPathSampleInit(inout DIPathSample pathSample) {
+	pathSample.rcPos = vec3(1e8, 0, 0);
 }
 
 bool DIPathSampleIsValid(DIPathSample pathSample) {
-	return pathSample.dist > 0;
+	return length(pathSample.rcPos) < 1e8 * 0.8;
 }
 
 float DIToScalar(vec3 color) {
@@ -36,18 +33,12 @@ void DIReservoirResetIfInvalid(inout DIReservoir resv) {
 	}
 }
 
-void DIReservoirUpdateContribWeight(inout DIReservoir resv, float pHat) {
-	resv.contribWeight = resv.resampleWeight / (float(resv.sampleCount) * pHat);
-}
-
 void DIReservoirAddSample(inout DIReservoir resv, DIPathSample pathSample, float resampleWeight, float r) {
 	resv.resampleWeight += resampleWeight;
 	resv.sampleCount++;
 
 	if (r * resv.resampleWeight < resampleWeight) {
-		resv.radiance = pathSample.radiance;
-		resv.wi = pathSample.wi;
-		resv.dist = pathSample.dist;
+		resv.pathSample = pathSample;
 	}
 }
 
@@ -56,9 +47,7 @@ void DIReservoirMerge(inout DIReservoir resv, DIReservoir rhs, float r) {
 	resv.sampleCount += rhs.sampleCount;
 	
 	if (r * resv.resampleWeight < rhs.resampleWeight) {
-		resv.radiance = rhs.radiance;
-		resv.wi = rhs.wi;
-		resv.dist = rhs.dist;
+		resv.pathSample = rhs.pathSample;
 	}
 }
 
@@ -70,7 +59,7 @@ void DIReservoirCapSample(inout DIReservoir resv, uint cap) {
 }
 
 float DIPathSamplePHat(DIPathSample pathSample) {
-	return luminance(pathSample.radiance);
+	return luminance(pathSample.Li);
 }
 
 #endif
