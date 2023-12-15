@@ -50,7 +50,6 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
     uint rng = makeSeed(uCamera.seed + index.x, index.y);
 
-    vec3 throughputFirst;
     vec3 throughputAfter = vec3(1.0);
     vec3 lastPos;
     vec3 wo = -ray.dir;
@@ -61,13 +60,14 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
     surf.albedo = albedo;
     surf.isLight = false;
 
-    GIPathSample pathSample = GIPathSampleInit();
-    pathSample.visiblePos = surf.pos;
-    pathSample.visibleNorm = surf.norm;
+    GIPathSample pathSample;
+    GIPathSampleInit(pathSample);
+    pathSample.rcPrevCoord = index.y << 16 | index.x;
     
     vec3 primaryPos = surf.pos;
     vec3 primaryWo = -ray.dir;
     vec3 primaryAlbedo = albedo;
+    vec3 primaryScatter;
     float primaryPdf;
 
     Material mat = uMaterials[matId];
@@ -90,8 +90,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
             mat = uMaterials[surf.matIndex];
 
             if (bounce == 1) {
-                pathSample.sampledPos = surf.pos;
-                pathSample.sampledNorm = surf.norm;
+                pathSample.rcIsec = isec;
             }
         }
 
@@ -108,7 +107,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
                     weight = MISWeight(s.pdf, lightPdf);
                 }
                 vec3 addition = surf.albedo * weight;
-                pathSample.radiance += addition * (bounce == 1 ? vec3(1.0) : throughputAfter);
+                pathSample.rcLo += addition * (bounce == 1 ? vec3(1.0) : throughputAfter);
             }
             break;
         }
@@ -130,7 +129,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
             if (!shadowed && lightPdf > 1e-6) {
                 float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
                 float weight = MISWeight(lightPdf, bsdfPdf);
-                pathSample.radiance += lightRadiance * evalBSDF(mat, surf.albedo, surf.norm, wo, lightDir) * satDot(surf.norm, lightDir) / lightPdf * weight * throughputAfter;
+                pathSample.rcLo += lightRadiance * evalBSDF(mat, surf.albedo, surf.norm, wo, lightDir) * satDot(surf.norm, lightDir) / lightPdf * weight * throughputAfter;
             }
         }
         if (/* russian roulette */ bounce > 4) {
@@ -142,7 +141,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
             throughputAfter /= (1.0 - pdfTerminate);
         }
 
-        if (!sampleBSDF(mat, (bounce == 0 && !isBSDFDelta(mat)) ? vec3(1.0) : surf.albedo, surf.norm, wo, sample3f(rng), s) || s.pdf < 1e-6) {
+        if (!sampleBSDF(mat, (bounce == 0 && !isBSDFDelta(mat)) ? surf.albedo : surf.albedo, surf.norm, wo, sample3f(rng), s) || s.pdf < 1e-6) {
             break;
         }
         if (bounce == 0) {
@@ -152,7 +151,8 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
         vec3 scatterTerms = s.bsdf * cosTheta / s.pdf;
 
         if (bounce == 0) {
-            throughputFirst = scatterTerms;
+            primaryScatter = s.bsdf * cosTheta;
+            primaryPdf = s.pdf;
         }
         else {
             throughputAfter *= scatterTerms;
@@ -163,7 +163,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
         ray.dir = s.wi;
         ray.ori = surf.pos + ray.dir * 1e-4;
     }
-    vec3 radiance = pathSample.radiance * throughputFirst;
+    vec3 radiance = pathSample.rcLo * primaryScatter / primaryPdf;
 
     GIReservoir resv;
     GIReservoirReset(resv);
@@ -172,24 +172,33 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
         if ((uCamera.frameIndex & CameraClearFlag) == 0) {
             findPreviousReservoir(uv + motion, primaryPos, depth, norm, albedo, matMeshId, resv);
         }
-        float sampleWeight = 0.0;
 
         if (GIPathSampleIsValid(pathSample)) {
-            float pHat = luminance(pathSample.radiance);
-            sampleWeight = pHat / primaryPdf;
+            float sampleWeight = luminance(radiance);
 
             if (isnan(sampleWeight) || sampleWeight < 0.0 || primaryPdf < 1e-6) {
                 sampleWeight = 0.0;
             }
-            GIReservoirAddSample(resv, pathSample, pHat, sampleWeight, sample1f(rng));
+            GIReservoirAddSample(resv, pathSample, sampleWeight, sample1f(rng));
         }
         GIReservoirResetIfInvalid(resv);
         GIReservoirCapSample(resv, 40);
 
-        if (GIReservoirIsValid(resv) && resv.sampleCount > 0 && resv.pHat > 1e-6 && isBSDFConnectible(uMaterials[matId])) {
-            vec3 primaryWi = normalize(resv.sampledPos - primaryPos);
-            radiance = resv.radiance / resv.pHat * resv.resampleWeight / float(resv.sampleCount);
-            radiance *= evalBSDF(uMaterials[matId], albedo, norm, primaryWo, primaryWi) * satDot(norm, primaryWi);
+        Material primaryMat = uMaterials[matId];
+        pathSample = resv.pathSample;
+
+        if (GIReservoirIsValid(resv) && resv.sampleCount > 0 && !isBSDFDelta(primaryMat)) {
+            isec = pathSample.rcIsec;
+            loadSurfaceInfo(isec, surf);
+
+            vec3 primaryWi = normalize(surf.pos - primaryPos);
+            float weight = resv.resampleWeight / float(resv.sampleCount);
+
+            vec3 Li = pathSample.rcLo * evalBSDF(uMaterials[matId], albedo, norm, primaryWo, primaryWi) * satDot(norm, primaryWi);
+
+            if (!isBlack(Li) && traceVisibility(uTLAS, gl_RayFlagsNoneEXT, 0xff, primaryPos, surf.pos)) {
+                radiance = Li / luminance(Li) * weight;
+            }
         }
     }
     uGIReservoir[index1D(index)] = resv;

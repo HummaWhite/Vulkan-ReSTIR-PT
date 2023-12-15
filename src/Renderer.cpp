@@ -29,7 +29,8 @@ struct DIReservoirData {
 };
 
 struct GIReservoirData {
-	uint32_t data[16];
+	uint32_t pathSampleData[8];
+	uint32_t reservoirData[4];
 };
 
 struct GRISReservoirData {
