@@ -30,7 +30,7 @@ bool traceVisibility(
     uint rayFlags, uint rayMask,
     vec3 from, vec3 to
 ) {
-    return traceShadow(
+    return !traceShadow(
         topLevelAccelStructure,
         rayFlags, rayMask,
         from, MinRayDistance, normalize(to - from), distance(to, from) - MinRayDistance
