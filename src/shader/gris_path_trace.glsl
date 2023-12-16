@@ -99,7 +99,6 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
                 }
                 radiance += weightedLi * throughput;
             }
-            break;
         }
         bool isThisVertexConnectible = surf.isLight || isBSDFConnectible(mat);
 
@@ -212,7 +211,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
     uint pathLength = GRISPathFlagsPathLength(pathSample.flags);
 
     //radiance = colorWheel(float(rcVertexId) / float(pathLength));
-    //radiance = colorWheel(float(rcVertexId) / 6.0);
+    //radiance = colorWheel(float(rcVertexId) / 8.0);
     //radiance = vec3(GRISPathFlagsRcVertexId(pathSample.flags) == 1);
     //radiance = vec3(pathSample.rcPrevScatterPdf);
     //radiance = vec3(pathSample.rcJacobian);

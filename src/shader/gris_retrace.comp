@@ -12,32 +12,30 @@ layout(local_size_x = RayQueryBlockSizeX, local_size_y = RayQueryBlockSizeY) in;
 #include "gris_retrace.glsl"
 
 void main() {
-    uvec2 threadIdx = gl_GlobalInvocationID.xy;
+    uvec2 index = gl_GlobalInvocationID.xy;
     uvec2 launchDim = uCamera.filmSize;
 
-    if (threadIdx.x >= launchDim.x || threadIdx.y >= launchDim.y) {
+    if (index.x >= launchDim.x || index.y >= launchDim.y) {
         return;
     }
-    vec2 uv = (vec2(threadIdx) + 0.5) / vec2(launchDim);
+    const int MaxTracingDepth = 15;
+    vec2 uv = (vec2(index) + 0.5) / vec2(launchDim);
 
-    vec4 depthNormal = texture(uDepthNormal, uv);
-    float depth = depthNormal.x;
-    vec3 norm = depthNormal.yzw;
+    float depth;
+    vec3 norm;
+    vec3 albedo;
+    int matMeshId;
 
-    if (depth == 0.0) {
-        //imageStore(uIndirectOutput, ivec2(threadIdx), vec4(vec3(0.0), 1.0));
+    if (!unpackGBuffer(texture(uDepthNormal, uv), texelFetch(uAlbedoMatId, ivec2(index), 0), depth, norm, albedo, matMeshId)) {
+        imageStore(uIndirectOutput, ivec2(index), vec4(vec3(0.0), 1.0));
         return;
     }
-    uvec2 albedoMatId = texelFetch(uAlbedoMatId, ivec2(threadIdx), 0).rg;
-    vec3 albedo = unpackAlbedo(albedoMatId.x);
-    int matMeshId = int(albedoMatId.y);
     int matId = matMeshId >> 16;
-
-    vec2 motion = texelFetch(uMotionVector, ivec2(threadIdx), 0).xy;
-    /*
     
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + threadIdx.x, threadIdx.y);
+    uint rng = makeSeed(uCamera.seed + index.x, index.y);
+
+    vec2 motion = texelFetch(uMotionVector, ivec2(index), 0).xy;
 
     SurfaceInfo surf;
     surf.pos = ray.ori + ray.dir * (depth - 1e-4);
@@ -46,10 +44,17 @@ void main() {
     surf.isLight = false;
     surf.matIndex = matId;
 
-    GRISReservoir resv = uGRISReservoir[index1D(threadIdx)];
+    GRISReservoir resv = uGRISReservoir[index1D(index)];
+    GRISReservoir temporalResv;
+
+    if (!findPreviousReservoir(uv + motion, surf.pos, depth, norm, albedo, matMeshId, temporalResv)) {
+        imageStore(uIndirectOutput, ivec2(index), vec4(vec3(0.0), 1.0));
+        return;
+    }
 
     Intersection rcPrevIsec;
-    vec3 rcPrevwo;
-    vec3 throughput = traceReplayPathForHybridShift(surf, -ray.dir, resv.pathSample.primaryHitRng, rcPrevIsec, rcPrevWo);
-    */
+    vec3 rcPrevWo;
+    vec3 throughput = traceReplayPathForHybridShift(surf, ray, temporalResv.pathSample.flags, temporalResv.pathSample.primaryRng, rcPrevIsec, rcPrevWo);
+    
+    imageStore(uIndirectOutput, ivec2(index), vec4(vec3(temporalResv.resampleWeight), 1.0));
 }

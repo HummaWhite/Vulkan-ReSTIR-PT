@@ -26,13 +26,14 @@ bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     }
     ivec2 pixelId = ivec2(uv * vec2(uCamera.filmSize.xy));
 
-    vec4 depthNormalPrev = texture(uDepthNormalPrev, uv);
-    uvec2 albedoMatIdPrev = texelFetch(uAlbedoMatIdPrev, pixelId, 0).rg;
-    
-    float depthPrev = depthNormalPrev.x;
-    vec3 normalPrev = depthNormalPrev.yzw;
-    vec3 albedoPrev = unpackAlbedo(albedoMatIdPrev.x);
-    int matMeshIdPrev = int(albedoMatIdPrev.y);
+    float depthPrev;
+    vec3 normalPrev;
+    vec3 albedoPrev;
+    int matMeshIdPrev;
+
+    if (!unpackGBuffer(texture(uDepthNormalPrev, uv), texelFetch(uAlbedoMatIdPrev, pixelId, 0), depthPrev, normalPrev, albedoPrev, matMeshIdPrev)) {
+        return false;
+    }
 
     Ray ray = pinholeCameraSampleRay(uPrevCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
     vec3 posPrev = ray.ori + ray.dir * (depthPrev - 1e-4);

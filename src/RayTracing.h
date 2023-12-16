@@ -39,6 +39,10 @@ struct RayTracing : public zvk::BaseVkObject {
 	void execute(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings, const void* pushConstant = nullptr);
 	bool GUI();
 
+	vk::PipelineStageFlagBits pipelineStage() const {
+		return (mode == RayQuery) ? vk::PipelineStageFlagBits::eComputeShader : vk::PipelineStageFlagBits::eRayTracingShaderKHR;
+	}
+
 	std::unique_ptr<zvk::ComputePipeline> rayQuery;
 	std::unique_ptr<RayTracingPipelineSimple> rayPipeline;
 	Mode mode = RayQuery;

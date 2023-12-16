@@ -24,5 +24,5 @@ void main() {
     vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(index)).rgb;
     accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
 
-    imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
+    //imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
 }
