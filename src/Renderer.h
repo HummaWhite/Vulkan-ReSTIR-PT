@@ -9,35 +9,15 @@
 #include <zvk.hpp>
 
 #include "util/Timer.h"
+#include "GUIManager.h"
 #include "shader/HostDevice.h"
 #include "Scene.h"
 #include "GBufferPass.h"
-#include "RayTracingPipelineSimple.h"
+#include "RayTracing.h"
 #include "DIReSTIR.h"
 #include "GIReSTIR.h"
 #include "GRISReSTIR.h"
 #include "PostProcessFrag.h"
-#include "GUIManager.h"
-
-struct RayTracing : public zvk::BaseVkObject {
-	enum Mode : uint32_t {
-		RayQuery = 0, RayPipeline = 1
-	};
-
-	RayTracing(const zvk::Context* ctx) : BaseVkObject(ctx) {}
-
-	void createPipeline(
-		zvk::ShaderManager* shaderManager, const File::path& rayQueryShader, const File::path& rayGenShader,
-		const std::vector<vk::DescriptorSetLayout>& descLayouts,
-		uint32_t pushConstantSize = 0);
-
-	void execute(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings, const void* pushConstant = nullptr);
-	bool GUI();
-
-	std::unique_ptr<zvk::ComputePipeline> rayQuery;
-	std::unique_ptr<RayTracingPipelineSimple> rayPipeline;
-	Mode mode = RayQuery;
-};
 
 class Renderer {
 public:

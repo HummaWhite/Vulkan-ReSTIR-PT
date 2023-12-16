@@ -12,10 +12,10 @@ public:
 
 	void createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts, uint32_t maxDepth);
 
-	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param);
+	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings);
 
 private:
-	vk::Pipeline mRayTracingPipeline;
-	vk::PipelineLayout mRayTracingPipelineLayout;
+	vk::Pipeline mPipeline;
+	vk::PipelineLayout mPipelineLayout;
 	std::unique_ptr<zvk::ShaderBindingTable> mShaderBindingTable;
 };

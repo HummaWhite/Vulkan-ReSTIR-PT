@@ -1,26 +1,22 @@
 #include "GIReSTIR.h"
-#include "RayTracing.h"
 #include "shader/HostDevice.h"
 
 void GIReSTIR::destroy() {
-	mCtx->device.destroyPipeline(mRayTracingPipeline);
-	mCtx->device.destroyPipelineLayout(mRayTracingPipelineLayout);
+	mCtx->device.destroyPipeline(mPipeline);
+	mCtx->device.destroyPipelineLayout(mPipelineLayout);
 }
 
-void GIReSTIR::render(vk::CommandBuffer cmd, vk::Extent2D extent, const RayTracingRenderParam& param) {
-	auto bindPoint = vk::PipelineBindPoint::eRayTracingKHR;
+void GIReSTIR::render(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings) {
+	cmd.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, mPipeline);
 
-	cmd.bindPipeline(bindPoint, mRayTracingPipeline);
-
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, CameraDescSet, param.cameraDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, RayImageDescSet, param.rayImageDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mRayTracingPipelineLayout, RayTracingDescSet, param.rayTracingDescSet, {});
+	for (const auto& binding : descSetBindings) {
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR, mPipelineLayout, binding.first, binding.second, {});
+	}
 
 	zvk::ExtFunctions::cmdTraceRaysKHR(
 		cmd,
 		mShaderBindingTable->rayGenRegion, mShaderBindingTable->missRegion, mShaderBindingTable->hitRegion, mShaderBindingTable->callableRegion,
-		extent.width, extent.height, param.maxDepth
+		extent.width, extent.height, 2
 	);
 }
 
@@ -77,10 +73,10 @@ void GIReSTIR::createPipeline(zvk::ShaderManager* shaderManager, const std::vect
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
 		.setSetLayouts(descLayouts);
 
-	mRayTracingPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
+	mPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
 
 	auto pipelineCreateInfo = vk::RayTracingPipelineCreateInfoKHR()
-		.setLayout(mRayTracingPipelineLayout)
+		.setLayout(mPipelineLayout)
 		.setStages(stages)
 		.setGroups(groups)
 		.setMaxPipelineRayRecursionDepth(maxDepth);
@@ -90,7 +86,7 @@ void GIReSTIR::createPipeline(zvk::ShaderManager* shaderManager, const std::vect
 	if (result.result != vk::Result::eSuccess) {
 		throw std::runtime_error("Failed to create RayTracingPass pipeline");
 	}
-	mRayTracingPipeline = result.value;
+	mPipeline = result.value;
 
-	mShaderBindingTable = std::make_unique<zvk::ShaderBindingTable>(mCtx, 2, 1, mRayTracingPipeline);
+	mShaderBindingTable = std::make_unique<zvk::ShaderBindingTable>(mCtx, 2, 1, mPipeline);
 }

@@ -1,5 +1,8 @@
-#include "RayTracingPipelineSimple.h"
+#include "RayTracing.h"
 #include "shader/HostDevice.h"
+#include "util/Error.h"
+
+#include <imgui.h>
 
 void RayTracingPipelineSimple::destroy() {
 	mCtx->device.destroyPipeline(mPipeline);
@@ -110,4 +113,40 @@ void RayTracingPipelineSimple::createPipeline(
 
 	mPipeline = result.value;
 	mShaderBindingTable = std::make_unique<zvk::ShaderBindingTable>(mCtx, 2, 1, mPipeline);
+}
+
+void RayTracing::createPipeline(
+	zvk::ShaderManager* shaderManager, const File::path& rayQueryShader, const File::path& rayGenShader,
+	const std::vector<vk::DescriptorSetLayout>& descLayouts, uint32_t pushConstantSize
+) {
+	if (!rayQueryShader.empty()) {
+		rayQuery = std::make_unique<zvk::ComputePipeline>(mCtx);
+		rayQuery->createPipeline(shaderManager, rayQueryShader, descLayouts, pushConstantSize);
+	}
+
+	if (!rayGenShader.empty()) {
+		rayPipeline = std::make_unique<RayTracingPipelineSimple>(mCtx);
+		rayPipeline->createPipeline(shaderManager, rayGenShader, descLayouts, pushConstantSize);
+	}
+
+	if (!rayQuery && !rayPipeline) {
+		mode = Undefined;
+	}
+}
+
+void RayTracing::execute(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings, const void* pushConstant) {
+	if (mode == RayQuery && rayQuery) {
+		rayQuery->execute(cmd, vk::Extent3D(extent, 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), descSetBindings, pushConstant);
+	}
+	else if (mode == RayPipeline && rayPipeline) {
+		rayPipeline->execute(cmd, extent, descSetBindings, pushConstant);
+	}
+	else {
+		Log::line("RayTracing::execute: pipeline not created");
+	}
+}
+
+bool RayTracing::GUI() {
+	static const char* modes[] = { "Ray Query", "Ray Pipeline" };
+	return ImGui::Combo("Mode", reinterpret_cast<int*>(&mode), modes, IM_ARRAYSIZE(modes));
 }

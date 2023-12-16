@@ -2,11 +2,11 @@
 
 #include <zvk.hpp>
 
-struct RayTracingRenderParam;
+#include "RayTracing.h"
 
 class GRISReSTIR : public zvk::BaseVkObject {
 public:
-	enum ShiftType { Reconnection, Hybrid };
+	enum ShiftType { Reconnection, Replay, Hybrid };
 
 	struct Settings {
 		uint32_t shiftType;
@@ -19,14 +19,14 @@ public:
 	void destroy();
 
 	void createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts);
-
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings);
+	void GUI(bool& resetFrame, bool& clearReservoir);
 
 public:
 	Settings settings = { Reconnection, 1.f };
 
 private:
-	std::unique_ptr<zvk::ComputePipeline> mPathTracePass;
+	std::unique_ptr<RayTracing> mPathTracePass;
 	std::unique_ptr<zvk::ComputePipeline> mSpatialRetracePass;
 	std::unique_ptr<zvk::ComputePipeline> mTemporalRetracePass;
 	std::unique_ptr<zvk::ComputePipeline> mSpatialReusePass;

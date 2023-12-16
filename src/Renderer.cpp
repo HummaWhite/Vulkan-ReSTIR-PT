@@ -1,6 +1,5 @@
 #include "Renderer.h"
 #include "WindowInput.h"
-#include "RayTracing.h"
 #include "shader/HostDevice.h"
 #include "util/Error.h"
 
@@ -39,32 +38,6 @@ void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 	auto appPtr = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
 	appPtr->setShoudResetSwapchain(true);
 }
-
-void RayTracing::createPipeline(
-	zvk::ShaderManager* shaderManager, const File::path& rayQueryShader, const File::path& rayGenShader,
-	const std::vector<vk::DescriptorSetLayout>& descLayouts, uint32_t pushConstantSize
-) {
-	rayQuery = std::make_unique<zvk::ComputePipeline>(mCtx);
-	rayPipeline = std::make_unique<RayTracingPipelineSimple>(mCtx);
-
-	rayQuery->createPipeline(shaderManager, rayQueryShader, descLayouts, pushConstantSize);
-	rayPipeline->createPipeline(shaderManager, rayGenShader, descLayouts, pushConstantSize);
-}
-
-void RayTracing::execute(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings, const void* pushConstant) {
-	if (mode == RayQuery) {
-		rayQuery->execute(cmd, vk::Extent3D(extent, 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), descSetBindings);
-	}
-	else {
-		rayPipeline->execute(cmd, extent, descSetBindings);
-	}
-}
-
-bool RayTracing::GUI() {
-	static const char* modes[] = { "Ray Query", "Ray Pipeline" };
-	return ImGui::Combo("Mode", reinterpret_cast<int*>(&mode), modes, IM_ARRAYSIZE(modes));
-}
-
 
 void Renderer::initWindow() {
 	if (!glfwInit()) {
@@ -590,6 +563,7 @@ void Renderer::processGUI() {
 				ImGui::SameLine();
 				mResampledDIPass->GUI();
 			}
+			ImGui::Separator();
 
 			if (ImGui::Combo("Indirect method", &mSettings.indirectMethod, indirectMethods, IM_ARRAYSIZE(indirectMethods))) {
 				resetFrame = true;
@@ -606,18 +580,9 @@ void Renderer::processGUI() {
 				ImGui::SameLine();
 				mResampledGIPass->GUI();
 			}
-
-			if (mSettings.indirectMethod == RayTracingMethod::ResampledPT) {
+			else if (mSettings.indirectMethod == RayTracingMethod::ResampledPT) {
 				ImGui::SameLine();
-				static const char* shiftMethods[] = { "Reconnection", "Replay", "Hybrid" };
-
-				if (ImGui::Combo("Shift Mapping", reinterpret_cast<int*>(&mGRISPass->settings.shiftType), shiftMethods, IM_ARRAYSIZE(shiftMethods))) {
-					resetFrame = true;
-					clearReservoir = true;
-				}
-
-				if (ImGui::SliderFloat("RR Scale", &mGRISPass->settings.rrScale, 0.1f, 4.f)) {
-				}
+				mGRISPass->GUI(resetFrame, clearReservoir);
 			}
 			ImGui::Separator();
 
