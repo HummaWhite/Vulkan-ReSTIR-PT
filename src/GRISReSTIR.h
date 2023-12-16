@@ -28,7 +28,7 @@ public:
 private:
 	std::unique_ptr<RayTracing> mPathTracePass;
 	std::unique_ptr<RayTracing> mRetracePass;
-	std::unique_ptr<zvk::ComputePipeline> mSpatialReusePass;
-	std::unique_ptr<zvk::ComputePipeline> mTemporalReusePass;
-	std::unique_ptr<zvk::ComputePipeline> mMISWeightPass;
+	std::unique_ptr<RayTracing> mTemporalReusePass;
+	std::unique_ptr<RayTracing> mSpatialReusePass;
+	std::unique_ptr<RayTracing> mMISWeightPass;
 };

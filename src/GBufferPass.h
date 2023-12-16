@@ -8,7 +8,7 @@
 
 #include "shader/HostDevice.h"
 
-struct GBufferDrawParam {
+struct GBufferPushConstant {
 	glm::mat4 model;
 	glm::mat4 modelInvT;
 	int32_t matIdx;
@@ -69,14 +69,14 @@ public:
 	std::unique_ptr<zvk::Image> motionVector[NumFramesInFlight];
 	vk::Framebuffer framebuffer[NumFramesInFlight][2];
 
-	uint32_t numDrawMeshes = 0;
+	uint32_t numInstances = 0;
 
 private:
 	vk::Pipeline mPipeline;
 	vk::RenderPass mRenderPass;
 	vk::PipelineLayout mPipelineLayout;
 
-	std::vector<GBufferDrawParam> mDrawParams;
+	std::vector<GBufferPushConstant> mDrawParams;
 	std::unique_ptr<zvk::Buffer> mDrawCommandBuffer;
 	std::unique_ptr<zvk::Buffer> mDrawParamBuffer;
 

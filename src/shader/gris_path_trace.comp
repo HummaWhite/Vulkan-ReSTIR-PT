@@ -18,11 +18,11 @@ void main() {
     if (index.x >= launchDim.x || index.y >= launchDim.y) {
         return;
     }
-    vec3 radiance = tracePath(index, launchDim);
+    vec3 color = tracePath(index, launchDim);
 
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
-    vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(index)).rgb;
-    accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
+    vec3 accumulatedColor = imageLoad(uIndirectOutput, ivec2(index)).rgb;
+    accumulatedColor = (accumulatedColor * frameCount + color) / (frameCount + 1.0);
 
-    //imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
+    //imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedColor, 1.0));
 }

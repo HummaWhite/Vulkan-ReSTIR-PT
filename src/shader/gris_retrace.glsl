@@ -11,7 +11,7 @@ const uint Temporal = 0;
 const uint Spatial = 1;
 
 struct GRISRetraceSettings {
-    uint mode;
+    uint shiftMode;
     float rrScale;
 };
 
@@ -44,19 +44,18 @@ bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     return true;
 }
 
-vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetRcVertexId, uint rng, out Intersection rcPrevIsec, out vec3 rcPrevWo) {
+void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray, uint targetRcId, uint rng, out GRISReconnectionData rcData) {
     const int MaxTracingDepth = 15;
 
     vec3 throughput = vec3(1.0);
-    vec3 rcPrevThroughput = vec3(0.0);
     vec3 wo = -ray.dir;
     bool rcPrevFound = false;
 
     Material mat = uMaterials[surf.matIndex];
     BSDFSample s;
-    Intersection isec;
 
-    IntersectionSetInvalid(rcPrevIsec);
+    rcData.rcPrevThroughput = vec3(0.0);
+    IntersectionSetInvalid(rcData.rcPrevIsec);
 
     #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
@@ -76,8 +75,7 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetRcVerte
         bool isThisVertexConnectible = isBSDFConnectible(mat);
 
         if (rcPrevFound && !(isThisVertexConnectible || surf.isLight)) {
-            rcPrevThroughput = vec3(0.0);
-            IntersectionSetInvalid(rcPrevIsec);
+            IntersectionSetInvalid(rcData.rcPrevIsec);
             break;
         }
 
@@ -85,11 +83,11 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetRcVerte
             break;
         }
 
-        if (bounce == targetRcVertexId - 1) {
+        if (bounce == targetRcId - 1) {
             if (isThisVertexConnectible) {
-                rcPrevIsec = isec;
-                rcPrevWo = wo;
-                rcPrevThroughput = throughput;
+                rcData.rcPrevIsec = isec;
+                rcData.rcPrevWo = wo;
+                rcData.rcPrevThroughput = throughput;
                 rcPrevFound = true;
             }
             else {
@@ -120,7 +118,6 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetRcVerte
         ray.dir = s.wi;
         ray.ori = surf.pos + ray.dir * 1e-4;
     }
-    return rcPrevThroughput;
 }
 
 vec3 retrace(uvec2 index, uvec2 frameSize) {
@@ -139,7 +136,6 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
     int matId = matMeshId >> 16;
 
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + index.x, index.y);
 
     SurfaceInfo surf;
     surf.pos = ray.ori + ray.dir * (depth - 1e-4);
@@ -147,6 +143,12 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
     surf.albedo = albedo;
     surf.isLight = false;
     surf.matIndex = matId;
+
+    // special case for primary hit - I can't make it to get instance and triangle id for first hit
+    // so I recorded screen uv in isec.bary
+    Intersection isec;
+    isec.instanceIdx = SpecialHitIndex;
+    isec.bary = uv;
 
     GRISReservoir resv = uGRISReservoir[index1D(index)];
     GRISReservoir temporalResv;
@@ -160,13 +162,16 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
         return vec3(0.0);
     }
 
-    Intersection rcPrevIsec;
-    vec3 rcPrevWo;
+    GRISReconnectionData rcData;
 
-    uint targetRcVertexId = GRISPathFlagsRcVertexId(temporalSample.flags);
-    vec3 throughput = traceReplayPathForHybridShift(surf, ray, targetRcVertexId, temporalSample.primaryRng, rcPrevIsec, rcPrevWo);
+    traceReplayPathForHybridShift(isec, surf, ray, GRISPathFlagsRcVertexId(temporalSample.flags), temporalSample.primaryRng, rcData);
+    uGRISReconnectionData[index1D(index)] = rcData;
 
-    return throughput;
+    if (!IntersectionIsValid(rcData.rcPrevIsec)) {
+        return vec3(0.0);
+    }
+    //return colorWheel(float(rcPrevIsec.instanceIdx == SpecialHitIndex));
+    return vec3(rcData.rcPrevIsec.bary, 1.0);
 }
 
 #endif

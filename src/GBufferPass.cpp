@@ -51,7 +51,7 @@ void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t in
 
 	for (uint32_t i = 0; i < param.count; i++) {
 		cmd.pushConstants(
-			mPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(GBufferDrawParam), &mDrawParams[param.offset + i]
+			mPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(GBufferPushConstant), &mDrawParams[param.offset + i]
 		);
 
 		cmd.drawIndexedIndirect(
@@ -76,31 +76,18 @@ void GBufferPass::recreateFrame(vk::Extent2D extent) {
 void GBufferPass::createDrawBuffer(const Resource& resource) {
 	std::vector<vk::DrawIndexedIndirectCommand> commands;
 
-	int32_t meshIdx = 0;
-
 	for (const auto& model : resource.modelInstances[Resource::Object]) {
 		glm::mat4 modelMatrix = model->modelMatrix();
 		glm::mat4 modelInvT(glm::transpose(glm::inverse(modelMatrix)));
-
-		for (uint32_t i = 0; i < model->numMeshes(); i++) {
-			const auto& mesh = resource.meshInstances[Resource::Object][model->meshOffset() + i];
-			commands.push_back({ mesh.indexCount, 1, mesh.indexOffset, 0, 0 });
-			mDrawParams.push_back({ modelMatrix, modelInvT, mesh.materialIdx, meshIdx++ });
-		}
+		uint32_t indexOffset = resource.meshInstances[Resource::Object][model->meshOffset()].indexOffset;
+		commands.push_back({ model->numIndices(), 1, indexOffset, 0, numInstances++ });
 	}
-	numDrawMeshes = meshIdx;
 
 	mDrawCommandBuffer = zvk::Memory::createBufferFromHost(
 		mCtx, zvk::QueueIdx::GeneralUse, commands.data(), zvk::sizeOf(commands),
 		vk::BufferUsageFlagBits::eIndirectBuffer
 	);
 	zvk::DebugUtils::nameVkObject(mCtx->device, mDrawCommandBuffer->buffer, "drawCommandBuffer");
-
-	mDrawParamBuffer = zvk::Memory::createBufferFromHost(
-		mCtx, zvk::QueueIdx::GeneralUse, mDrawParams.data(), zvk::sizeOf(mDrawParams),
-		vk::BufferUsageFlagBits::eStorageBuffer
-	);
-	zvk::DebugUtils::nameVkObject(mCtx->device, mDrawParamBuffer->buffer, "drawParamBuffer");
 }
 
 void GBufferPass::createResource(vk::Extent2D extent) {
@@ -319,7 +306,7 @@ void GBufferPass::createPipeline(
 		.setDepthBoundsTestEnable(false)
 		.setStencilTestEnable(false);
 
-	vk::PushConstantRange pushConstant(vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(GBufferDrawParam));
+	vk::PushConstantRange pushConstant(vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(GBufferPushConstant));
 
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
 		.setSetLayouts(descLayouts)

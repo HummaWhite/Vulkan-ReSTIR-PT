@@ -10,6 +10,7 @@ const float MinRayDistance = 1e-4;
 const float MaxRayDistance = 1e7;
 
 const uint InvalidHitIndex = 0xffffffff;
+const uint SpecialHitIndex = 0xfffffffe;
 
 struct Ray {
     vec3 ori;

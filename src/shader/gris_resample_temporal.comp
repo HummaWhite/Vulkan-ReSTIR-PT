@@ -9,18 +9,20 @@
 layout(local_size_x = RayQueryBlockSizeX, local_size_y = RayQueryBlockSizeY) in;
 
 #include "ray_query.glsl"
-#include "camera.glsl"
-#include "gbuffer_util.glsl"
-#include "light_sampling.glsl"
-#include "math.glsl"
+#include "gris_resample_temporal.glsl"
 
 void main() {
-    const int MaxTracingDepth = 3;
-    uvec2 threadIdx = gl_GlobalInvocationID.xy;
+    uvec2 index = gl_GlobalInvocationID.xy;
     uvec2 launchDim = uCamera.filmSize;
 
-    if (threadIdx.x >= launchDim.x || threadIdx.y >= launchDim.y) {
+    if (index.x >= launchDim.x || index.y >= launchDim.y) {
         return;
     }
-    vec2 uv = (vec2(threadIdx) + 0.5) / vec2(launchDim);
+    vec3 color = temporalReuse(index, launchDim);
+
+    float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
+    vec3 accumulatedColor = imageLoad(uIndirectOutput, ivec2(index)).rgb;
+    accumulatedColor = (accumulatedColor * frameCount + color) / (frameCount + 1.0);
+
+    imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedColor, 1.0));
 }

@@ -50,15 +50,6 @@ struct Camera {
 	uint seed;
 };
 
-struct GBufferDrawParam {
-	mat4 model;
-	mat4 modelInvT;
-	int matIdx;
-	int meshIdx;
-	int pad0;
-	int pad1;
-};
-
 struct MeshVertex {
 	vec3 pos;
 	float uvx;
@@ -167,7 +158,7 @@ struct GRISReconnectionData {
 	Intersection rcPrevIsec;
 	vec3 rcPrevWo;
 	float pad0;
-	vec3 throughput;
+	vec3 rcPrevThroughput;
 	float pad1;
 };
 
@@ -175,8 +166,6 @@ layout(set = CameraDescSet, binding = 0) uniform _Camera {
 	Camera uCamera;
 	Camera uPrevCamera;
 };
-
-layout(set = GBufferDrawParamDescSet, binding = 0, std140) readonly buffer _GBufferDrawParam { GBufferDrawParam uGBufferDrawParams[]; };
 
 layout(set = ResourceDescSet, binding = 0) uniform sampler2D uTextures[];
 layout(set = ResourceDescSet, binding = 1) readonly buffer _Materials { Material uMaterials[]; };

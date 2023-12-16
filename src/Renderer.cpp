@@ -533,7 +533,7 @@ void Renderer::drawFrame() {
 
 void Renderer::initSettings() {
 	mSettings.directMethod = RayTracingMethod::None;
-	mSettings.indirectMethod = RayTracingMethod::ResampledPT;
+	mSettings.indirectMethod = RayTracingMethod::ResampledGI;
 	mSettings.frameLimit = 0;
 
 	mGRISPass->settings.shiftType = GRISReSTIR::Hybrid;

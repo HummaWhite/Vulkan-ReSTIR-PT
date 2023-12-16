@@ -56,7 +56,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
     GRISPathSampleReset(pathSample);
     pathSample.primaryRng = rng;
 
-   // GRISReservoir resv = uGRISReservoirPrev[index1D(index)];
+    // GRISReservoir resv = uGRISReservoirPrev[index1D(index)];
     GRISReservoir resv;
     resv.resampleWeight = 0;
     resv.sampleCount = 0;
@@ -220,6 +220,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
     //radiance = pathSample.rcLs;
     //radiance = colorWheel(float(pathSample.rcIsLight));
     //radiance = vec3(resv.resampleWeight / resv.sampleCount);
+    //radiance = colorWheel(float(rcVertexId == 1));
 
     return clampColor(radiance);
 }
