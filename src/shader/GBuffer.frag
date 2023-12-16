@@ -15,11 +15,11 @@ layout(location = 0) in VSOut {
 	vec3 norm;
 	vec2 uv;
 	flat uint instanceIdx;
+	flat uint indexOffset;
 } fsIn;
 
 void main() {
-	ObjectInstance instance = uObjectInstances[fsIn.instanceIdx];
-	uint matIndex = uMaterialIndices[instance.indexOffset / 3 + gl_PrimitiveID];
+	uint matIndex = uMaterialIndices[fsIn.indexOffset / 3 + gl_PrimitiveID];
 
 	Material mat = uMaterials[matIndex];
 

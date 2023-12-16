@@ -13,6 +13,7 @@ layout(location = 0) out VSOut {
 	vec3 norm;
 	vec2 uv;
 	flat uint instanceIdx;
+	flat uint indexOffset;
 } vsOut;
 
 void main() {
@@ -25,4 +26,5 @@ void main() {
 	vsOut.norm = normalize(mat3(instance.transformInvT) * aNorm);
 	vsOut.uv = vec2(aTexX, aTexY);
 	vsOut.instanceIdx = gl_InstanceIndex;
+	vsOut.indexOffset = instance.indexOffset;
 }
