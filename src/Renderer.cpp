@@ -31,7 +31,7 @@ template<uint32_t N> struct Data32 {
 
 using DIReservoirData = Data32<8 + 4>;
 using GIReservoirData = Data32<8 + 4>;
-using GRISReservoirData = Data32<20 + 4>;
+using GRISReservoirData = Data32<24 + 4>;
 using GRISReconnectionData = Data32<12>;
 
 void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -562,6 +562,8 @@ void Renderer::initSettings() {
 	mSettings.directMethod = RayTracingMethod::None;
 	mSettings.indirectMethod = RayTracingMethod::ResampledPT;
 	mSettings.frameLimit = 0;
+
+	mGRISPass->settings.shiftType = GRISReSTIR::Hybrid;
 }
 
 void Renderer::processGUI() {

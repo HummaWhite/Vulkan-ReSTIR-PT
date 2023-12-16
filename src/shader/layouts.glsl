@@ -134,25 +134,29 @@ struct GIReservoir {
 };
 
 struct GRISPathSample {
-	Intersection rcVertexIsec;
+	Intersection rcIsec;
 
-	vec3 rcVertexLi;
-	uint rcVertexRng;
+	vec3 rcLi;
+	bool rcIsLight;
 
-	float rcScatterPdf;
-	float rcPrevScatterPdf;
-	float rcLightPdf;
-	float rcGeometryTerm;
-
-	vec3 rcVertexWi;
-	uint primaryHitRng;
-
-	vec3 F;
+	vec3 rcWi;
 	uint flags;
+
+	vec3 rcLs;
+	float rcPrevScatterPdf;
+
+	vec3 rcWs;
+	float rcJacobian;
+
+	uint rcRng;
+	uint primaryRng;
+	uint pad0;
+	uint pad1;
 };
 
 struct GRISReservoir {
 	GRISPathSample pathSample;
+
 	float sampleCount;
 	float resampleWeight;
 	float contribWeight;

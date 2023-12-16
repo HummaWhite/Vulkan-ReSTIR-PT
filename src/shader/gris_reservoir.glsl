@@ -14,10 +14,6 @@ const uint Reconnection = 0;
 const uint Replay = 1;
 const uint Hybrid = 2;
 
-const uint RcVertexSource = 0;
-const uint RcVertexDirectLight = 1;
-const uint RcVertexScattered = 2;
-
 float GRISToScalar(vec3 color) {
 	return luminance(color);
 }
@@ -38,31 +34,24 @@ void GRISPathFlagsSetPathLength(inout uint flags, uint id) {
 	flags = (flags & 0xfffffc1f) | ((id & 0x1f) << 5);
 }
 
-uint GRISPathFlagsRcVertexType(uint flags) {
-	return flags >> 30;
-}
-
-void GRISPathFlagsSetRcVertexType(inout uint flags, uint type) {
-	flags = (flags & 0x3fffffff) | (type << 30);
-}
-
 void GRISPathSampleReset(inout GRISPathSample pathSample) {
-	pathSample.rcVertexIsec.instanceIdx = InvalidHitIndex;
-	pathSample.rcVertexLi = vec3(0.0);
-	pathSample.rcScatterPdf = 0;
+	pathSample.rcIsec.instanceIdx = InvalidHitIndex;
+	pathSample.rcLi = vec3(0.0);
+	pathSample.rcWi = vec3(0.0);
+	pathSample.rcLs = vec3(0.0);
+	pathSample.rcWs = vec3(0.0);
 	pathSample.rcPrevScatterPdf = 0;
-	pathSample.rcLightPdf = 0;
-	pathSample.rcGeometryTerm = 0;
-	pathSample.F = vec3(0.0);
+	pathSample.rcJacobian = 0;
+	pathSample.rcIsLight = false;
 	pathSample.flags = 0;
 }
 
-bool GRISPathSampleFoundRcVertex(GRISPathSample pathSample) {
-	return pathSample.rcVertexIsec.instanceIdx != InvalidHitIndex;
+bool GRISPathSampleIsValid(GRISPathSample pathSample) {
+	return pathSample.rcIsec.instanceIdx != InvalidHitIndex;
 }
 
 void GRISReservoirReset(inout GRISReservoir resv) {
-	GRISPathSampleReset(resv.pathSample);
+	//GRISPathSampleReset(resv.pathSample);
 	resv.sampleCount = 0;
 	resv.resampleWeight = 0;
 }
@@ -81,10 +70,25 @@ void GRISReservoirResetIfInvalid(inout GRISReservoir resv) {
 	}
 }
 
-void GRISReservoirUpdateContribWeight(inout GRISReservoir resv) {
-	resv.contribWeight = resv.resampleWeight / (resv.sampleCount * GRISToScalar(resv.pathSample.F));
+bool GRISReservoirAddSample(inout GRISReservoir resv, GRISPathSample pathSample, float weight, float r) {
+	resv.sampleCount += 1.0;
+	resv.resampleWeight += weight;
+
+	if (r * resv.resampleWeight < weight) {
+		resv.pathSample = pathSample;
+		return true;
+	}
+	return false;
 }
 
+void GRISReservoirCapSample(inout GRISReservoir resv, float cap) {
+	if (resv.sampleCount > cap) {
+		resv.resampleWeight *= cap / resv.sampleCount;
+		resv.sampleCount = cap;
+	}
+}
+
+/*
 bool GRISReservoirAdd(inout GRISReservoir resv, vec3 F, float pHat, inout uint rng) {
 	resv.sampleCount += 1.0;
 	float resampleWeight = GRISToScalar(F) / pHat;
@@ -158,12 +162,6 @@ bool GRISReservoirMergeWithMISResample(inout GRISReservoir resv, GRISReservoir r
 bool GRISReservoirMergeWithMISResample(inout GRISReservoir resv, GRISReservoir rhs, vec3 F, float jacobian, inout uint rng) {
 	return GRISReservoirMergeWithMISResample(resv, rhs, F, jacobian, rng, 1.0, false);
 }
-
-void GRISReservoirCapSample(inout GRISReservoir resv, float cap) {
-	if (resv.sampleCount > cap) {
-		resv.resampleWeight *= cap / resv.sampleCount;
-		resv.sampleCount = cap;
-	}
-}
+*/
 
 #endif

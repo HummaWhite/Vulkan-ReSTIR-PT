@@ -52,6 +52,7 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFla
     vec3 wo = -ray.dir;
     bool rcPrevFound = false;
 
+    /*
     Material mat = uMaterials[surf.matIndex];
     BSDFSample s;
     Intersection isec;
@@ -119,16 +120,14 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFla
             );
             
             if ((!shadowed && lightPdf > 1e-6) && targetRcVertexType != RcVertexDirectLight) {
-                // another case violating bijectibility
                 IntersectionSetInvalid(rcPrevIsec);
             } else if (targetRcVertexType != RcVertexScattered) {
-                // another case violating bijectibility
                 IntersectionSetInvalid(rcPrevIsec);
             }
             break;
         }
 
-        if (/* russian roulette */ bounce > 4) {
+        if (bounce > 4) {
             float pdfTerminate = max(1.0 - luminance(throughput) * uSettings.rrScale, 0);
 
             if (sample1f(rng) < pdfTerminate) {
@@ -149,6 +148,7 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFla
         ray.dir = s.wi;
         ray.ori = surf.pos + ray.dir * 1e-4;
     }
+    */
     return rcPrevThroughput;
 }
 
