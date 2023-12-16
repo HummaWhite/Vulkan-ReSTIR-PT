@@ -76,7 +76,6 @@ void loadObjectSurfaceInfo(uint instanceIdx, uint triangleIdx, vec3 bary, out Su
     else {
         info.albedo = texture(uTextures[nonuniformEXT(texIdx)], vec2(uvx, uvy)).rgb;
     }
-    info.matIndex = info.matIndex;
 }
 
 void loadSurfaceInfo(uint instanceIdx, uint triangleIdx, vec2 bary, out SurfaceInfo info) {

@@ -12,18 +12,17 @@ layout(location = 0) out VSOut {
 	vec3 pos;
 	vec3 norm;
 	vec2 uv;
+	flat uint instanceIdx;
 } vsOut;
 
-layout(push_constant) uniform _PushConstant {
-	GBufferDrawParam uGBufferDrawParam;
-};
-
 void main() {
-	GBufferDrawParam param = uGBufferDrawParam;
-	vec4 pos = param.model * vec4(aPos, 1.0);
-	vsOut.pos = pos.xyz;
-	gl_Position = uCamera.projView * pos;
+	ObjectInstance instance = uObjectInstances[gl_InstanceIndex];
 
-	vsOut.norm = normalize(mat3(param.modelInvT) * aNorm);
+	vec4 pos = instance.transform * vec4(aPos, 1.0);
+	gl_Position = uCamera.projView * pos;
+	
+	vsOut.pos = pos.xyz;
+	vsOut.norm = normalize(mat3(instance.transformInvT) * aNorm);
 	vsOut.uv = vec2(aTexX, aTexY);
+	vsOut.instanceIdx = gl_InstanceIndex;
 }

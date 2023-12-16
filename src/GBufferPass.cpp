@@ -9,7 +9,6 @@ GBufferPass::GBufferPass(
 	createResource(extent);
 	createRenderPass(outLayout);
 	createFramebuffer(extent);
-	createDescriptor();
 }
 
 void GBufferPass::destroy() {
@@ -41,7 +40,6 @@ void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t in
 
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, CameraDescSet, param.cameraDescSet, {});
 	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, ResourceDescSet, param.resourceDescSet, {});
-	cmd.bindDescriptorSets(bindPoint, mPipelineLayout, GBufferDrawParamDescSet, mDrawParamDescSet, {});
 
 	cmd.bindVertexBuffers(0, param.vertexBuffer, vk::DeviceSize(0));
 	cmd.bindIndexBuffer(param.indexBuffer, 0, vk::IndexType::eUint32);
@@ -50,21 +48,11 @@ void GBufferPass::render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t in
 	cmd.setScissor(0, vk::Rect2D({ 0, 0 }, extent));
 
 	for (uint32_t i = 0; i < param.count; i++) {
-		cmd.pushConstants(
-			mPipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(GBufferPushConstant), &mDrawParams[param.offset + i]
-		);
-
 		cmd.drawIndexedIndirect(
-			mDrawCommandBuffer->buffer, (param.offset + i) * sizeof(vk::DrawIndexedIndirectCommand), 1, sizeof(vk::DrawIndexedIndirectCommand)
+			mIndirectDrawBuffer->buffer, (param.offset + i) * sizeof(vk::DrawIndexedIndirectCommand), 1, sizeof(vk::DrawIndexedIndirectCommand)
 		);
 	}
 	cmd.endRenderPass();
-}
-
-void GBufferPass::initDescriptor() {
-	zvk::DescriptorWrite update(mCtx);
-	update.add(mDrawParamDescLayout.get(), mDrawParamDescSet, 0, zvk::Descriptor::makeBuffer(mDrawParamBuffer.get()));
-	update.flush();
 }
 
 void GBufferPass::recreateFrame(vk::Extent2D extent) {
@@ -83,11 +71,11 @@ void GBufferPass::createDrawBuffer(const Resource& resource) {
 		commands.push_back({ model->numIndices(), 1, indexOffset, 0, numInstances++ });
 	}
 
-	mDrawCommandBuffer = zvk::Memory::createBufferFromHost(
+	mIndirectDrawBuffer = zvk::Memory::createBufferFromHost(
 		mCtx, zvk::QueueIdx::GeneralUse, commands.data(), zvk::sizeOf(commands),
 		vk::BufferUsageFlagBits::eIndirectBuffer
 	);
-	zvk::DebugUtils::nameVkObject(mCtx->device, mDrawCommandBuffer->buffer, "drawCommandBuffer");
+	zvk::DebugUtils::nameVkObject(mCtx->device, mIndirectDrawBuffer->buffer, "GBufferIndirectDrawBuffer");
 }
 
 void GBufferPass::createResource(vk::Extent2D extent) {
@@ -306,11 +294,8 @@ void GBufferPass::createPipeline(
 		.setDepthBoundsTestEnable(false)
 		.setStencilTestEnable(false);
 
-	vk::PushConstantRange pushConstant(vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(GBufferPushConstant));
-
 	auto pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo()
-		.setSetLayouts(descLayouts)
-		.setPushConstantRanges(pushConstant);
+		.setSetLayouts(descLayouts);
 
 	mPipelineLayout = mCtx->device.createPipelineLayout(pipelineLayoutCreateInfo);
 
@@ -337,16 +322,6 @@ void GBufferPass::createPipeline(
 		throw std::runtime_error("Failed to create GBufferPass pipeline");
 	}
 	mPipeline = result.value;
-}
-
-void GBufferPass::createDescriptor() {
-	std::vector<vk::DescriptorSetLayoutBinding> drawBindings = {
-		zvk::Descriptor::makeBinding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex)
-	};
-
-	mDrawParamDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mCtx, drawBindings);
-	mDescriptorPool = std::make_unique<zvk::DescriptorPool>(mCtx, mDrawParamDescLayout.get(), 1);
-	mDrawParamDescSet = mDescriptorPool->allocDescriptorSet(mDrawParamDescLayout->layout);
 }
 
 void GBufferPass::destroyFrame() {

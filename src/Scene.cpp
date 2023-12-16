@@ -535,18 +535,18 @@ void DeviceScene::createAccelerationStructure(const Scene& scene, zvk::QueueIdx 
 
 void DeviceScene::createDescriptor() {
 	const vk::ShaderStageFlags rayTracingStageFlags = RayPipelineShaderStageFlags | RayQueryShaderStageFlags;
+	const vk::ShaderStageFlags gbufferStageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
 
 	std::vector<vk::DescriptorSetLayoutBinding> resourceBindings = {
 		zvk::Descriptor::makeBinding(
-			0, vk::DescriptorType::eCombinedImageSampler,
-			vk::ShaderStageFlagBits::eFragment | rayTracingStageFlags,
+			0, vk::DescriptorType::eCombinedImageSampler, gbufferStageFlags | rayTracingStageFlags,
 			static_cast<uint32_t>(textures.size())
 		),
 		zvk::Descriptor::makeBinding(
-			1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment | rayTracingStageFlags
+			1, vk::DescriptorType::eStorageBuffer, gbufferStageFlags | rayTracingStageFlags
 		),
 		zvk::Descriptor::makeBinding(
-			2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | rayTracingStageFlags
+			2, vk::DescriptorType::eStorageBuffer, gbufferStageFlags | rayTracingStageFlags
 		),
 		zvk::Descriptor::makeBinding(
 			3, vk::DescriptorType::eStorageBuffer, rayTracingStageFlags
@@ -555,7 +555,7 @@ void DeviceScene::createDescriptor() {
 			4, vk::DescriptorType::eStorageBuffer, rayTracingStageFlags
 		),
 		zvk::Descriptor::makeBinding(
-			5, vk::DescriptorType::eStorageBuffer, rayTracingStageFlags
+			5, vk::DescriptorType::eStorageBuffer, gbufferStageFlags | rayTracingStageFlags
 		),
 		zvk::Descriptor::makeBinding(
 			6, vk::DescriptorType::eStorageBuffer, rayTracingStageFlags

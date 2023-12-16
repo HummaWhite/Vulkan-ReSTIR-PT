@@ -14,21 +14,22 @@ layout(location = 0) in VSOut {
 	vec3 pos;
 	vec3 norm;
 	vec2 uv;
+	flat uint instanceIdx;
 } fsIn;
 
-layout(push_constant) uniform _PushConstant {
-	GBufferDrawParam uGBufferDrawParam;
-};
-
 void main() {
-	GBufferDrawParam param = uGBufferDrawParam;
+	ObjectInstance instance = uObjectInstances[fsIn.instanceIdx];
+	uint matIndex = uMaterialIndices[instance.indexOffset / 3 + gl_PrimitiveID];
+
+	Material mat = uMaterials[matIndex];
+
 	vec3 albedo;
 	float alpha = 1.0;
 
-	uint texIdx = uMaterials[param.matIdx].textureIdx;
+	uint texIdx = mat.textureIdx;
 
 	if (texIdx == InvalidResourceIdx) {
-		albedo = uMaterials[param.matIdx].baseColor;
+		albedo = mat.baseColor;
 	}
 	else {
 		vec4 albedoAlpha = texture(uTextures[texIdx], fsIn.uv);
@@ -45,7 +46,9 @@ void main() {
 	if (alpha < 0.5) {
 		//discard;
 	}
+	uint meshIdx = fsIn.instanceIdx;
+
 	DepthNormal = vec4(length(uCamera.pos - fsIn.pos), normalize(fsIn.norm));
-	AlbedoMatId = uvec2(packAlbedo(albedo), uint(param.matIdx << 16 | param.meshIdx));
+	AlbedoMatId = uvec2(packAlbedo(albedo), uint(matIndex << 16 | meshIdx));
 	MotionVector = lastCoord.xy - thisCoord;
 }

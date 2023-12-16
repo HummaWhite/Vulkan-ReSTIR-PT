@@ -158,7 +158,6 @@ void Renderer::createPipeline() {
 	std::vector<vk::DescriptorSetLayout> descLayouts = {
 		mCameraDescLayout->layout,
 		mDeviceScene->resourceDescLayout->layout,
-		mGBufferPass->descSetLayout(),
 		mRayImageDescLayout->layout,
 		mDeviceScene->rayTracingDescLayout->layout,
 	};
@@ -293,7 +292,6 @@ void Renderer::createDescriptor() {
 
 void Renderer::initDescriptor() {
 	mDeviceScene->initDescriptor();
-	mGBufferPass->initDescriptor();
 
 	zvk::DescriptorWrite update(mContext.get());
 
@@ -389,7 +387,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 		.vertexBuffer = mDeviceScene->vertices->buffer,
 		.indexBuffer = mDeviceScene->indices->buffer,
 		.offset = 0,
-		.count = static_cast<uint32_t>(mGBufferPass->numDrawMeshes)
+		.count = static_cast<uint32_t>(mGBufferPass->numInstances)
 	};
 
 	auto postProcPushConstant = PostProcessFrag::PushConstant {

@@ -8,15 +8,6 @@
 
 #include "shader/HostDevice.h"
 
-struct GBufferPushConstant {
-	glm::mat4 model;
-	glm::mat4 modelInvT;
-	int32_t matIdx;
-	int32_t meshIdx;
-	int32_t pad1;
-	int32_t pad2;
-};
-
 struct GBufferRenderParam {
 	vk::DescriptorSet cameraDescSet;
 	vk::DescriptorSet resourceDescSet;
@@ -42,15 +33,11 @@ public:
 	~GBufferPass() { destroy(); }
 	void destroy();
 
-	vk::DescriptorSetLayout descSetLayout() const { return mDrawParamDescLayout->layout; }
-
 	void createPipeline(
 		vk::Extent2D extent, zvk::ShaderManager* shaderManager,
 		const std::vector<vk::DescriptorSetLayout>& descLayouts);
 
 	void render(vk::CommandBuffer cmd, vk::Extent2D extent, uint32_t inFlightIdx, uint32_t curFrame, const GBufferRenderParam& param);
-
-	void initDescriptor();
 
 	void recreateFrame(vk::Extent2D extent);
 
@@ -59,7 +46,6 @@ private:
 	void createResource(vk::Extent2D extent);
 	void createRenderPass(vk::ImageLayout outLayout);
 	void createFramebuffer(vk::Extent2D extent);
-	void createDescriptor();
 
 	void destroyFrame();
 
@@ -76,15 +62,8 @@ private:
 	vk::RenderPass mRenderPass;
 	vk::PipelineLayout mPipelineLayout;
 
-	std::vector<GBufferPushConstant> mDrawParams;
-	std::unique_ptr<zvk::Buffer> mDrawCommandBuffer;
-	std::unique_ptr<zvk::Buffer> mDrawParamBuffer;
-
+	std::unique_ptr<zvk::Buffer> mIndirectDrawBuffer;
 	std::unique_ptr<zvk::Image> mDepthStencil[NumFramesInFlight][2];
-
-	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
-	std::unique_ptr<zvk::DescriptorSetLayout> mDrawParamDescLayout;
-	vk::DescriptorSet mDrawParamDescSet;
 
 	const bool mMultiDrawSupport;
 };
