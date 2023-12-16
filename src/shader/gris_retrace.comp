@@ -18,43 +18,11 @@ void main() {
     if (index.x >= launchDim.x || index.y >= launchDim.y) {
         return;
     }
-    const int MaxTracingDepth = 15;
-    vec2 uv = (vec2(index) + 0.5) / vec2(launchDim);
+    vec3 radiance = retrace(index, launchDim);
 
-    float depth;
-    vec3 norm;
-    vec3 albedo;
-    int matMeshId;
+    float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
+    vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(index)).rgb;
+    accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
 
-    if (!unpackGBuffer(texture(uDepthNormal, uv), texelFetch(uAlbedoMatId, ivec2(index), 0), depth, norm, albedo, matMeshId)) {
-        imageStore(uIndirectOutput, ivec2(index), vec4(vec3(0.0), 1.0));
-        return;
-    }
-    int matId = matMeshId >> 16;
-    
-    Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + index.x, index.y);
-
-    vec2 motion = texelFetch(uMotionVector, ivec2(index), 0).xy;
-
-    SurfaceInfo surf;
-    surf.pos = ray.ori + ray.dir * (depth - 1e-4);
-    surf.norm = norm;
-    surf.albedo = albedo;
-    surf.isLight = false;
-    surf.matIndex = matId;
-
-    GRISReservoir resv = uGRISReservoir[index1D(index)];
-    GRISReservoir temporalResv;
-
-    if (!findPreviousReservoir(uv + motion, surf.pos, depth, norm, albedo, matMeshId, temporalResv)) {
-        imageStore(uIndirectOutput, ivec2(index), vec4(vec3(0.0), 1.0));
-        return;
-    }
-
-    Intersection rcPrevIsec;
-    vec3 rcPrevWo;
-    vec3 throughput = traceReplayPathForHybridShift(surf, ray, temporalResv.pathSample.flags, temporalResv.pathSample.primaryRng, rcPrevIsec, rcPrevWo);
-    
-    imageStore(uIndirectOutput, ivec2(index), vec4(vec3(temporalResv.resampleWeight), 1.0));
+    //imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
 }

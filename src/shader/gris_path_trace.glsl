@@ -16,7 +16,7 @@ layout(push_constant) uniform _PushConstant {
     GRISTraceSettings uSettings;
 };
 
-vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
+vec3 tracePath(uvec2 index, uvec2 frameSize) {
     const int MaxTracingDepth = 15;
     vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
 

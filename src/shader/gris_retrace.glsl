@@ -12,7 +12,6 @@ const uint Spatial = 1;
 
 struct GRISRetraceSettings {
     uint mode;
-    uint writeIndex;
     float rrScale;
 };
 
@@ -45,7 +44,7 @@ bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     return true;
 }
 
-vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFlags, uint rng, out Intersection rcPrevIsec, out vec3 rcPrevWo) {
+vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetRcVertexId, uint rng, out Intersection rcPrevIsec, out vec3 rcPrevWo) {
     const int MaxTracingDepth = 15;
 
     vec3 throughput = vec3(1.0);
@@ -53,22 +52,14 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFla
     vec3 wo = -ray.dir;
     bool rcPrevFound = false;
 
-    /*
     Material mat = uMaterials[surf.matIndex];
     BSDFSample s;
     Intersection isec;
 
     IntersectionSetInvalid(rcPrevIsec);
 
-    uint targetRcVertexId = GRISPathFlagsRcVertexId(targetPathFlags);
-    uint targetRcVertexType = GRISPathFlagsRcVertexType(targetPathFlags);
-
     #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
-        if (bounce == targetRcVertexId) {
-            break;
-        }
-
         if (bounce > 0) {
             isec = traceClosestHit(
                 uTLAS,
@@ -82,51 +73,31 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFla
             loadSurfaceInfo(isec, surf);
             mat = uMaterials[surf.matIndex];
         }
-
-        if (rcPrevFound) {
-            if (surf.isLight && (targetRcVertexType != RcVertexSource)) {
-                // if target type is emitter source but actually not hitting an emitter at depth == targetRcVertexId
-                //   not invertible
-                IntersectionSetInvalid(rcPrevIsec);
-            }
-            break;
-        }
-        rcPrevIsec = isec;
-        rcPrevWo = wo;
-        rcPrevThroughput = throughput;
-
         bool isThisVertexConnectible = isBSDFConnectible(mat);
 
-        if (!rcPrevFound && isThisVertexConnectible && (bounce == targetRcVertexId - 1)) {
-            rcPrevFound = true;
-        }
-
-        // make sure sample space is aligned for all paths
-        vec4 lightRandSample = sample4f(rng);
-
-        if (rcPrevFound && (targetRcVertexType != RcVertexSource)) {
-            bool isLightSamplable = bounce > 0 && !isBSDFDelta(mat);
-
-            const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
-
-            vec3 lightRadiance, lightDir;
-            float lightDist, lightPdf;
-
-            lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, lightRandSample);
-
-            bool shadowed = traceShadow(
-                uTLAS,
-                shadowRayFlags, 0xff,
-                surf.pos, MinRayDistance, lightDir, lightDist - MinRayDistance
-            );
-            
-            if ((!shadowed && lightPdf > 1e-6) && targetRcVertexType != RcVertexDirectLight) {
-                IntersectionSetInvalid(rcPrevIsec);
-            } else if (targetRcVertexType != RcVertexScattered) {
-                IntersectionSetInvalid(rcPrevIsec);
-            }
+        if (rcPrevFound && !(isThisVertexConnectible || surf.isLight)) {
+            rcPrevThroughput = vec3(0.0);
+            IntersectionSetInvalid(rcPrevIsec);
             break;
         }
+
+        if (surf.isLight) {
+            break;
+        }
+
+        if (bounce == targetRcVertexId - 1) {
+            if (isThisVertexConnectible) {
+                rcPrevIsec = isec;
+                rcPrevWo = wo;
+                rcPrevThroughput = throughput;
+                rcPrevFound = true;
+            }
+            else {
+                break;
+            }
+        }
+        // make sure sample space is aligned for all paths
+        vec4 lightRandSample = sample4f(rng);
 
         if (bounce > 4) {
             float pdfTerminate = max(1.0 - luminance(throughput) * uSettings.rrScale, 0);
@@ -149,8 +120,53 @@ vec3 traceReplayPathForHybridShift(SurfaceInfo surf, Ray ray, uint targetPathFla
         ray.dir = s.wi;
         ray.ori = surf.pos + ray.dir * 1e-4;
     }
-    */
     return rcPrevThroughput;
+}
+
+vec3 retrace(uvec2 index, uvec2 frameSize) {
+    const int MaxTracingDepth = 15;
+    vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
+
+    float depth;
+    vec3 norm;
+    vec3 albedo;
+    int matMeshId;
+
+    if (!unpackGBuffer(texture(uDepthNormal, uv), texelFetch(uAlbedoMatId, ivec2(index), 0), depth, norm, albedo, matMeshId)) {
+        return vec3(0.0);
+    }
+    vec2 motion = texelFetch(uMotionVector, ivec2(index), 0).xy;
+    int matId = matMeshId >> 16;
+
+    Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
+    uint rng = makeSeed(uCamera.seed + index.x, index.y);
+
+    SurfaceInfo surf;
+    surf.pos = ray.ori + ray.dir * (depth - 1e-4);
+    surf.norm = norm;
+    surf.albedo = albedo;
+    surf.isLight = false;
+    surf.matIndex = matId;
+
+    GRISReservoir resv = uGRISReservoir[index1D(index)];
+    GRISReservoir temporalResv;
+
+    if (!findPreviousReservoir(uv + motion, surf.pos, depth, norm, albedo, matMeshId, temporalResv)) {
+        return vec3(0.0);
+    }
+    GRISPathSample temporalSample = temporalResv.pathSample;
+
+    if (!GRISPathSampleIsValid(temporalSample)) {
+        return vec3(0.0);
+    }
+
+    Intersection rcPrevIsec;
+    vec3 rcPrevWo;
+
+    uint targetRcVertexId = GRISPathFlagsRcVertexId(temporalSample.flags);
+    vec3 throughput = traceReplayPathForHybridShift(surf, ray, targetRcVertexId, temporalSample.primaryRng, rcPrevIsec, rcPrevWo);
+
+    return throughput;
 }
 
 #endif

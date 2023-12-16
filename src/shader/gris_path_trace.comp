@@ -18,7 +18,7 @@ void main() {
     if (index.x >= launchDim.x || index.y >= launchDim.y) {
         return;
     }
-    vec3 radiance = indirectIllumination(index, launchDim);
+    vec3 radiance = tracePath(index, launchDim);
 
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(index)).rgb;
