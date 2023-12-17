@@ -2,7 +2,7 @@
 #define GI_RESAMPLE_TEMPORAL_GLSL
 
 #include "camera.glsl"
-#include "gbuffer_util.glsl"
+#include "ray_gbuffer_util.glsl"
 #include "light_sampling.glsl"
 #include "gi_reservoir.glsl"
 
@@ -83,7 +83,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
                 ray.ori, MinRayDistance, ray.dir, MaxRayDistance
             );
 
-            if (!IntersectionIsValid(isec)) {
+            if (!intersectionIsValid(isec)) {
                 break;
             }
             loadSurfaceInfo(isec, surf);

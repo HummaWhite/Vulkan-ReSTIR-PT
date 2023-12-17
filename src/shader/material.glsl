@@ -101,7 +101,7 @@ vec3 GTR2Sample(vec3 n, vec3 wo, float alpha, vec2 r) {
 }
 
 bool isGTR2Connectible(float roughness) {
-    return roughness > 0.1;
+    return roughness > 0.15;
 }
 
 bool isGTR2Delta(float roughness) {
@@ -334,7 +334,7 @@ bool isBSDFDelta(Material mat) {
     case Lambert:
         return false;
     case MetallicWorkflow:
-        return (isGTR2Delta(mat.roughness) && mat.metallic > 0.95);
+        return (isGTR2Delta(mat.roughness) && mat.metallic > 0.9);
     case Metal:
         return isGTR2Delta(mat.roughness);
     case Dielectric:
@@ -349,7 +349,7 @@ bool isBSDFConnectible(Material mat) {
     case Lambert:
         return true;
     case MetallicWorkflow:
-        return (isGTR2Connectible(mat.roughness) || mat.metallic < 0.95);
+        return (isGTR2Connectible(mat.roughness) || mat.metallic < 0.9);
     case Metal:
         return isGTR2Connectible(mat.roughness);
     case Dielectric:

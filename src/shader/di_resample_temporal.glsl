@@ -2,7 +2,7 @@
 #define DI_RESAMPLE_TEMPORAL_GLSL
 
 #include "camera.glsl"
-#include "gbuffer_util.glsl"
+#include "ray_gbuffer_util.glsl"
 #include "light_sampling.glsl"
 #include "di_reservoir.glsl"
 

@@ -2,7 +2,7 @@
 #define GRIS_PATH_TRACE_GLSL
 
 #include "camera.glsl"
-#include "gbuffer_util.glsl"
+#include "ray_gbuffer_util.glsl"
 #include "light_sampling.glsl"
 #include "material.glsl"
 #include "gris_reservoir.glsl"
@@ -72,7 +72,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
                 ray.ori, MinRayDistance, ray.dir, MaxRayDistance
             );
 
-            if (!IntersectionIsValid(isec)) {
+            if (!intersectionIsValid(isec)) {
                 break;
             }
             loadSurfaceInfo(isec, surf);

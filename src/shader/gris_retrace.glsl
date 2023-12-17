@@ -55,7 +55,7 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
     BSDFSample s;
 
     rcData.rcPrevThroughput = vec3(0.0);
-    IntersectionSetInvalid(rcData.rcPrevIsec);
+    intersectionSetInvalid(rcData.rcPrevIsec);
 
     #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
@@ -66,7 +66,7 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
                 ray.ori, MinRayDistance, ray.dir, MaxRayDistance
             );
 
-            if (!IntersectionIsValid(isec)) {
+            if (!intersectionIsValid(isec)) {
                 break;
             }
             loadSurfaceInfo(isec, surf);
@@ -75,7 +75,7 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
         bool isThisVertexConnectible = isBSDFConnectible(mat);
 
         if (rcPrevFound && !(isThisVertexConnectible || surf.isLight)) {
-            IntersectionSetInvalid(rcData.rcPrevIsec);
+            intersectionSetInvalid(rcData.rcPrevIsec);
             break;
         }
 
@@ -167,7 +167,7 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
     traceReplayPathForHybridShift(isec, surf, ray, GRISPathFlagsRcVertexId(temporalSample.flags), temporalSample.primaryRng, rcData);
     uGRISReconnectionData[index1D(index)] = rcData;
 
-    if (!IntersectionIsValid(rcData.rcPrevIsec)) {
+    if (!intersectionIsValid(rcData.rcPrevIsec)) {
         return vec3(0.0);
     }
     //return colorWheel(float(rcPrevIsec.instanceIdx == SpecialHitIndex));

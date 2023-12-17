@@ -2,7 +2,7 @@
 #define DI_NAIVE_GLSL
 
 #include "camera.glsl"
-#include "gbuffer_util.glsl"
+#include "ray_gbuffer_util.glsl"
 #include "light_sampling.glsl"
 #include "material.glsl"
 

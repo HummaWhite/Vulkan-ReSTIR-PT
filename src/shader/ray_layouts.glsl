@@ -31,11 +31,15 @@ uint index1D(uvec2 index) {
     return uCamera.filmSize.x * index.y + index.x;
 }
 
-bool IntersectionIsValid(Intersection isec) {
+bool intersectionIsValid(Intersection isec) {
     return isec.instanceIdx != InvalidHitIndex;
 }
 
-void IntersectionSetInvalid(inout Intersection isec) {
+bool intersectionIsSpecial(Intersection isec) {
+    return isec.instanceIdx == SpecialHitIndex;
+}
+
+void intersectionSetInvalid(inout Intersection isec) {
     isec.instanceIdx = InvalidHitIndex;
 }
 
