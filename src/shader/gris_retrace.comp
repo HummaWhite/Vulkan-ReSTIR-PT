@@ -18,7 +18,7 @@ void main() {
     if (index.x >= launchDim.x || index.y >= launchDim.y) {
         return;
     }
-    vec3 color = retrace(index, launchDim);
+    vec3 color = clampColor(retrace(index, launchDim));
 
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedColor = imageLoad(uIndirectOutput, ivec2(index)).rgb;

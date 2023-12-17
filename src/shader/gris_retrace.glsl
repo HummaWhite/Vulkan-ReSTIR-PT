@@ -164,7 +164,7 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
 
     GRISReconnectionData rcData;
 
-    traceReplayPathForHybridShift(isec, surf, ray, GRISPathFlagsRcVertexId(temporalSample.flags), temporalSample.primaryRng, rcData);
+    traceReplayPathForHybridShift(isec, surf, ray, GRISPathFlagsRcVertexId(temporalSample.flags), 1 + temporalSample.primaryRng, rcData);
     uGRISReconnectionData[index1D(index)] = rcData;
 
     if (!intersectionIsValid(rcData.rcPrevIsec)) {

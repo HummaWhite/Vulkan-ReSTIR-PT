@@ -141,8 +141,8 @@ struct GRISPathSample {
 
 	uint rcRng;
 	uint primaryRng;
-	uint pad0;
-	uint pad1;
+	float pad0;
+	float pad1;
 };
 
 struct GRISReservoir {

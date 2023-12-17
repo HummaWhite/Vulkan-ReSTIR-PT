@@ -189,7 +189,9 @@ vec3 clampColor(vec3 color) {
 vec3 colorWheel(float x) {
 	const float Div = 1.0 / 4.0;
 
-	if (x < Div) {
+	if (isnan(x)) {
+		return vec3(1.0);
+	} if (x < Div) {
 		return vec3(0.0, x / Div, 1.0);
 	}
 	else if (x < Div * 2) {

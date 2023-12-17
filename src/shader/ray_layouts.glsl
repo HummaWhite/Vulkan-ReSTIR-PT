@@ -99,11 +99,4 @@ void loadSurfaceInfo(Intersection isec, out SurfaceInfo info) {
     loadSurfaceInfo(isec.instanceIdx, isec.triangleIdx, isec.bary, info);
 }
 
-vec3 fixRadiance(vec3 radiance) {
-    if (isnan(radiance.x) || isnan(radiance.y) || isnan(radiance.z)) {
-        return vec3(0.0);
-    }
-    return radiance;
-}
-
 #endif

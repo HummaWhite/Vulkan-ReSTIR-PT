@@ -10,7 +10,7 @@ void main() {
     uvec2 index = gl_LaunchIDEXT.xy;
     uvec2 launchDim = gl_LaunchSizeEXT.xy; //uCamera.filmSize
 
-    vec3 radiance = indirectIllumination(index, launchDim);
+    vec3 radiance = clampColor(indirectIllumination(index, launchDim));
 
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uIndirectOutput, ivec2(index)).rgb;

@@ -51,9 +51,13 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
 
     vec3 L = vec3(0.0);
     vec3 rcPrevWi = normalize(rcSurf.pos - rcPrevSurf.pos);
-    float dist = distance(rcSurf.pos, rcPrevSurf.pos);
+    float distToPrev = length(rcSurf.pos - rcPrevSurf.pos);
 
-    if (dist > 0) {
+    float jacobian = absDot(rcSurf.pos, rcPrevWi) / square(distToPrev) / rcSample.rcJacobian;
+
+    return clampColor(vec3(1.0 / jacobian));
+
+    if (distToPrev > GRISDistanceThreshold) {
         if (rcSample.rcIsLight) {
             L = rcSample.rcLi;
         }
@@ -66,15 +70,16 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
             }
         }
         L *= evalBSDF(rcPrevMat, rcPrevSurf.albedo, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi) * satDot(rcPrevSurf.norm, rcPrevWi) * rcData.rcPrevThroughput;
+        L /= rcSample.rcPrevScatterPdf;
 
         if (!isBlack(L)) {
-            L = L / luminance(L) * temporalResv.resampleWeight / temporalResv.sampleCount;
+            L = L / luminance(L) * temporalResv.resampleWeight / temporalResv.sampleCount / jacobian;
         }
         else {
             L = vec3(0.0);
         }
     }
-    return L;
+    return clampColor(L);
 }
 
 #endif

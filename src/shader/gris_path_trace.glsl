@@ -115,6 +115,8 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
             pathSample.rcJacobian = geometryJacobian;
             pathSample.rcLi = surf.isLight ? surf.albedo : vec3(0.0);
             pathSample.rcIsLight = surf.isLight;
+            //pathSample.pad0 = lastPos.x;
+            //pathSample.pad1 = lastPos.y;
 
             GRISPathFlagsSetRcVertexId(pathSample.flags, rcVertexId);
         }
@@ -182,9 +184,6 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
                 rcThroughput *= scatterTerm;
             }
         }
-        else {
-            rcThroughput /= s.pdf;
-        }
 
         lastPos = surf.pos;
         wo = -s.wi;
@@ -222,7 +221,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
     //radiance = vec3(resv.resampleWeight / resv.sampleCount);
     //radiance = colorWheel(float(rcVertexId == 1));
 
-    return clampColor(radiance);
+    return radiance;
 }
 
 #endif

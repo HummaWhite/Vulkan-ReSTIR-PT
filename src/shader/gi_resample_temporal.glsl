@@ -204,7 +204,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
         }
     }
     uGIReservoir[index1D(index)] = resv;
-    return clampColor(radiance);
+    return radiance;
 }
 
 #endif
