@@ -1,6 +1,8 @@
 #ifndef LIGHT_SAMPLING_GLSL
 #define LIGHT_SAMPLING_GLSL
 
+#define SAMPLE_LIGHT_DOUBLE_SIDE 0
+
 vec3 sampleTriangleLight(TriangleLight light, vec3 ref, out vec3 wi, out float dist, out float pdf, vec2 r) {
     vec3 pos = sampleTriangleUniform(light.v0, light.v1, light.v2, r);
     dist = distance(ref, pos);
@@ -9,6 +11,11 @@ vec3 sampleTriangleLight(TriangleLight light, vec3 ref, out vec3 wi, out float d
     wi = (pos - ref) / dist;
     pdf = dist * dist / absDot(n, wi) / light.area;
 
+#if !SAMPLE_LIGHT_DOUBLE_SIDE
+    if (dot(n, wi) > 0) {
+        light.radiance = vec3(0.0);
+    }
+#endif
     return light.radiance;
 }
 
@@ -38,13 +45,13 @@ vec3 sampleLightUniform(vec3 ref, out vec3 wi, out float dist, out float pdf, ve
 }
 
 vec3 sampleLight(vec3 ref, out vec3 wi, out float dist, out float pdf, inout uint rng) {
-    //return sampleLightByPower(ref, wi, dist, pdf, sample4f(rng));
-    return sampleLightUniform(ref, wi, dist, pdf, sample4f(rng));
+    return sampleLightByPower(ref, wi, dist, pdf, sample4f(rng));
+    //return sampleLightUniform(ref, wi, dist, pdf, sample4f(rng));
 }
 
 vec3 sampleLight(vec3 ref, out vec3 wi, out float dist, out float pdf, vec4 r) {
-    //return sampleLightByPower(ref, wi, dist, pdf, r);
-    return sampleLightUniform(ref, wi, dist, pdf, r);
+    return sampleLightByPower(ref, wi, dist, pdf, r);
+    //return sampleLightUniform(ref, wi, dist, pdf, r);
 }
 
 vec3 sampleLightThreaded(vec3 ref, float blockRand, out vec3 wi, out float dist, out float pdf, inout uint rng) {

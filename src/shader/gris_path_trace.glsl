@@ -16,6 +16,8 @@ layout(push_constant) uniform _PushConstant {
     GRISTraceSettings uSettings;
 };
 
+#define SAMPLE_LIGHT_AFTER_RC_VERTEX 0
+
 vec3 tracePath(uvec2 index, uvec2 frameSize) {
     const int MaxTracingDepth = 15;
     vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
@@ -63,8 +65,6 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
 
     #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
-        GRISPathFlagsSetPathLength(pathSample.flags, bounce + 1);
-
         if (bounce > 0) {
             isec = traceClosestHit(
                 uTLAS,
@@ -78,13 +78,18 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
             loadSurfaceInfo(isec, surf);
             mat = uMaterials[surf.matIndex];
         }
+        GRISPathFlagsSetPathLength(pathSample.flags, bounce + 1);
 
         float cosPrevWi = dot(ray.dir, surf.norm);
         float distToPrev = distance(lastPos, surf.pos);
         float geometryJacobian = abs(cosPrevWi) / square(distToPrev);
 
         if (surf.isLight) {
-            if (/* cosPrevWi < 0 */ true) {
+            if (bounce > 1
+#if !SAMPLE_LIGHT_DOUBLE_SIDE
+                && cosPrevWi < 0
+#endif
+                ) {
                 float weight = 1.0;
                 float sumPower = uLightSampleTable[0].prob;
                 float lightPdf = luminance(surf.albedo) / sumPower / geometryJacobian;
@@ -115,8 +120,6 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
             pathSample.rcJacobian = geometryJacobian;
             pathSample.rcLi = surf.isLight ? surf.albedo : vec3(0.0);
             pathSample.rcIsLight = surf.isLight;
-            //pathSample.pad0 = lastPos.x;
-            //pathSample.pad1 = lastPos.y;
 
             GRISPathFlagsSetRcVertexId(pathSample.flags, rcVertexId);
         }
@@ -126,7 +129,11 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
         }
         vec4 lightRandSample = sample4f(rng);
 
-        if (/* sample direct lighting */ bounce > 0 && !isBSDFDelta(mat)) {
+        if (/* sample direct lighting */ bounce > 0 && !isBSDFDelta(mat)
+#if SAMPLE_LIGHT_AFTER_RC_VERTEX
+            && rcVertexFound
+#endif
+            ) {
             const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
 
             vec3 lightRadiance, lightDir;
@@ -184,6 +191,9 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
                 rcThroughput *= scatterTerm;
             }
         }
+        else {
+            rcThroughput /= s.pdf;
+        }
 
         lastPos = surf.pos;
         wo = -s.wi;
@@ -210,13 +220,14 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
     uint pathLength = GRISPathFlagsPathLength(pathSample.flags);
 
     //radiance = colorWheel(float(rcVertexId) / float(pathLength));
-    //radiance = colorWheel(float(rcVertexId) / 8.0);
+    //radiance = colorWheel(float(rcVertexId) / 6.0);
     //radiance = vec3(GRISPathFlagsRcVertexId(pathSample.flags) == 1);
     //radiance = vec3(pathSample.rcPrevScatterPdf);
     //radiance = vec3(pathSample.rcJacobian);
     //radiance = colorWheel(pathSample.rcJacobian);
     //radiance = pathSample.rcLi;
     //radiance = pathSample.rcLs;
+    //radiance = colorWheel(float(pathLength == 3 && isLastVertexConnectible));
     //radiance = colorWheel(float(pathSample.rcIsLight));
     //radiance = vec3(resv.resampleWeight / resv.sampleCount);
     //radiance = colorWheel(float(rcVertexId == 1));

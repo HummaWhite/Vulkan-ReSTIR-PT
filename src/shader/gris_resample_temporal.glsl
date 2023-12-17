@@ -55,7 +55,7 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
 
     float jacobian = absDot(rcSurf.pos, rcPrevWi) / square(distToPrev) / rcSample.rcJacobian;
 
-    return clampColor(vec3(1.0 / jacobian));
+    //return clampColor(vec3(1.0 / jacobian));
 
     if (distToPrev > GRISDistanceThreshold) {
         if (rcSample.rcIsLight) {
@@ -73,7 +73,7 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
         L /= rcSample.rcPrevScatterPdf;
 
         if (!isBlack(L)) {
-            L = L / luminance(L) * temporalResv.resampleWeight / temporalResv.sampleCount / jacobian;
+            L = L / luminance(L) * temporalResv.resampleWeight / temporalResv.sampleCount;
         }
         else {
             L = vec3(0.0);

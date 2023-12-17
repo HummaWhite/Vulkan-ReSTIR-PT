@@ -19,6 +19,8 @@ layout(push_constant) uniform _PushConstant {
     GRISRetraceSettings uSettings;
 };
 
+#define MAPPING_CHECK 0
+
 bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 albedo, int matMeshId, out GRISReservoir resv) {
     if (uv.x < 0 || uv.y < 0 || uv.x > 1.0 || uv.y > 1.0) {
         return false;
@@ -74,11 +76,12 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
         }
         bool isThisVertexConnectible = isBSDFConnectible(mat);
 
+#if MAPPING_CHECK
         if (rcPrevFound && !(isThisVertexConnectible || surf.isLight)) {
             intersectionSetInvalid(rcData.rcPrevIsec);
             break;
         }
-
+#endif
         if (surf.isLight) {
             break;
         }
@@ -89,6 +92,9 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
                 rcData.rcPrevWo = wo;
                 rcData.rcPrevThroughput = throughput;
                 rcPrevFound = true;
+#if !MAPPING_CHECK
+                break;
+#endif
             }
             else {
                 break;
@@ -164,7 +170,7 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
 
     GRISReconnectionData rcData;
 
-    traceReplayPathForHybridShift(isec, surf, ray, GRISPathFlagsRcVertexId(temporalSample.flags), 1 + temporalSample.primaryRng, rcData);
+    traceReplayPathForHybridShift(isec, surf, ray, GRISPathFlagsRcVertexId(temporalSample.flags), temporalSample.primaryRng, rcData);
     uGRISReconnectionData[index1D(index)] = rcData;
 
     if (!intersectionIsValid(rcData.rcPrevIsec)) {

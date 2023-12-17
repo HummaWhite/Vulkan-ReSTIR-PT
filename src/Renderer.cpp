@@ -188,7 +188,7 @@ void Renderer::createCameraBuffer() {
 }
 
 void Renderer::createRayImage() {
-	constexpr auto outputFormat = vk::Format::eR16G16B16A16Sfloat;
+	constexpr auto outputFormat = vk::Format::eR32G32B32A32Sfloat;
 	const auto extent = mSwapchain->extent();
 
 	for (uint32_t i = 0; i < NumFramesInFlight; i++) {

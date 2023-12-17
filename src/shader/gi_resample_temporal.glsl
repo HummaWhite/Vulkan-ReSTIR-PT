@@ -89,7 +89,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
             loadSurfaceInfo(isec, surf);
             mat = uMaterials[surf.matIndex];
 
-            if (bounce == 1) {
+            if (bounce == 1 && !surf.isLight) {
                 pathSample.rcIsec = isec;
             }
         }
@@ -97,7 +97,11 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
         if (surf.isLight) {
             float cosTheta = -dot(ray.dir, surf.norm);
 
-            if (/* cosTheta > 0 */ true) {
+            if (bounce > 1
+#if !SAMPLE_LIGHT_DOUBLE_SIDE
+                && cosTheta > 0
+#endif
+                ) {
                 float weight = 1.0;
 
                 if (bounce > 0 && !isSampleTypeDelta(s.type)) {
@@ -106,8 +110,9 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
                     float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / abs(cosTheta);
                     weight = MISWeight(s.pdf, lightPdf);
                 }
-                vec3 addition = surf.albedo * weight;
-                pathSample.rcLo += addition * (bounce == 1 ? vec3(1.0) : throughputAfter);
+                vec3 weightedLi = surf.albedo * weight;
+
+                pathSample.rcLo += weightedLi * throughputAfter;
             }
             break;
         }

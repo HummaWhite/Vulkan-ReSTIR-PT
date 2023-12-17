@@ -49,6 +49,12 @@ std::pair<ModelInstance*, glm::vec3> Scene::loadModelInstance(const pugi::xml_no
 	model->setScale(scale.x, scale.y, scale.z);
 	model->setRotation(rot);
 
+	if (modelNode.attribute("flip")) {
+		if (std::string(modelNode.attribute("flip").as_string()) == "true") {
+			model->setFlipNormal(true);
+		}
+	}
+
 	if (!isLight && modelNode.child("material")) {
 		auto matNode = modelNode.child("material");
 		auto material = loadMaterialNoBaseColor(matNode);
@@ -233,6 +239,10 @@ void Scene::loadModels(pugi::xml_node modelNode) {
 					glm::vec3 n = glm::cross(tri.v1 - tri.v0, tri.v2 - tri.v0);
 					tri.area = .5f * glm::length(n);
 					n = glm::normalize(n);
+
+					if (modelInstance->flipNormal()) {
+						n = -n;
+					}
 
 					tri.nx = n.x;
 					tri.ny = n.y;

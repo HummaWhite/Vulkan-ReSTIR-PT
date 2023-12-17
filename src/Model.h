@@ -60,6 +60,7 @@ public:
 	void setSize(float size) { mScale = glm::vec3(size); }
 	void setName(const std::string& name) { mName = name; }
 	void setPath(const File::path& path) { mPath = path; }
+	void setFlipNormal(bool flipNormal) { mFlipNormal = flipNormal; }
 
 	uint32_t meshOffset() const { return mMeshOffset; }
 	uint32_t numMeshes() const { return mNumMeshes; }
@@ -72,6 +73,7 @@ public:
 	glm::mat4 modelMatrix() const;
 	std::string name() const { return mName; }
 	File::path path() const { return mPath; }
+	bool flipNormal() const { return mFlipNormal; }
 
 private:
 	ModelInstance* copy() const;
@@ -82,6 +84,7 @@ private:
 	uint32_t mNumIndices = 0;
 	uint32_t mNumVertices = 0;
 	uint32_t mRefId = 0;
+	bool mFlipNormal = false;
 
 	glm::vec3 mPos = glm::vec3(0.0f);
 	glm::vec3 mScale = glm::vec3(1.0f);
