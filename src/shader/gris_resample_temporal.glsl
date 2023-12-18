@@ -59,6 +59,7 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
     //return rcSample.rcLi;
     //return colorWheel(rcSample.rcPrevScatterPdf);
 
+    /*
     if (distToPrev > GRISDistanceThreshold) {
         if (rcSample.rcIsLight) {
             L = rcSample.rcLi;
@@ -71,7 +72,7 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
                 L += rcSample.rcLs * evalBSDF(rcMat, rcSurf.albedo, rcSurf.norm, -rcPrevWi, rcSample.rcWs) * satDot(rcSurf.norm, rcSample.rcWs);
             }
         }
-        //L *= evalBSDF(rcPrevMat, rcPrevSurf.albedo, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi) * satDot(rcPrevSurf.norm, rcPrevWi);
+        L *= evalBSDF(rcPrevMat, rcPrevSurf.albedo, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi) * satDot(rcPrevSurf.norm, rcPrevWi);
         L *= rcData.rcPrevThroughput;
 
         //float prevScatterPdf = evalPdf(rcPrevMat, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi);
@@ -85,6 +86,7 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
             L = vec3(0.0);
         }
     }
+    */
     return clampColor(L);
 }
 

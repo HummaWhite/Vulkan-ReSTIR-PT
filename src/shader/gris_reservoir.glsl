@@ -14,6 +14,10 @@ const uint Reconnection = 0;
 const uint Replay = 1;
 const uint Hybrid = 2;
 
+const uint RcVertexTypeLightSampled = 0;
+const uint RcVertexTypeLightScattered = 1;
+const uint RcVertexTypeSurface = 2;
+
 float GRISToScalar(vec3 color) {
 	return luminance(color);
 }
@@ -34,15 +38,22 @@ void GRISPathFlagsSetPathLength(inout uint flags, uint id) {
 	flags = (flags & 0xffff00ff) | ((id & 0xff) << 8);
 }
 
+uint GRISPathFlagsRcVertexType(uint flags) {
+	return (flags >> 16) & 0xff;
+}
+
+void GRISPathFlagsSetRcVertexType(inout uint flags, uint type) {
+	flags = (flags & 0xff00ffff) | ((type & 0xff) << 16);
+}
+
 void GRISPathSampleReset(inout GRISPathSample pathSample) {
 	pathSample.rcIsec.instanceIdx = InvalidHitIndex;
 	pathSample.rcLi = vec3(0.0);
 	pathSample.rcWi = vec3(0.0);
 	pathSample.rcLs = vec3(0.0);
 	pathSample.rcWs = vec3(0.0);
-	pathSample.rcPrevScatterPdf = 0;
+	pathSample.rcPrevSamplePdf = 0;
 	pathSample.rcJacobian = 0;
-	pathSample.rcIsLight = false;
 	pathSample.flags = 0;
 }
 
@@ -79,6 +90,12 @@ bool GRISReservoirAddSample(inout GRISReservoir resv, GRISPathSample pathSample,
 		return true;
 	}
 	return false;
+}
+
+void GRISReservoirInitSample(inout GRISReservoir resv, GRISPathSample pathSample, float weight) {
+	resv.sampleCount = 1.0;
+	resv.resampleWeight = weight;
+	resv.pathSample = pathSample;
 }
 
 void GRISReservoirCapSample(inout GRISReservoir resv, float cap) {

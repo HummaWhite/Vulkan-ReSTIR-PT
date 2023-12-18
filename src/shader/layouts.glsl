@@ -128,21 +128,21 @@ struct GRISPathSample {
 	Intersection rcIsec;
 
 	vec3 rcLi;
-	bool rcIsLight;
+	uint rcRng;
 
 	vec3 rcWi;
 	uint flags;
 
 	vec3 rcLs;
-	float rcPrevScatterPdf;
+	float rcPrevSamplePdf;
 
 	vec3 rcWs;
 	float rcJacobian;
 
-	uint rcRng;
 	uint primaryRng;
 	float pad0;
 	float pad1;
+	float pad2;
 };
 
 struct GRISReservoir {

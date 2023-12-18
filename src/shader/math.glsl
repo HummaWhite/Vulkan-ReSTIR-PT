@@ -114,6 +114,11 @@ float angleBetween(vec3 x, vec3 y) {
 	}
 }
 
+vec2 uvToBary(vec2 uv) {
+	float r = sqrt(uv.y);
+	return vec2(1.0 - r, uv.x * r);
+}
+
 vec3 sampleTriangleUniform(vec3 va, vec3 vb, vec3 vc, vec2 uv) {
 	float r = sqrt(uv.y);
 	float u = 1.0 - r;

@@ -69,7 +69,7 @@ vec3 directIllumination(uvec2 index, uvec2 filmSize) {
         float lightPdf;
         float lightDist;
 
-        pathSample.Li = sampleLight(pos, lightDir, lightDist, lightPdf, rng);
+        pathSample.Li = sampleLight(pos, lightDir, lightDist, lightPdf, sample4f(rng));
         //pathSample.Li = sampleLightThreaded(pos, blockRand, pathSample.wi, pathSample.dist, lightPdf, rng);
         pathSample.rcPos = pos + lightDir * lightDist;
 

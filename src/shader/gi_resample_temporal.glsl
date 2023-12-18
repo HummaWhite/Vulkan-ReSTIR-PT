@@ -123,7 +123,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
             vec3 lightRadiance, lightDir;
             float lightDist, lightPdf;
 
-            lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, rng);
+            lightRadiance = sampleLight(surf.pos, lightDir, lightDist, lightPdf, sample4f(rng));
 
             bool shadowed = traceShadow(
                 uTLAS,
