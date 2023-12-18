@@ -62,7 +62,7 @@ bool GRISPathSampleIsValid(GRISPathSample pathSample) {
 }
 
 void GRISReservoirReset(inout GRISReservoir resv) {
-	//GRISPathSampleReset(resv.pathSample);
+	resv.pathSample.rcIsec.instanceIdx = InvalidHitIndex;
 	resv.sampleCount = 0;
 	resv.resampleWeight = 0;
 }

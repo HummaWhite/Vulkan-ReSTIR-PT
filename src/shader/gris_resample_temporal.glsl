@@ -57,11 +57,12 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
 
     //return clampColor(vec3(1.0 / jacobian));
     //return rcSample.rcLi;
-    //return colorWheel(rcSample.rcPrevScatterPdf);
+    //return colorWheel(rcSample.rcPrevSamplePdf);
 
-    /*
+    uint rcType = GRISPathFlagsRcVertexType(rcSample.flags);
+
     if (distToPrev > GRISDistanceThreshold) {
-        if (rcSample.rcIsLight) {
+        if (rcType == RcVertexTypeLightSampled || rcType == RcVertexTypeLightScattered) {
             L = rcSample.rcLi;
         }
         else {
@@ -74,19 +75,15 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
         }
         L *= evalBSDF(rcPrevMat, rcPrevSurf.albedo, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi) * satDot(rcPrevSurf.norm, rcPrevWi);
         L *= rcData.rcPrevThroughput;
-
-        //float prevScatterPdf = evalPdf(rcPrevMat, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi);
-        //L /= prevScatterPdf;
-        //L *= rcSample.rcPrevScatterPdf;
+        L /= rcSample.rcPrevSamplePdf;
 
         if (!isBlack(L)) {
-            L = L / luminance(L) * temporalResv.resampleWeight / temporalResv.sampleCount;
+            L = L / luminance(L) * temporalResv.resampleWeight;
         }
         else {
             L = vec3(0.0);
         }
     }
-    */
     return clampColor(L);
 }
 

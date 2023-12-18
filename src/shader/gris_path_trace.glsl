@@ -241,19 +241,33 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
         GRISReservoirResetIfInvalid(resv);
         GRISReservoirCapSample(resv, 40);
     }
+    GRISReservoirResetIfInvalid(resv);
+    
+    if (uSettings.shiftMode == Reconnection) {
+        GRISPathFlagsSetRcVertexType(resv.pathSample.flags, RcVertexTypeSurface);
+    }
+
+    if (resv.sampleCount != 0) {
+        resv.sampleCount = 1;
+    }
     uGRISReservoir[index1D(index)] = resv;
 
     pathSample = resv.pathSample;
-    uint pathLength = GRISPathFlagsPathLength(pathSample.flags);
 
-    radiance = lightSampledRadiance * lightSampledWeight + scatteredRadiance;
+    if (resv.sampleCount < 0.5 || !GRISPathSampleIsValid(pathSample)) {
+        GRISPathSampleReset(pathSample);
+    }
+    uint pathLength = GRISPathFlagsPathLength(pathSample.flags);
+    uint rcVertexId = GRISPathFlagsRcVertexId(pathSample.flags);
+
+    //radiance = vec3(resv.resampleWeight / (resv.sampleCount + 0.001));
+    //radiance = lightSampledRadiance * lightSampledWeight + scatteredRadiance;
     //radiance = lightSampledRadiance * lightSampledWeight;
     //radiance = scatteredRadiance;
     //radiance = colorWheel(resv.sampleCount / 2.0);
     //radiance = colorWheel(float(foundScattered));
     //radiance = colorWheel(float(rcVertexId) / float(pathLength));
-    //radiance = colorWheel(float(rcVertexId) / 6.0);
-    //radiance = vec3(GRISPathFlagsRcVertexId(pathSample.flags) == 1);
+    //radiance = colorWheel(float(rcVertexId) / 4.0);
     //radiance = vec3(pathSample.rcPrevScatterPdf);
     //radiance = vec3(pathSample.rcJacobian);
     //radiance = colorWheel(pathSample.rcJacobian);

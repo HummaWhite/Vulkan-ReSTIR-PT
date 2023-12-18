@@ -210,6 +210,10 @@ vec3 colorWheel(float x) {
 	}
 }
 
+vec3 assert(bool assertion) {
+	return colorWheel(1.0 - float(assertion) * 0.5);
+}
+
 uint hash(uint a) {
 	a = (a + 0x7ed55d16u) + (a << 12u);
 	a = (a ^ 0xc761c23cu) ^ (a >> 19u);
