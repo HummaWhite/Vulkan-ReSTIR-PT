@@ -123,4 +123,98 @@ vec3 directIllumination(uvec2 index, uvec2 filmSize) {
     return clampColor(radiance);
 }
 
+vec3 directIllumination2(uvec2 index, uvec2 filmSize) {
+    const uint ResampleNum = 4;
+
+    vec2 uv = (vec2(index) + 0.5) / vec2(filmSize);
+
+    float depth;
+    vec3 norm;
+    vec3 albedo;
+    int matMeshId;
+
+    if (!unpackGBuffer(texture(uDepthNormal, uv), texelFetch(uAlbedoMatId, ivec2(index), 0), depth, norm, albedo, matMeshId)) {
+        return vec3(0.0);
+    }
+    vec2 motion = texelFetch(uMotionVector, ivec2(index), 0).xy;
+    int matId = matMeshId >> 16;
+
+    Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
+    uint rng = makeSeed(uCamera.seed + index.x, index.y);
+
+    vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
+    vec3 wo = -ray.dir;
+    Material mat = uMaterials[matId];
+
+    DIReservoir resv;
+    DIReservoirReset(resv);
+
+    float blockRand = sample1f(rng);
+
+    DIPathSample pathSample;
+    BSDFSample s;
+
+    if (((uCamera.frameIndex & CameraClearFlag) == 0) && findPreviousReservoir(uv + motion, pos, depth, norm, albedo, matMeshId, resv)) {
+        DIReservoirResetIfInvalid(resv);
+    }
+    float resampleWeight = 0;
+
+    for (uint i = 0; i < ResampleNum; i++) {
+        resampleWeight = 0;
+
+        if (sampleBSDF(mat, albedo, norm, wo, sample3f(rng), s) && s.pdf > 1e-6) {
+            Intersection isec = traceClosestHit(
+                uTLAS,
+                gl_RayFlagsOpaqueEXT, 0xff,
+                pos, MinRayDistance, s.wi, MaxRayDistance
+            );
+
+            if (intersectionIsValid(isec)) {
+                SurfaceInfo surf;
+                loadSurfaceInfo(isec, surf);
+                float cosTheta = -dot(s.wi, surf.norm);
+
+                if (surf.isLight
+#if !SAMPLE_LIGHT_DOUBLE_SIDE
+                    && cosTheta > 0
+#endif
+                    ) {
+                    pathSample.Li = surf.albedo;
+                    pathSample.rcPos = surf.pos;
+
+                    float dist = length(surf.pos - pos);
+                    float sumPower = uLightSampleTable[0].prob;
+                    float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / abs(cosTheta);
+                    float weight = MISWeight(s.pdf, lightPdf);
+                    weight = 1.0;
+
+                    resampleWeight = luminance(pathSample.Li * s.bsdf * satDot(norm, s.wi) * weight) / s.pdf;
+
+                    if (isnan(resampleWeight)) {
+                        resampleWeight = 0;
+                    }
+                }
+            }
+        }
+        DIReservoirAddSample(resv, pathSample, resampleWeight, sample1f(rng));
+    }
+    DIReservoirCapSample(resv, 320);
+    DIReservoirResetIfInvalid(resv);
+    uDIReservoir[index1D(uvec2(index))] = resv;
+
+    pathSample = resv.pathSample;
+
+    vec3 radiance = vec3(0.0);
+    vec3 wi = normalize(pathSample.rcPos - pos);
+
+    if (DIReservoirIsValid(resv) && resv.sampleCount > 0) {
+        vec3 Li = pathSample.Li * evalBSDF(mat, albedo, norm, wo, wi) * satDot(norm, wi);
+
+        if (!isBlack(Li)) {
+            radiance = Li / luminance(Li) * resv.resampleWeight / float(resv.sampleCount);
+        }
+    }
+    return clampColor(radiance);
+}
+
 #endif

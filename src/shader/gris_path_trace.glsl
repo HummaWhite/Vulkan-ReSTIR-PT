@@ -108,7 +108,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
         bool isThisVertexConnectible = surf.isLight || isBSDFConnectible(mat);
 
         bool recordRcVertex = (uSettings.shiftMode == Reconnection && bounce == 1) ||
-            (!rcVertexFound && isLastVertexConnectible && isThisVertexConnectible && distToPrev > GRISDistanceThreshold);
+            (!rcVertexFound && isLastVertexConnectible && isThisVertexConnectible && distToPrev > GRISDistanceThreshold && bounce > 1);
 
         if  (recordRcVertex) {
             rcVertexFound = true;
@@ -218,7 +218,6 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
     uGRISReservoir[index1D(index)] = resv;
 
     uint pathLength = GRISPathFlagsPathLength(pathSample.flags);
-
     //radiance = colorWheel(float(rcVertexId) / float(pathLength));
     //radiance = colorWheel(float(rcVertexId) / 6.0);
     //radiance = vec3(GRISPathFlagsRcVertexId(pathSample.flags) == 1);

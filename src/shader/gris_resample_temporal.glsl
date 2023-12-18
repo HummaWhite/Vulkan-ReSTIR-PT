@@ -56,6 +56,8 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
     float jacobian = absDot(rcSurf.pos, rcPrevWi) / square(distToPrev) / rcSample.rcJacobian;
 
     //return clampColor(vec3(1.0 / jacobian));
+    //return rcSample.rcLi;
+    //return colorWheel(rcSample.rcPrevScatterPdf);
 
     if (distToPrev > GRISDistanceThreshold) {
         if (rcSample.rcIsLight) {
@@ -69,8 +71,12 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
                 L += rcSample.rcLs * evalBSDF(rcMat, rcSurf.albedo, rcSurf.norm, -rcPrevWi, rcSample.rcWs) * satDot(rcSurf.norm, rcSample.rcWs);
             }
         }
-        L *= evalBSDF(rcPrevMat, rcPrevSurf.albedo, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi) * satDot(rcPrevSurf.norm, rcPrevWi) * rcData.rcPrevThroughput;
-        L /= rcSample.rcPrevScatterPdf;
+        //L *= evalBSDF(rcPrevMat, rcPrevSurf.albedo, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi) * satDot(rcPrevSurf.norm, rcPrevWi);
+        L *= rcData.rcPrevThroughput;
+
+        //float prevScatterPdf = evalPdf(rcPrevMat, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi);
+        //L /= prevScatterPdf;
+        //L *= rcSample.rcPrevScatterPdf;
 
         if (!isBlack(L)) {
             L = L / luminance(L) * temporalResv.resampleWeight / temporalResv.sampleCount;

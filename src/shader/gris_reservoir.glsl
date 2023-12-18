@@ -19,19 +19,19 @@ float GRISToScalar(vec3 color) {
 }
 
 uint GRISPathFlagsRcVertexId(uint flags) {
-	return flags & 0x1f;
+	return flags & 0xff;
 }
 
 void GRISPathFlagsSetRcVertexId(inout uint flags, uint id) {
-	flags = (flags & 0xffffffe0) | (id & 0x1f);
+	flags = (flags & 0xffffff00) | (id & 0xff);
 }
 
 uint GRISPathFlagsPathLength(uint flags) {
-	return (flags >> 5) & 0x1f;
+	return (flags >> 8) & 0xff;
 }
 
 void GRISPathFlagsSetPathLength(inout uint flags, uint id) {
-	flags = (flags & 0xfffffc1f) | ((id & 0x1f) << 5);
+	flags = (flags & 0xffff00ff) | ((id & 0xff) << 8);
 }
 
 void GRISPathSampleReset(inout GRISPathSample pathSample) {

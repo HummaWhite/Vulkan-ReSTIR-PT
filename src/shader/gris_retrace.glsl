@@ -169,15 +169,19 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
     }
 
     GRISReconnectionData rcData;
+    uint rcVertexId = GRISPathFlagsRcVertexId(temporalSample.flags);
 
-    traceReplayPathForHybridShift(isec, surf, ray, GRISPathFlagsRcVertexId(temporalSample.flags), temporalSample.primaryRng, rcData);
+    traceReplayPathForHybridShift(isec, surf, ray, rcVertexId, temporalSample.primaryRng, rcData);
     uGRISReconnectionData[index1D(index)] = rcData;
 
     if (!intersectionIsValid(rcData.rcPrevIsec)) {
         return vec3(0.0);
     }
     //return colorWheel(float(rcPrevIsec.instanceIdx == SpecialHitIndex));
-    return vec3(rcData.rcPrevIsec.bary, 1.0);
+    //return vec3(rcData.rcPrevIsec.bary, 1.0);
+    //return rcData.rcPrevWo;
+    //return colorWheel(float(rcVertexId == 2));
+    return rcData.rcPrevThroughput;
 }
 
 #endif
