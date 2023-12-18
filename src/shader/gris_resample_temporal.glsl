@@ -11,7 +11,7 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
     const int MaxTracingDepth = 15;
     vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
 
-    GRISReconnectionData rcData = uGRISReconnectionData[index1D(index)];
+    GRISReconnectionData rcData = uGRISReconnectionData[index1D(index) * 2 + 0];
 
     if (!intersectionIsValid(rcData.rcPrevIsec)) {
         return vec3(0.0);
@@ -78,7 +78,7 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
         L /= rcSample.rcPrevSamplePdf;
 
         if (!isBlack(L)) {
-            L = L / luminance(L) * temporalResv.resampleWeight;
+            L = L / luminance(L) * temporalResv.resampleWeight / temporalResv.sampleCount;
         }
         else {
             L = vec3(0.0);

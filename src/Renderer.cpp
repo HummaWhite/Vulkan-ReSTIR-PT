@@ -237,7 +237,7 @@ void Renderer::createRayImage() {
 		}
 
 		mReconnectionData[i] = zvk::Memory::createBuffer(
-			mContext.get(), sizeof(GRISReconnectionData) * numPixels, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
+			mContext.get(), sizeof(GRISReconnectionData) * numPixels * 2, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
 		zvk::DebugUtils::nameVkObject(mContext->device, mReconnectionData[i]->buffer, std::format("GRISReconnectionData[{}]", i));
 	}

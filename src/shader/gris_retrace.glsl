@@ -133,7 +133,6 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
 }
 
 vec3 retrace(uvec2 index, uvec2 frameSize) {
-    const int MaxTracingDepth = 15;
     vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
 
     float depth;
@@ -145,7 +144,8 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
         return vec3(0.0);
     }
     vec2 motion = texelFetch(uMotionVector, ivec2(index), 0).xy;
-    int matId = matMeshId >> 16;
+    vec2 temporalUV = uv + motion;
+    ivec2 temporalIndex = ivec2(temporalUV * vec2(frameSize));
 
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
 
@@ -154,7 +154,22 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
     surf.norm = norm;
     surf.albedo = albedo;
     surf.isLight = false;
-    surf.matIndex = matId;
+    surf.matIndex = matMeshId >> 16;
+
+    GRISReservoir resv = uGRISReservoir[index1D(index)];
+    GRISReservoir temporalResv;
+
+    if (!findPreviousReservoir(temporalUV, surf.pos, depth, norm, albedo, matMeshId, temporalResv)) {
+        return vec3(0.0);
+    }
+    GRISPathSample thisSample = resv.pathSample;
+    GRISPathSample temporalSample = temporalResv.pathSample;
+
+    if (!GRISPathSampleIsValid(temporalSample) || !GRISPathSampleIsValid(thisSample)) {
+        return vec3(0.0);
+    }
+
+    GRISReconnectionData rcData, temporalRcData;
 
     // special case for primary hit - I can't make it to get instance and triangle id for first hit
     // so I recorded screen uv in isec.bary
@@ -162,27 +177,35 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
     isec.instanceIdx = SpecialHitIndex;
     isec.bary = uv;
 
-    GRISReservoir resv = uGRISReservoir[index1D(index)];
-    GRISReservoir temporalResv;
+    Intersection temporalIsec;
+    temporalIsec.instanceIdx = SpecialHitIndex;
+    temporalIsec.bary = temporalUV;
 
-    if (!findPreviousReservoir(uv + motion, surf.pos, depth, norm, albedo, matMeshId, temporalResv)) {
+    float depthPrev;
+    vec3 normalPrev;
+    vec3 albedoPrev;
+    int matMeshIdPrev;
+
+    if (!unpackGBuffer(texture(uDepthNormalPrev, temporalUV), texelFetch(uAlbedoMatIdPrev, temporalIndex, 0), depthPrev, normalPrev, albedoPrev, matMeshIdPrev)) {
         return vec3(0.0);
     }
-    GRISPathSample temporalSample = temporalResv.pathSample;
 
-    if (!GRISPathSampleIsValid(temporalSample)) {
-        return vec3(0.0);
-    }
+    Ray temporalRay = pinholeCameraSampleRay(uPrevCamera, vec2(temporalUV.x, 1.0 - temporalUV.y), vec2(0));
 
-    GRISReconnectionData rcData;
-    uint rcVertexId = GRISPathFlagsRcVertexId(temporalSample.flags);
+    SurfaceInfo temporalSurf;
+    temporalSurf.pos = temporalRay.ori + temporalRay.dir * (depthPrev - 1e-4);
+    temporalSurf.norm = normalPrev;
+    temporalSurf.albedo = albedoPrev;
+    temporalSurf.isLight = false;
+    temporalSurf.matIndex = matMeshIdPrev >> 16;
 
     traceReplayPathForHybridShift(isec, surf, ray, temporalSample.flags, temporalSample.primaryRng, rcData);
-    uGRISReconnectionData[index1D(index)] = rcData;
+    traceReplayPathForHybridShift(temporalIsec, temporalSurf, temporalRay, thisSample.flags, thisSample.primaryRng, temporalRcData);
 
-    if (!intersectionIsValid(rcData.rcPrevIsec)) {
-        return vec3(0.0);
-    }
+    uGRISReconnectionData[index1D(index) * 2 + 0] = rcData;
+    uGRISReconnectionData[index1D(index) * 2 + 1] = temporalRcData;
+
+    return vec3(0.0);
     //return assert(rcData.rcPrevIsec.instanceIdx == SpecialHitIndex);
     //return vec3(rcData.rcPrevIsec.bary, 1.0);
     //return rcData.rcPrevWo;
