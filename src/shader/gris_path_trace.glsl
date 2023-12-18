@@ -35,13 +35,15 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
 
     vec3 lightSampledRadiance = vec3(0.0);
     vec3 scatteredRadiance = vec3(0.0);
+    vec3 radiance = vec3(0.0);
+    float lightSampledWeight = 0;
     vec3 throughput = vec3(1.0);
     vec3 rcThroughput;
     vec3 wo = -ray.dir;
     vec3 lastPos;
     bool isLastVertexConnectible = false;
     bool foundScattered = false;
-    bool lightSampled = false;
+    bool lightSampled = (uSettings.shiftMode == Reconnection);
 
     SurfaceInfo surf;
     surf.pos = ray.ori + ray.dir * (depth - 1e-4);
@@ -82,6 +84,10 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
         float cosPrevWi = dot(ray.dir, surf.norm);
         float distToPrev = distance(lastPos, surf.pos);
         float geometryJacobian = abs(cosPrevWi) / square(distToPrev);
+        bool isThisVertexConnectible = surf.isLight || isBSDFConnectible(mat);
+
+        bool recordScatteredRcVertex = (uSettings.shiftMode == Reconnection && bounce == 1 && !surf.isLight) ||
+            (!foundScattered && lightSampled && isLastVertexConnectible && isThisVertexConnectible && distToPrev > GRISDistanceThreshold);
 
         if (surf.isLight) {
             if (bounce > 1
@@ -96,20 +102,17 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
                 if (!isSampleTypeDelta(s.type)) {
                     weight = MISWeight(s.pdf, lightPdf);
                 }
-                vec3 weightedLi = surf.albedo * weight;
+                vec3 weightedLs = surf.albedo * weight;
+                radiance += weightedLs * throughput;
 
-                if (foundScattered) {
-                    pathSample.rcLs += weightedLi * rcThroughput;
+                if (recordScatteredRcVertex || foundScattered) {
+                    pathSample.rcLs += weightedLs * rcThroughput;
+                    scatteredRadiance += weightedLs * throughput;
                 }
-                scatteredRadiance += weightedLi * throughput;
             }
         }
-        bool isThisVertexConnectible = surf.isLight || isBSDFConnectible(mat);
 
-        bool recordScatteredRcVertex = (uSettings.shiftMode == Reconnection && bounce == 1) ||
-            (!foundScattered && lightSampled && isLastVertexConnectible && isThisVertexConnectible && distToPrev > GRISDistanceThreshold);
-
-        if  (recordScatteredRcVertex) {
+        if (recordScatteredRcVertex) {
             foundScattered = true;
 
             pathSample.rcIsec = isec;
@@ -144,11 +147,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
             );
 
             // if light sampling successful, mark sample point as rcVertex
-            bool recordLightRcVertex = (!lightSampled && isThisVertexConnectible && lightDist > GRISDistanceThreshold);
-
-            if (recordLightRcVertex) {
-                lightSampled = true;
-            }
+            bool recordLightRcVertex = (!lightSampled && isThisVertexConnectible && lightDist > GRISDistanceThreshold && (uSettings.shiftMode != Reconnection));
 
             if (!shadowed && lightPdf > 1e-6) {
                 float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
@@ -157,6 +156,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
                 vec3 weightedLi = lightRadiance / lightPdf * weight;
 
                 if (recordLightRcVertex) {
+                    lightSampled = true;
                     pathSample.rcIsec.instanceIdx = 0;
                     pathSample.rcIsec.triangleIdx = lightId;
                     pathSample.rcIsec.bary = lightBary;
@@ -169,9 +169,10 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
                     GRISPathFlagsSetRcVertexId(pathSample.flags, bounce + 1);
                     GRISPathFlagsSetRcVertexType(pathSample.flags, RcVertexTypeLightSampled);
 
-                    lightSampledRadiance = lightRadiance / lightPdf * scatterTerm * throughput * weight;
+                    lightSampledRadiance = lightRadiance / lightPdf * scatterTerm * throughput;
+                    lightSampledWeight = weight;
 
-                    GRISReservoirInitSample(resv, pathSample, luminance(lightSampledRadiance));
+                    GRISReservoirInitSample(resv, pathSample, luminance(lightSampledRadiance * weight));
                 }
 
                 if (foundScattered) {
@@ -184,6 +185,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
                     }
                     scatteredRadiance += weightedLi * scatterTerm * throughput;
                 }
+                radiance += weightedLi * scatterTerm * throughput;
             }
         }
 
@@ -223,7 +225,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
     }
 
     if (foundScattered) {
-        GRISReservoirInitSample(resv, pathSample, luminance(scatteredRadiance));
+        GRISReservoirAddSample(resv, pathSample, luminance(scatteredRadiance), sample1f(rng));
     }
 
     if (false) {
@@ -244,9 +246,11 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
     pathSample = resv.pathSample;
     uint pathLength = GRISPathFlagsPathLength(pathSample.flags);
 
-    vec3 radiance = lightSampledRadiance + scatteredRadiance;
-
+    radiance = lightSampledRadiance * lightSampledWeight + scatteredRadiance;
+    //radiance = lightSampledRadiance * lightSampledWeight;
+    //radiance = scatteredRadiance;
     //radiance = colorWheel(resv.sampleCount / 2.0);
+    //radiance = colorWheel(float(foundScattered));
     //radiance = colorWheel(float(rcVertexId) / float(pathLength));
     //radiance = colorWheel(float(rcVertexId) / 6.0);
     //radiance = vec3(GRISPathFlagsRcVertexId(pathSample.flags) == 1);
