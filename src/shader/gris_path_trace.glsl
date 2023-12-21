@@ -276,7 +276,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
     //radiance = colorWheel(float(pathLength == 3 && isLastVertexConnectible));
     //radiance = colorWheel(float(pathSample.rcIsLight));
     //radiance = vec3(resv.resampleWeight / resv.sampleCount);
-    //radiance = colorWheel(float(rcVertexId == 1));
+    radiance = assert(rcVertexId == 1);
 
     return radiance;
 }
