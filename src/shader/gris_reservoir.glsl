@@ -55,6 +55,7 @@ void GRISPathSampleReset(inout GRISPathSample pathSample) {
 	pathSample.rcPrevSamplePdf = 0;
 	pathSample.rcJacobian = 0;
 	pathSample.flags = 0;
+	pathSample.F = vec3(0.0);
 }
 
 bool GRISPathSampleIsValid(GRISPathSample pathSample) {

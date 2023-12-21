@@ -88,6 +88,8 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
             break;
         }
 #endif
+        float scatterResvRandSample = sample1f(rng);
+
         if (surf.isLight) {
             break;
         }
@@ -108,6 +110,7 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
         }
         // make sure sample space is aligned for all paths
         vec4 lightRandSample = sample4f(rng);
+        float lightResvRandSample = sample1f(rng);
 
         if (bounce > 4) {
             float pdfTerminate = max(1.0 - luminance(throughput) * uSettings.rrScale, 0);
@@ -199,8 +202,8 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
     temporalSurf.isLight = false;
     temporalSurf.matIndex = matMeshIdPrev >> 16;
 
-    traceReplayPathForHybridShift(isec, surf, ray, temporalSample.flags, temporalSample.primaryRng, rcData);
-    traceReplayPathForHybridShift(temporalIsec, temporalSurf, temporalRay, thisSample.flags, thisSample.primaryRng, temporalRcData);
+    traceReplayPathForHybridShift(isec, surf, ray, temporalSample.flags, ~temporalSample.primaryRng, rcData);
+    traceReplayPathForHybridShift(temporalIsec, temporalSurf, temporalRay, thisSample.flags, ~thisSample.primaryRng, temporalRcData);
 
     uGRISReconnectionData[index1D(index) * 2 + 0] = rcData;
     uGRISReconnectionData[index1D(index) * 2 + 1] = temporalRcData;

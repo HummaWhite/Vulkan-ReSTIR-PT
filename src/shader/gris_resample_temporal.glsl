@@ -78,7 +78,7 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
         L /= rcSample.rcPrevSamplePdf;
 
         if (!isBlack(L)) {
-            L = L / luminance(L) * temporalResv.resampleWeight / temporalResv.sampleCount;
+            L = L / luminance(rcSample.F) * temporalResv.resampleWeight;
         }
         else {
             L = vec3(0.0);
