@@ -139,10 +139,8 @@ struct GRISPathSample {
 	vec3 rcWs;
 	float rcJacobian;
 
+	vec3 F;
 	uint primaryRng;
-	float pad0;
-	float pad1;
-	float pad2;
 };
 
 struct GRISReservoir {

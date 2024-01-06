@@ -108,6 +108,7 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
         }
         // make sure sample space is aligned for all paths
         vec4 lightRandSample = sample4f(rng);
+        float resvRandSample = sample1f(rng);
 
         if (bounce > 4) {
             float pdfTerminate = max(1.0 - luminance(throughput) * uSettings.rrScale, 0);

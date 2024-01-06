@@ -1,6 +1,5 @@
 bin/*
 build/*
 ext/build/*
-res/*
 *.swp
 *.spv
