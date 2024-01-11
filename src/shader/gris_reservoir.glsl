@@ -50,8 +50,6 @@ void GRISPathSampleReset(inout GRISPathSample pathSample) {
 	pathSample.rcIsec.instanceIdx = InvalidHitIndex;
 	pathSample.rcLi = vec3(0.0);
 	pathSample.rcWi = vec3(0.0);
-	pathSample.rcLs = vec3(0.0);
-	pathSample.rcWs = vec3(0.0);
 	pathSample.rcPrevSamplePdf = 0;
 	pathSample.rcJacobian = 0;
 	pathSample.flags = 0;

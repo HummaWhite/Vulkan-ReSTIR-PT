@@ -24,5 +24,5 @@ void main() {
     vec3 accumulatedColor = imageLoad(uIndirectOutput, ivec2(index)).rgb;
     accumulatedColor = (accumulatedColor * frameCount + color) / (frameCount + 1.0);
 
-    //imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedColor, 1.0));
+    imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedColor, 1.0));
 }

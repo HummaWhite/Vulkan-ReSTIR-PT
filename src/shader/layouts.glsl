@@ -133,10 +133,8 @@ struct GRISPathSample {
 	vec3 rcWi;
 	uint flags;
 
-	vec3 rcLs;
+	vec2 pad;
 	float rcPrevSamplePdf;
-
-	vec3 rcWs;
 	float rcJacobian;
 
 	vec3 F;

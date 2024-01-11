@@ -6,6 +6,25 @@
 #include "light_sampling.glsl"
 #include "material.glsl"
 
+struct Resv {
+    float resampleWeight;
+    float weight;
+    vec3 F;
+};
+
+void addResv(inout Resv resv, vec3 F, float weight, float r) {
+    resv.resampleWeight += weight;
+
+    if (r * resv.resampleWeight < weight) {
+        resv.weight = weight;
+        resv.F = F;
+    }
+}
+
+Resv initResv() {
+    return Resv(0, 0, vec3(0));
+}
+
 vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
     const int MaxTracingDepth = 15;
     vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
@@ -38,6 +57,8 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
     BSDFSample s;
     Intersection isec;
 
+    Resv resv = initResv();
+
     #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
         if (bounce > 0) {
@@ -64,13 +85,15 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
                 ) {
                 float weight = 1.0;
 
-                if (bounce > 0 && !isSampleTypeDelta(s.type)) {
+                if (!isSampleTypeDelta(s.type)) {
                     float dist = length(surf.pos - lastPos);
                     float sumPower = uLightSampleTable[0].prob;
                     float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / abs(cosTheta);
                     weight = MISWeight(s.pdf, lightPdf);
                 }
-                radiance += surf.albedo * weight * throughput;
+                vec3 contrib = surf.albedo * weight * throughput;
+                radiance += contrib;
+                //addResv(resv, contrib, luminance(contrib), sample1f(rng));
             }
             break;
         }
@@ -92,7 +115,11 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
             if (!shadowed && lightPdf > 1e-6) {
                 float bsdfPdf = absDot(surf.norm, lightDir) * PiInv;
                 float weight = MISWeight(lightPdf, bsdfPdf);
-                radiance += lightRadiance * evalBSDF(mat, surf.albedo, surf.norm, wo, lightDir) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
+                weight = 1.0;
+
+                vec3 contrib = lightRadiance * evalBSDF(mat, surf.albedo, surf.norm, wo, lightDir) * satDot(surf.norm, lightDir) / lightPdf * weight * throughput;
+                radiance += contrib;
+                //addResv(resv, contrib, luminance(contrib), sample1f(rng));
             }
         }
         if (/* russian roulette */ bounce > 4) {
@@ -116,6 +143,8 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
         ray.dir = s.wi;
         ray.ori = surf.pos + ray.dir * 1e-4;
     }
+    //radiance = resv.F * resv.resampleWeight / resv.weight;
+
     return clampColor(radiance);
 }
 

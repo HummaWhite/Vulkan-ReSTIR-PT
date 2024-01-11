@@ -61,6 +61,8 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
 
     uint rcType = GRISPathFlagsRcVertexType(rcSample.flags);
 
+    /*
+
     if (distToPrev > GRISDistanceThreshold) {
         if (rcType == RcVertexTypeLightSampled || rcType == RcVertexTypeLightScattered) {
             L = rcSample.rcLi;
@@ -85,6 +87,7 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
             L = vec3(0.0);
         }
     }
+    */
     return clampColor(L);
 }
 
