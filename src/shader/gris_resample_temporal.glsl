@@ -53,7 +53,7 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
     vec3 rcPrevWi = normalize(rcSurf.pos - rcPrevSurf.pos);
     float distToPrev = length(rcSurf.pos - rcPrevSurf.pos);
 
-    float jacobian = absDot(rcSurf.pos, rcPrevWi) / square(distToPrev) / rcSample.rcJacobian;
+    float jacobian = absDot(rcSurf.pos, rcPrevWi) / square(distToPrev);
 
     //return clampColor(vec3(1.0 / jacobian));
     //return rcSample.rcLi;
@@ -61,33 +61,27 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
 
     uint rcType = GRISPathFlagsRcVertexType(rcSample.flags);
 
-    /*
-
     if (distToPrev > GRISDistanceThreshold) {
-        if (rcType == RcVertexTypeLightSampled || rcType == RcVertexTypeLightScattered) {
-            L = rcSample.rcLi;
-        }
-        else {
-            if (length(rcSample.rcWi) > 0.5) {
-                L += rcSample.rcLi * evalBSDF(rcMat, rcSurf.albedo, rcSurf.norm, -rcPrevWi, rcSample.rcWi) * satDot(rcSurf.norm, rcSample.rcWi);
-            }
-            if (length(rcSample.rcWs) > 0.5) {
-                L += rcSample.rcLs * evalBSDF(rcMat, rcSurf.albedo, rcSurf.norm, -rcPrevWi, rcSample.rcWs) * satDot(rcSurf.norm, rcSample.rcWs);
-            }
+        L = rcSample.rcLi;
+
+        if (rcType == RcVertexTypeSurface && length(rcSample.rcWi) > 0.5) {
+            L *= evalBSDF(rcMat, rcSurf.albedo, rcSurf.norm, -rcPrevWi, rcSample.rcWi) * satDot(rcSurf.norm, rcSample.rcWi);
         }
         L *= evalBSDF(rcPrevMat, rcPrevSurf.albedo, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi) * satDot(rcPrevSurf.norm, rcPrevWi);
         L *= rcData.rcPrevThroughput;
         L /= rcSample.rcPrevSamplePdf;
 
-        if (!isBlack(L)) {
+        //L = vec3(jacobian - rcSample.rcJacobian);
+        L = vec3(rcSample.rcJacobian);
+
+        if (!isBlack(L) && !hasNan(L)) {
             //L = L / luminance(L) * temporalResv.resampleWeight / temporalResv.sampleCount;
-            L = L / luminance(rcSample.F) * temporalResv.resampleWeight;
+            //L = L / luminance(rcSample.F) * temporalResv.resampleWeight;
         }
         else {
             L = vec3(0.0);
         }
     }
-    */
     return clampColor(L);
 }
 

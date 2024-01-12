@@ -217,4 +217,121 @@ vec3 directIllumination2(uvec2 index, uvec2 filmSize) {
     return clampColor(radiance);
 }
 
+struct StreamSampler {
+    DIPathSample pathSample;
+    float weight;
+    float sumWeight;
+    uint sampleCount;
+};
+
+StreamSampler initStream() {
+    StreamSampler r;
+    r.weight = 0;
+    r.sumWeight = 0;
+    r.sampleCount = 0;
+    return r;
+}
+
+void addStream(inout StreamSampler resv, DIPathSample pathSample, float weight, float r) {
+    resv.sumWeight += weight;
+
+    if (r * resv.sumWeight < weight) {
+        resv.weight = weight;
+        resv.pathSample = pathSample;
+        resv.sampleCount++;
+    }
+}
+
+vec3 directIllumination3(uvec2 index, uvec2 filmSize) {
+    const uint ResampleNum = 32;
+
+    vec2 uv = (vec2(index) + 0.5) / vec2(filmSize);
+
+    float depth;
+    vec3 norm;
+    vec3 albedo;
+    int matMeshId;
+
+    if (!unpackGBuffer(texture(uDepthNormal, uv), texelFetch(uAlbedoMatId, ivec2(index), 0), depth, norm, albedo, matMeshId)) {
+        return vec3(0.0);
+    }
+    vec2 motion = texelFetch(uMotionVector, ivec2(index), 0).xy;
+    int matId = matMeshId >> 16;
+
+    Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
+    uint rng = makeSeed(uCamera.seed + index.x, index.y);
+
+    vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
+    vec3 wo = -ray.dir;
+    Material mat = uMaterials[matId];
+
+    DIReservoir resv;
+    DIReservoirReset(resv);
+
+    float blockRand = sample1f(rng);
+
+    DIPathSample pathSample;
+
+#pragma unroll
+    for (uint i = 0; i < ResampleNum; i++) {
+        DIPathSampleInit(pathSample);
+
+        vec3 lightDir;
+        float lightPdf;
+        float lightDist;
+
+        pathSample.Li = sampleLight(pos, lightDir, lightDist, lightPdf, sample4f(rng));
+        //pathSample.Li = sampleLightThreaded(pos, blockRand, pathSample.wi, pathSample.dist, lightPdf, rng);
+        pathSample.rcPos = pos + lightDir * lightDist;
+
+        float resampleWeight = 0;
+
+        if (lightPdf > 1e-6) {
+            float bsdfPdf = evalPdf(mat, norm, wo, lightDir) * PiInv;
+            float weight = MISWeight(lightPdf, bsdfPdf);
+            weight = 1.0;
+
+            vec3 Li = pathSample.Li * evalBSDF(mat, albedo, norm, wo, lightDir) * satDot(norm, lightDir) * weight;
+            resampleWeight = luminance(Li) / lightPdf;
+        }
+
+        if (isnan(resampleWeight)) {
+            resampleWeight = 0;
+        }
+        DIReservoirAddSample(resv, pathSample, resampleWeight, sample1f(rng));
+    }
+
+    if (/* shadow ray */ true) {
+        const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
+
+        if (!traceVisibility(uTLAS, shadowRayFlags, 0xff, pos, resv.pathSample.rcPos)) {
+            resv.resampleWeight = 0;
+        }
+    }
+    DIReservoir temporalResv;
+
+    if (((uCamera.frameIndex & CameraClearFlag) == 0) && findPreviousReservoir(uv + motion, pos, depth, norm, albedo, matMeshId, temporalResv)) {
+        if (DIReservoirIsValid(temporalResv)) {
+            DIReservoirMerge(resv, temporalResv, sample1f(rng));
+            DIReservoirCapSample(resv, ResampleNum * 10);
+        }
+    }
+    DIReservoirResetIfInvalid(resv);
+    uDIReservoir[index1D(uvec2(index))] = resv;
+
+    pathSample = resv.pathSample;
+
+    vec3 radiance = vec3(0.0);
+    vec3 wi = normalize(pathSample.rcPos - pos);
+
+    if (DIReservoirIsValid(resv) && resv.sampleCount > 0) {
+        vec3 Li = pathSample.Li * evalBSDF(mat, albedo, norm, wo, wi) * satDot(norm, wi);
+
+        if (!isBlack(Li)) {
+            radiance = Li / luminance(Li) * resv.resampleWeight / float(resv.sampleCount);
+        }
+    }
+    return clampColor(radiance);
+}
+
 #endif

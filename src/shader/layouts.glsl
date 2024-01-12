@@ -97,7 +97,7 @@ struct DIPathSample {
 	vec3 Li;
 	float pad0;
 	vec3 rcPos;
-	bool valid;
+	bool isLightSample;
 };
 
 struct DIReservoir {
