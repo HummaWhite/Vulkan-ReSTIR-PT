@@ -9,13 +9,15 @@
 struct Settings {
     uint shiftMode;
     uint sampleMode;
+    bool temporalReuse;
+    bool spatialReuse;
 };
 
 layout(push_constant) uniform _Settings{
     Settings uSettings;
 };
 
-vec3 directIllumination(uvec2 index, uvec2 frameSize) {
+vec3 generatePath(uvec2 index, uvec2 frameSize) {
     vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
 
     float depth;
@@ -47,7 +49,7 @@ vec3 directIllumination(uvec2 index, uvec2 frameSize) {
     uint scatterRng = rng;
     vec3 scatterRandSample = sample3f(rng);
 
-    if (/* sample direct lighting */ !isBSDFDelta(mat)) {
+    if ((uSettings.sampleMode != SampleModeBSDF) && !isBSDFDelta(mat)) {
         const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
         vec3 lightRadiance, lightDir;
@@ -70,9 +72,6 @@ vec3 directIllumination(uvec2 index, uvec2 frameSize) {
             if (uSettings.sampleMode == SampleModeLight) {
                 weight = 1.0;
             }
-            else if (uSettings.sampleMode == SampleModeBSDF) {
-                weight = 0;
-            }
 
             vec3 contrib = lightRadiance * evalBSDF(mat, albedo, norm, wo, lightDir) * satDot(norm, lightDir) / lightPdf * weight;
 
@@ -89,7 +88,10 @@ vec3 directIllumination(uvec2 index, uvec2 frameSize) {
     }
     BSDFSample s;
 
-    if (sampleBSDF(mat, albedo, norm, wo, scatterRandSample, s) && s.pdf > 1e-6) {
+    DIPathSampleInit(pathSample);
+    pathSample.isLightSample = false;
+
+    if ((uSettings.sampleMode != SampleModeLight) && sampleBSDF(mat, albedo, norm, wo, scatterRandSample, s) && s.pdf > 1e-6) {
         Intersection isec = traceClosestHit(
             uTLAS,
             gl_RayFlagsOpaqueEXT, 0xff,
@@ -111,15 +113,12 @@ vec3 directIllumination(uvec2 index, uvec2 frameSize) {
                 float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / abs(cosTheta);
                 float weight = MISWeight(s.pdf, lightPdf);
 
-                if (uSettings.sampleMode == SampleModeLight) {
-                    weight = 0;
-                }
-                else if (uSettings.sampleMode == SampleModeBSDF) {
+                if (uSettings.sampleMode == SampleModeBSDF || isSampleTypeDelta(s.type)) {
                     weight = 1.0;
                 }
 
                 vec3 wi = normalize(surf.pos - pos);
-                vec3 contrib = surf.albedo * evalBSDF(mat, albedo, norm, wo, wi) * satDot(norm, wi) / s.pdf * weight;
+                vec3 contrib = surf.albedo * s.bsdf * satDot(norm, wi) / s.pdf * weight;
 
                 pathSample.isec = isec;
                 pathSample.Li = surf.albedo * weight;
@@ -133,22 +132,30 @@ vec3 directIllumination(uvec2 index, uvec2 frameSize) {
             }
         }
     }
-    DIReservoirCapSample(resv, 40);
     DIReservoirResetIfInvalid(resv);
 
-    if (DIReservoirIsValid(resv)) {
-        if (DIPathSampleIsValid(resv.pathSample) && resv.weight > 0) {
-            resv.pathSample.Li *= resv.resampleWeight / resv.weight;
-            resv.weight = resv.resampleWeight;
-        }
+    bool valid = false;
+
+    if (resv.sampleCount > 0 && DIPathSampleIsValid(resv.pathSample) && resv.weight > 0) {
+        resv.pathSample.Li *= resv.resampleWeight / resv.weight;
+        resv.weight = resv.resampleWeight;
+        valid = true;
+    }
+    else {
+        DIPathSampleInit(resv.pathSample);
+        resv.weight = 0;
+        resv.resampleWeight = 0;
     }
     resv.sampleCount = 1;
     uDIReservoir[index1D(uvec2(index))] = resv;
 
     pathSample = resv.pathSample;
+
+    return assert(!pathSample.isLightSample && DIPathSampleIsValid(pathSample));
+
     radiance = vec3(0.0);
 
-    if (resv.resampleWeight > 0 && resv.weight > 0) {
+    if (DIReservoirIsValid(resv)) {
 
         SurfaceInfo surf;
         loadSurfaceInfo(pathSample.isec, surf);

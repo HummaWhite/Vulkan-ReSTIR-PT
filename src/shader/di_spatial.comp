@@ -9,7 +9,7 @@
 layout(local_size_x = RayQueryBlockSizeX, local_size_y = RayQueryBlockSizeY) in;
 
 #include "ray_query.glsl"
-#include "di_path_gen.glsl"
+#include "di_spatial.glsl"
 
 void main() {
     uvec2 index = gl_GlobalInvocationID.xy;
@@ -18,7 +18,7 @@ void main() {
     if (index.x >= launchDim.x || index.y >= launchDim.y) {
         return;
     }
-    vec3 radiance = directIllumination(index, launchDim);
+    vec3 radiance = spatialReuse(index, launchDim);
 
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uDirectOutput, ivec2(index)).rgb;

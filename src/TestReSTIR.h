@@ -12,6 +12,8 @@ public:
 	struct Settings {
 		uint32_t shiftType;
 		uint32_t sampleType;
+		uint32_t temporalReuse;
+		uint32_t spatialReuse;
 	};
 
 public:
@@ -24,7 +26,7 @@ public:
 	void GUI(bool& resetFrame, bool& clearReservoir);
 
 public:
-	Settings settings = { Reconnection, Both };
+	Settings settings = { Reconnection, Both, 1, 1 };
 
 private:
 	std::unique_ptr<RayTracing> mPathTracePass;

@@ -18,11 +18,11 @@ void main() {
     if (index.x >= launchDim.x || index.y >= launchDim.y) {
         return;
     }
-    vec3 radiance = directIllumination(index, launchDim);
+    vec3 radiance = generatePath(index, launchDim);
 
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uDirectOutput, ivec2(index)).rgb;
     accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
 
-    imageStore(uDirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
+    //imageStore(uDirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
 }

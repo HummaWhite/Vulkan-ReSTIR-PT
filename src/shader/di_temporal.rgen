@@ -4,17 +4,17 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 
 #include "ray_pipeline.glsl"
-#include "di_path_gen.glsl"
+#include "di_temporal.glsl"
 
 void main() {
     uvec2 index = gl_LaunchIDEXT.xy;
     uvec2 launchDim = gl_LaunchSizeEXT.xy; //uCamera.filmSize
 
-    vec3 radiance = directIllumination(index, launchDim);
+    vec3 radiance = temporalReuse(index, launchDim);
 
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedRadaince = imageLoad(uDirectOutput, ivec2(index)).rgb;
     accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
 
-    imageStore(uDirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
+    //imageStore(uDirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
 }
