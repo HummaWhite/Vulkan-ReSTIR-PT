@@ -4,7 +4,7 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 
 #include "ray_pipeline.glsl"
-#include "di_resample_temporal.glsl"
+#include "di_path_gen.glsl"
 
 void main() {
     uvec2 index = gl_LaunchIDEXT.xy;

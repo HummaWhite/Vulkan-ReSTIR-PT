@@ -1,0 +1,28 @@
+#version 460
+#extension GL_EXT_ray_tracing : enable
+#extension GL_EXT_ray_query : enable
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_nonuniform_qualifier : enable
+
+#include "HostDevice.h"
+
+layout(local_size_x = RayQueryBlockSizeX, local_size_y = RayQueryBlockSizeY) in;
+
+#include "ray_query.glsl"
+#include "di_path_gen.glsl"
+
+void main() {
+    uvec2 index = gl_GlobalInvocationID.xy;
+    uvec2 launchDim = uCamera.filmSize;
+
+    if (index.x >= launchDim.x || index.y >= launchDim.y) {
+        return;
+    }
+    vec3 radiance = directIllumination(index, launchDim);
+
+    float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
+    vec3 accumulatedRadaince = imageLoad(uDirectOutput, ivec2(index)).rgb;
+    accumulatedRadaince = (accumulatedRadaince * frameCount + radiance) / (frameCount + 1.0);
+
+    imageStore(uDirectOutput, ivec2(index), vec4(accumulatedRadaince, 1.0));
+}

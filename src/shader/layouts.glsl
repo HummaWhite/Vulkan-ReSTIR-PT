@@ -94,9 +94,14 @@ struct Intersection {
 };
 
 struct DIPathSample {
+	Intersection isec;
+
 	vec3 Li;
 	float pad0;
-	vec3 rcPos;
+
+	float jacobian;
+	float samplePdf;
+	uint rng;
 	bool isLightSample;
 };
 
@@ -106,7 +111,7 @@ struct DIReservoir {
 	uint sampleCount;
 	float resampleWeight;
 	float contribWeight;
-	float pHat;
+	float weight;
 };
 
 struct GIPathSample {
@@ -181,10 +186,11 @@ layout(set = RayImageDescSet, binding =  5) uniform usampler2D uAlbedoMatIdPrev;
 layout(set = RayImageDescSet, binding =  6) uniform sampler2D uMotionVector;
 layout(set = RayImageDescSet, binding =  7) buffer _DIReservoirThis { DIReservoir uDIReservoir[]; };
 layout(set = RayImageDescSet, binding =  8) buffer _DIReservoirPrev { DIReservoir uDIReservoirPrev[]; };
-layout(set = RayImageDescSet, binding =  9) buffer _GIReservoirThis { GIReservoir uGIReservoir[]; };
-layout(set = RayImageDescSet, binding = 10) buffer _GIReservoirPrev { GIReservoir uGIReservoirPrev[]; };
-layout(set = RayImageDescSet, binding = 11) buffer _GRISReservoirThis { GRISReservoir uGRISReservoir[]; };
-layout(set = RayImageDescSet, binding = 12) buffer _GRISReservoirPrev { GRISReservoir uGRISReservoirPrev[]; };
-layout(set = RayImageDescSet, binding = 13) buffer _GRISReconnectionData { GRISReconnectionData uGRISReconnectionData[]; };
+layout(set = RayImageDescSet, binding =  9) buffer _DIReservoirTemp { DIReservoir uDIReservoirTemp[]; };
+layout(set = RayImageDescSet, binding = 10) buffer _GIReservoirThis { GIReservoir uGIReservoir[]; };
+layout(set = RayImageDescSet, binding = 11) buffer _GIReservoirPrev { GIReservoir uGIReservoirPrev[]; };
+layout(set = RayImageDescSet, binding = 12) buffer _GRISReservoirThis { GRISReservoir uGRISReservoir[]; };
+layout(set = RayImageDescSet, binding = 13) buffer _GRISReservoirPrev { GRISReservoir uGRISReservoirPrev[]; };
+layout(set = RayImageDescSet, binding = 14) buffer _GRISReconnectionData { GRISReconnectionData uGRISReconnectionData[]; };
 
 #endif

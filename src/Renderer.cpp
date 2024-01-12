@@ -28,7 +28,7 @@ template<uint32_t N> struct Data32 {
 	uint32_t data[N];
 };
 
-using DIReservoirData = Data32<8 + 4>;
+using DIReservoirData = Data32<12 + 4>;
 using GIReservoirData = Data32<8 + 4>;
 using GRISReservoirData = Data32<24 + 4>;
 using GRISReconnectionData = Data32<12>;
@@ -126,7 +126,7 @@ void Renderer::initVulkan() {
 		mGBufferPass = std::make_unique<GBufferPass>(mContext.get(), extent, mScene.resource);
 		mNaiveDIPass = std::make_unique<RayTracing>(mContext.get());
 		mNaiveGIPass = std::make_unique<RayTracing>(mContext.get());
-		mResampledDIPass = std::make_unique<RayTracing>(mContext.get());
+		mResampledDIPass = std::make_unique<TestReSTIR>(mContext.get());
 		mResampledGIPass = std::make_unique<RayTracing>(mContext.get());
 		mGRISPass = std::make_unique<GRISReSTIR>(mContext.get());
 		mVisualizeASPass = std::make_unique<zvk::ComputePipeline>(mContext.get());
@@ -164,7 +164,7 @@ void Renderer::createPipeline() {
 	mGBufferPass->createPipeline(mSwapchain->extent(), mShaderManager.get(), descLayouts);
 	mNaiveDIPass->createPipeline(mShaderManager.get(), "shaders/di_naive.comp.spv", "shaders/di_naive.rgen.spv", descLayouts);
 	mNaiveGIPass->createPipeline(mShaderManager.get(), "shaders/gi_naive.comp.spv", "shaders/gi_naive.rgen.spv", descLayouts);
-	mResampledDIPass->createPipeline(mShaderManager.get(), "shaders/di_resample_temporal.comp.spv", "shaders/di_resample_temporal.rgen.spv", descLayouts);
+	mResampledDIPass->createPipeline(mShaderManager.get(), descLayouts);
 	mResampledGIPass->createPipeline(mShaderManager.get(), "shaders/gi_resample_temporal.comp.spv", "shaders/gi_resample_temporal.rgen.spv", descLayouts);
 	mGRISPass->createPipeline(mShaderManager.get(), descLayouts);
 	mVisualizeASPass->createPipeline(mShaderManager.get(), "shaders/as_visualize.comp.spv", descLayouts);
@@ -236,6 +236,11 @@ void Renderer::createRayImage() {
 			zvk::DebugUtils::nameVkObject(mContext->device, mGRISReservoir[i][j]->buffer, std::format("GRISReservoir[{}, {}]", i, j));
 		}
 
+		mDIReservoirTemp[i] = zvk::Memory::createBuffer(
+			mContext.get(), sizeof(DIReservoirData) * numPixels, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+		zvk::DebugUtils::nameVkObject(mContext->device, mDIReservoirTemp[i]->buffer, std::format("DIReservoirTemp[{}]", i));
+
 		mReconnectionData[i] = zvk::Memory::createBuffer(
 			mContext.get(), sizeof(GRISReconnectionData) * numPixels * 2, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
@@ -262,7 +267,8 @@ void Renderer::createDescriptor() {
 		zvk::Descriptor::makeBinding(10, vk::DescriptorType::eStorageBuffer, rayImageFlags),
 		zvk::Descriptor::makeBinding(11, vk::DescriptorType::eStorageBuffer, rayImageFlags),
 		zvk::Descriptor::makeBinding(12, vk::DescriptorType::eStorageBuffer, rayImageFlags),
-		zvk::Descriptor::makeBinding(13, vk::DescriptorType::eStorageBuffer, rayImageFlags)
+		zvk::Descriptor::makeBinding(13, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding(14, vk::DescriptorType::eStorageBuffer, rayImageFlags)
 	};
 	mRayImageDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), rayImageBindings);
 
@@ -312,11 +318,12 @@ void Renderer::initDescriptor() {
 			update.add(rayImageLayout, rayImageSet, 6, zvk::Descriptor::makeImage(mGBufferPass->motionVector[i].get()));
 			update.add(rayImageLayout, rayImageSet,  7, zvk::Descriptor::makeBuffer(mDIReservoir[i][thisFrame].get()));
 			update.add(rayImageLayout, rayImageSet,  8, zvk::Descriptor::makeBuffer(mDIReservoir[i][lastFrame].get()));
-			update.add(rayImageLayout, rayImageSet,  9, zvk::Descriptor::makeBuffer(mGIReservoir[i][thisFrame].get()));
-			update.add(rayImageLayout, rayImageSet, 10, zvk::Descriptor::makeBuffer(mGIReservoir[i][lastFrame].get()));
-			update.add(rayImageLayout, rayImageSet, 11, zvk::Descriptor::makeBuffer(mGRISReservoir[i][thisFrame].get()));
-			update.add(rayImageLayout, rayImageSet, 12, zvk::Descriptor::makeBuffer(mGRISReservoir[i][lastFrame].get()));
-			update.add(rayImageLayout, rayImageSet, 13, zvk::Descriptor::makeBuffer(mReconnectionData[i].get()));
+			update.add(rayImageLayout, rayImageSet,  9, zvk::Descriptor::makeBuffer(mDIReservoirTemp[i].get()));
+			update.add(rayImageLayout, rayImageSet, 10, zvk::Descriptor::makeBuffer(mGIReservoir[i][thisFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 11, zvk::Descriptor::makeBuffer(mGIReservoir[i][lastFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 12, zvk::Descriptor::makeBuffer(mGRISReservoir[i][thisFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 13, zvk::Descriptor::makeBuffer(mGRISReservoir[i][lastFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 14, zvk::Descriptor::makeBuffer(mReconnectionData[i].get()));
 			update.flush();
 		}
 		update.add(mCameraDescLayout.get(), mCameraDescSet[i], 0, vk::DescriptorBufferInfo(mCameraBuffer[i]->buffer, 0, mCameraBuffer[i]->size));
@@ -422,7 +429,7 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 				mNaiveDIPass->execute(cmd, mSwapchain->extent(), rayTracingBindings);
 			}
 			else if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
-				mResampledDIPass->execute(cmd, mSwapchain->extent(), rayTracingBindings);
+				mResampledDIPass->render(cmd, mSwapchain->extent(), rayTracingBindings);
 			}
 			else if (mSettings.directMethod == RayTracingMethod::VisualizeAS) {
 				mVisualizeASPass->execute(cmd, vk::Extent3D(mSwapchain->extent(), 1), vk::Extent3D(RayQueryBlockSizeX, RayQueryBlockSizeY, 1), rayTracingBindings);
@@ -530,8 +537,8 @@ void Renderer::drawFrame() {
 }
 
 void Renderer::initSettings() {
-	mSettings.directMethod = RayTracingMethod::None;
-	mSettings.indirectMethod = RayTracingMethod::ResampledPT;
+	mSettings.directMethod = RayTracingMethod::ResampledDI;
+	mSettings.indirectMethod = RayTracingMethod::None;
 	mSettings.frameLimit = 0;
 
 	mGRISPass->settings.shiftType = GRISReSTIR::Hybrid;
@@ -559,7 +566,7 @@ void Renderer::processGUI() {
 			}
 			else if (mSettings.directMethod == RayTracingMethod::ResampledDI) {
 				ImGui::SameLine();
-				mResampledDIPass->GUI();
+				mResampledDIPass->GUI(resetFrame, clearReservoir);
 			}
 			ImGui::Separator();
 
@@ -632,6 +639,7 @@ void Renderer::cleanupVulkan() {
 			mGIReservoir[i][j].reset();
 			mGRISReservoir[i][j].reset();
 		}
+		mDIReservoirTemp[i].reset();
 		mReconnectionData[i].reset();
 	}
 

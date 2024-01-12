@@ -5,12 +5,16 @@
 #include "math.glsl"
 #include "ray_layouts.glsl"
 
+const uint SampleModeLight = 0;
+const uint SampleModeBSDF = 1;
+const uint SampleModeBoth = 2;
+
 void DIPathSampleInit(inout DIPathSample pathSample) {
-	pathSample.rcPos = vec3(1e8, 0, 0);
+	pathSample.isec.instanceIdx = InvalidHitIndex;
 }
 
 bool DIPathSampleIsValid(DIPathSample pathSample) {
-	return length(pathSample.rcPos) < 1e8 * 0.8;
+	return pathSample.isec.instanceIdx != InvalidHitIndex;
 }
 
 float DIToScalar(vec3 color) {
@@ -39,6 +43,7 @@ void DIReservoirAddSample(inout DIReservoir resv, DIPathSample pathSample, float
 
 	if (r * resv.resampleWeight < resampleWeight) {
 		resv.pathSample = pathSample;
+		resv.weight = resampleWeight;
 	}
 }
 
@@ -56,10 +61,6 @@ void DIReservoirCapSample(inout DIReservoir resv, uint cap) {
 		resv.resampleWeight *= float(cap) / float(resv.sampleCount);
 		resv.sampleCount = cap;
 	}
-}
-
-float DIPathSamplePHat(DIPathSample pathSample) {
-	return luminance(pathSample.Li);
 }
 
 #endif

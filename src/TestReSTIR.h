@@ -7,10 +7,11 @@
 class TestReSTIR : public zvk::BaseVkObject {
 public:
 	enum ShiftType { Reconnection, Replay, Hybrid };
+	enum SampleType { Light, Scattered, Both };
 
 	struct Settings {
 		uint32_t shiftType;
-		float rrScale;
+		uint32_t sampleType;
 	};
 
 public:
@@ -23,11 +24,10 @@ public:
 	void GUI(bool& resetFrame, bool& clearReservoir);
 
 public:
-	Settings settings = { Reconnection, 1.f };
+	Settings settings = { Reconnection, Both };
 
 private:
 	std::unique_ptr<RayTracing> mPathTracePass;
 	std::unique_ptr<RayTracing> mTemporalReusePass;
 	std::unique_ptr<RayTracing> mSpatialReusePass;
-	std::unique_ptr<RayTracing> mMISWeightPass;
 };

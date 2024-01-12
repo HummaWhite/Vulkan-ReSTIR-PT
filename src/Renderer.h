@@ -14,8 +14,7 @@
 #include "Scene.h"
 #include "GBufferPass.h"
 #include "RayTracing.h"
-#include "DIReSTIR.h"
-#include "GIReSTIR.h"
+#include "TestReSTIR.h"
 #include "GRISReSTIR.h"
 #include "PostProcessFrag.h"
 
@@ -121,6 +120,7 @@ private:
 	std::unique_ptr<zvk::Image> mIndirectOutput[NumFramesInFlight];
 
 	std::unique_ptr<zvk::Buffer> mDIReservoir[NumFramesInFlight][2];
+	std::unique_ptr<zvk::Buffer> mDIReservoirTemp[NumFramesInFlight];
 	std::unique_ptr<zvk::Buffer> mGIReservoir[NumFramesInFlight][2];
 	std::unique_ptr<zvk::Buffer> mGRISReservoir[NumFramesInFlight][2];
 	std::unique_ptr<zvk::Buffer> mReconnectionData[NumFramesInFlight];
@@ -128,7 +128,7 @@ private:
 	std::unique_ptr<GBufferPass> mGBufferPass;
 	std::unique_ptr<RayTracing> mNaiveDIPass;
 	std::unique_ptr<RayTracing> mNaiveGIPass;
-	std::unique_ptr<RayTracing> mResampledDIPass;
+	std::unique_ptr<TestReSTIR> mResampledDIPass;
 	std::unique_ptr<RayTracing> mResampledGIPass;
 	std::unique_ptr<GRISReSTIR> mGRISPass;
 	std::unique_ptr<zvk::ComputePipeline> mVisualizeASPass;
