@@ -55,7 +55,7 @@ void TestReSTIR::GUI(bool& resetFrame, bool& clearReservoir) {
         clearReservoir = true;
     }
 
-    static const char* sampleTypes[] = { "Light", "Scattered", "Both" };
+    static const char* sampleTypes[] = { "Light", "BSDF", "Both" };
 
     if (ImGui::Combo("Sample Type", reinterpret_cast<int*>(&settings.sampleType), sampleTypes, IM_ARRAYSIZE(sampleTypes))) {
         resetFrame = true;

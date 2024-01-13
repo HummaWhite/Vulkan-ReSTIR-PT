@@ -66,7 +66,7 @@ vec3 generatePath(uvec2 index, uvec2 frameSize) {
         );
 
         if (!shadowed && lightPdf > 1e-6) {
-            float bsdfPdf = evalPdf(mat, norm, -ray.dir, lightDir);
+            float bsdfPdf = evalPdf(mat, norm, wo, lightDir);
             float weight = MISWeight(lightPdf, bsdfPdf);
 
             if (uSettings.sampleMode == SampleModeLight) {

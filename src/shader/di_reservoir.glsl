@@ -9,6 +9,10 @@ const uint SampleModeLight = 0;
 const uint SampleModeBSDF = 1;
 const uint SampleModeBoth = 2;
 
+const uint Reconnection = 0;
+const uint Replay = 1;
+const uint Hybrid = 2;
+
 void DIPathSampleInit(inout DIPathSample pathSample) {
 	pathSample.isec.instanceIdx = InvalidHitIndex;
 }
@@ -47,13 +51,18 @@ void DIReservoirAddSample(inout DIReservoir resv, DIPathSample pathSample, float
 	}
 }
 
-void DIReservoirMerge(inout DIReservoir resv, DIReservoir rhs, float r) {
-	resv.resampleWeight += rhs.resampleWeight;
-	resv.sampleCount += rhs.sampleCount;
-	
-	if (r * resv.resampleWeight < rhs.resampleWeight) {
-		resv.pathSample = rhs.pathSample;
+void DIReservoirAddSample(inout DIReservoir resv, DIPathSample pathSample, float weight, uint count, float r) {
+	resv.resampleWeight += weight;
+	resv.sampleCount += count;
+
+	if (r * resv.resampleWeight < weight) {
+		resv.pathSample = pathSample;
+		resv.weight = weight;
 	}
+}
+
+void DIReservoirMerge(inout DIReservoir resv, DIReservoir rhs, float r) {
+	DIReservoirAddSample(resv, rhs.pathSample, rhs.resampleWeight, rhs.sampleCount, r);
 }
 
 void DIReservoirCapSample(inout DIReservoir resv, uint cap) {

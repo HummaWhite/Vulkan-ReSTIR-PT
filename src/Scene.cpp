@@ -62,6 +62,7 @@ std::pair<ModelInstance*, glm::vec3> Scene::loadModelInstance(const pugi::xml_no
 		if (material) {
 			uint32_t textureIdx = InvalidResourceIdx;
 			glm::vec3 baseColor = glm::vec3(1.0);
+			bool overrideColor = false;
 
 			if (auto baseColorNode = matNode.child("baseColor")) {
 				if (auto valAttrib = baseColorNode.attribute("value")) {
@@ -85,12 +86,13 @@ std::pair<ModelInstance*, glm::vec3> Scene::loadModelInstance(const pugi::xml_no
 						Log::line<2>("Albedo texture " + imagePath.generic_string());
 					}
 				}
+				overrideColor = true;
 			}
 
 			for (uint32_t i = 0; i < model->numMeshes(); i++) {
 				uint32_t materialIdx = resource.meshInstances[Resource::Object][i + model->meshOffset()].materialIdx;
 				material->textureIdx = (textureIdx != InvalidResourceIdx) ? textureIdx : resource.materials[materialIdx].textureIdx;
-				material->baseColor = baseColor;
+				material->baseColor = overrideColor ? baseColor : resource.materials[materialIdx].baseColor;
 				resource.materials[materialIdx] = *material;
 			}
 		}

@@ -39,6 +39,10 @@ bool intersectionIsSpecial(Intersection isec) {
     return isec.instanceIdx == SpecialHitIndex;
 }
 
+void intersectionSetSpecial(inout Intersection isec) {
+    isec.instanceIdx = SpecialHitIndex;
+}
+
 void intersectionSetInvalid(inout Intersection isec) {
     isec.instanceIdx = InvalidHitIndex;
 }

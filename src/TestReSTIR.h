@@ -7,7 +7,7 @@
 class TestReSTIR : public zvk::BaseVkObject {
 public:
 	enum ShiftType { Reconnection, Replay, Hybrid };
-	enum SampleType { Light, Scattered, Both };
+	enum SampleType { Light, BSDF, Both };
 
 	struct Settings {
 		uint32_t shiftType;
@@ -26,7 +26,7 @@ public:
 	void GUI(bool& resetFrame, bool& clearReservoir);
 
 public:
-	Settings settings = { Reconnection, Both, 1, 1 };
+	Settings settings = { Replay, BSDF, 0, 1 };
 
 private:
 	std::unique_ptr<RayTracing> mPathTracePass;

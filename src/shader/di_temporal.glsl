@@ -57,7 +57,7 @@ vec3 temporalReuse(uvec2 index, uvec2 filmSize) {
     int matId = matMeshId >> 16;
 
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + index.x, index.y);
+    uint rng = makeSeed(uCamera.seed + index.x, index.y) + 1;
 
     vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
     vec3 wo = -ray.dir;
@@ -73,10 +73,10 @@ vec3 temporalReuse(uvec2 index, uvec2 filmSize) {
         if (((uCamera.frameIndex & CameraClearFlag) == 0) && findPreviousReservoir(uv + motion, pos, depth, norm, albedo, matMeshId, temporalResv)) {
             if (DIReservoirIsValid(temporalResv)) {
                 DIReservoirMerge(resv, temporalResv, sample1f(rng));
-                DIReservoirCapSample(resv, 40);
             }
         }
     }
+    DIReservoirCapSample(resv, 40);
     DIReservoirResetIfInvalid(resv);
     uDIReservoirTemp[index1D(uvec2(index))] = resv;
 
