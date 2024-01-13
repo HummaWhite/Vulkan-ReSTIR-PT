@@ -52,7 +52,10 @@ void randomReplay(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir sr
 
     BSDFSample s;
 
-    if (srcResv.pathSample.isLightSample && !isBSDFDelta(dstMat)) {
+    DIReservoir newResv;
+    DIReservoirReset(newResv);
+
+    if (uSettings.sampleMode != SampleModeBSDF && !isBSDFDelta(dstMat)) {
         const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
         vec3 lightRadiance, lightDir;
@@ -76,10 +79,10 @@ void randomReplay(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir sr
                 weight = 1.0;
             }
             vec3 contrib = lightRadiance * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, lightDir) * satDot(dstSurf.norm, lightDir) / lightPdf * weight;
-            resampleWeight = luminance(contrib) * float(count);
+            resampleWeight += luminance(contrib) * float(count);
         }
     }
-    else if (!srcResv.pathSample.isLightSample && sampleBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, sample3f(srcResv.pathSample.rng), s) && s.pdf > 1e-6) {
+    if (uSettings.sampleMode != SampleModeLight && sampleBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, sample3f(srcResv.pathSample.rng), s) && s.pdf > 1e-6) {
         Intersection isec = traceClosestHit(
             uTLAS,
             gl_RayFlagsOpaqueEXT, 0xff,
@@ -108,17 +111,48 @@ void randomReplay(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir sr
 
                 vec3 wi = normalize(surf.pos - dstSurf.pos);
                 vec3 contrib = surf.albedo * s.bsdf * cosTerm / s.pdf * weight;
-                resampleWeight = luminance(contrib) * float(count);
+                resampleWeight += luminance(contrib) * float(count);
             }
         }
     }
     if (isnan(resampleWeight) || resampleWeight < 0) {
         resampleWeight = 0;
     }
-    DIReservoirAddSample(dstResv, srcResv.pathSample, resampleWeight, count, sample1f(rng));
+    DIReservoirAddSample(dstResv, srcResv.pathSample, resampleWeight, (uSettings.sampleMode == SampleModeBoth ? count : count), sample1f(rng));
 }
 
 void reconnection(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir srcResv, SurfaceInfo srcSurf, vec3 wo, inout uint rng) {
+    Material dstMat = uMaterials[dstSurf.matIndex];
+    float resampleWeight = 0;
+    uint count = srcResv.sampleCount;
+    //count = 1;
+
+    SurfaceInfo rcSurf;
+    loadSurfaceInfo(srcResv.pathSample.isec, rcSurf);
+
+    float dist = distance(rcSurf.pos, dstSurf.pos);
+    vec3 wi = normalize(rcSurf.pos - dstSurf.pos);
+    float cosTheta = -dot(rcSurf.norm, wi);
+
+    DIPathSample srcSample = srcResv.pathSample;
+
+    if (cosTheta > 0) {
+        const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
+
+        if (traceVisibility(uTLAS, shadowRayFlags, 0xff, dstSurf.pos, rcSurf.pos)) {
+            float jacobian = abs(cosTheta) / square(dist);
+            float pdf = srcSample.samplePdf * srcSample.jacobian / jacobian;
+
+            float weight = 1.0;
+
+            vec3 contrib = srcSample.Li * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, wi) * satDot(dstSurf.norm, wi) / pdf * weight;
+            resampleWeight = luminance(contrib) * float(count);
+        }
+    }
+    if (isnan(resampleWeight) || resampleWeight < 0) {
+        resampleWeight = 0;
+    }
+    DIReservoirAddSample(dstResv, srcResv.pathSample, resampleWeight, count, sample1f(rng));
 }
 
 void reuseAndMerge(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir srcResv, SurfaceInfo srcSurf, vec3 wo, inout uint rng) {

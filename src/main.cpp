@@ -4,7 +4,7 @@ int main() {
     std::string scene;
     //scene = "res/box2.xml";
     //scene = "res/box2_a.xml";
-    scene = "res/mis.xml";
+    //scene = "res/mis.xml";
     //scene = "res/box3.xml";
     //scene = "res/box4.xml";
     //scene = "res/box4_a.xml";
@@ -14,6 +14,7 @@ int main() {
     //scene = "res/box8.xml";
     //scene = "res/box2_fake.xml";
     //scene = "res/sponza.xml";
+    scene = "res/sponza_metal.xml";
     //scene = "res/staircase2.xml";
     //scene = "res/model/VeachAjar/ajar.xml";
     //scene = "res/model/VeachAjar/ajar_fake.xml";
