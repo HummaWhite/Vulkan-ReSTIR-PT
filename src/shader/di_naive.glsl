@@ -144,10 +144,11 @@ vec3 directIllumination2(uvec2 index, uvec2 frameSize) {
                 float dist = length(surf.pos - pos);
                 float sumPower = uLightSampleTable[0].prob;
                 float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / abs(cosTheta);
-                float weight = MISWeight(s.pdf, lightPdf);
+                float weight = isSampleTypeDelta(s.type) ? 1.0 : MISWeight(s.pdf, lightPdf);
+                float cosTerm = isSampleTypeDelta(s.type) ? 1.0 : satDot(norm, s.wi);
 
                 vec3 wi = normalize(surf.pos - pos);
-                vec3 contrib = surf.albedo * evalBSDF(mat, albedo, norm, wo, wi) * satDot(norm, wi) / s.pdf * weight;
+                vec3 contrib = surf.albedo * s.bsdf * cosTerm / s.pdf * weight;
 
                 addStream(resv, contrib, 1, sample1f(rng));
                 radiance += contrib;

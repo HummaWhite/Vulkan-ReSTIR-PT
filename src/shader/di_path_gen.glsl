@@ -116,9 +116,10 @@ vec3 generatePath(uvec2 index, uvec2 frameSize) {
                 if (uSettings.sampleMode == SampleModeBSDF || isSampleTypeDelta(s.type)) {
                     weight = 1.0;
                 }
+                float cosTerm = isSampleTypeDelta(s.type) ? 1.0 : satDot(norm, s.wi);
 
                 vec3 wi = normalize(surf.pos - pos);
-                vec3 contrib = surf.albedo * s.bsdf * satDot(norm, wi) / s.pdf * weight;
+                vec3 contrib = surf.albedo * s.bsdf * cosTerm / s.pdf * weight;
 
                 pathSample.isec = isec;
                 pathSample.Li = surf.albedo * weight;

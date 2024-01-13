@@ -104,11 +104,16 @@ void randomReplay(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir sr
                 if (uSettings.sampleMode == SampleModeBSDF || isSampleTypeDelta(s.type)) {
                     weight = 1.0;
                 }
+                float cosTerm = isSampleTypeDelta(s.type) ? 1.0 : satDot(dstSurf.norm, s.wi);
+
                 vec3 wi = normalize(surf.pos - dstSurf.pos);
-                vec3 contrib = surf.albedo * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, wi) * satDot(dstSurf.norm, wi) / s.pdf * weight;
+                vec3 contrib = surf.albedo * s.bsdf * cosTerm / s.pdf * weight;
                 resampleWeight = luminance(contrib) * float(count);
             }
         }
+    }
+    if (isnan(resampleWeight) || resampleWeight < 0) {
+        resampleWeight = 0;
     }
     DIReservoirAddSample(dstResv, srcResv.pathSample, resampleWeight, count, sample1f(rng));
 }
@@ -185,7 +190,7 @@ vec3 spatialReuse(uvec2 index, uvec2 filmSize) {
     }
     DIReservoirCapSample(resv, 40);
 
-    DIReservoirResetIfInvalid(resv);
+    //DIReservoirResetIfInvalid(resv);
     uDIReservoir[index1D(uvec2(index))] = resv;
 
     if (DIReservoirIsValid(resv) && DIPathSampleIsValid(resv.pathSample)) {
