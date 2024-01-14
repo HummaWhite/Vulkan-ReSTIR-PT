@@ -23,7 +23,7 @@ bool findNeighborReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
     vec3 posPrev = ray.ori + ray.dir * (depthPrev - 1e-4);
 
-    if (matMeshIdPrev != matMeshId || dot(normalPrev, normal) < 0.99 || abs(depth - depthPrev) > 0.05 * depth) {
+    if (dot(normalPrev, normal) < 0.8 || distance(pos, posPrev) > 1) {
         return false;
     }
     resv = uDIReservoirTemp[index1D(uvec2(pixelId))];

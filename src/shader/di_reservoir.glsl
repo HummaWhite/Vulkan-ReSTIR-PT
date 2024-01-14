@@ -39,7 +39,7 @@ void DIReservoirReset(inout DIReservoir resv) {
 }
 
 bool DIReservoirIsValid(DIReservoir resv) {
-	return !isnan(resv.resampleWeight) && resv.resampleWeight >= 0;
+	return !isnan(resv.resampleWeight);
 }
 
 void DIReservoirResetIfInvalid(inout DIReservoir resv) {
@@ -196,9 +196,25 @@ void randomReplay(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir sr
     DIReservoirReset(replayResv);
 
     vec3 Li = sampleLi(dstSurf, dstMat, wo, srcResv.pathSample.rng, rng, replayResv);
+    float jacobian = 1;
 
-    replayResv.resampleWeight = srcResv.resampleWeight;
-    replayResv.sampleCount = srcResv.sampleCount;
+    DIPathSample replaySample = replayResv.pathSample;
+
+    if (DIPathSampleIsValid(replaySample)) {
+        SurfaceInfo replaySurf;
+        loadSurfaceInfo(replaySample.isec, replaySurf);
+
+        vec3 wi = normalize(replaySurf.pos - dstSurf.pos);
+
+        Li = replaySample.Li * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, wi) * satDot(dstSurf.norm, wi) / replayResv.pathSample.samplePdf;
+        float dstPHat = luminance(Li * jacobian);
+
+        replayResv.resampleWeight = srcResv.resampleWeight * dstPHat / srcResv.weight;
+        replayResv.sampleCount = srcResv.sampleCount;
+    }
+    else {
+        replayResv.resampleWeight = 0;
+    }
 
     if (DIReservoirIsValid(replayResv)) {
         DIReservoirMerge(dstResv, replayResv, sample1f(rng));
@@ -207,46 +223,53 @@ void randomReplay(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir sr
 
 void reconnection(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir srcResv, SurfaceInfo srcSurf, vec3 wo, inout uint rng) {
     Material dstMat = uMaterials[dstSurf.matIndex];
-    float resampleWeight = 0;
-    uint count = srcResv.sampleCount;
-    //count = 1;
+    DIPathSample srcSample = srcResv.pathSample;
 
     SurfaceInfo rcSurf;
-    loadSurfaceInfo(srcResv.pathSample.isec, rcSurf);
+    loadSurfaceInfo(srcSample.isec, rcSurf);
 
     float dist = distance(rcSurf.pos, dstSurf.pos);
     vec3 wi = normalize(rcSurf.pos - dstSurf.pos);
     float cosTheta = -dot(rcSurf.norm, wi);
+    float dstJacobian = abs(cosTheta) / square(dist);
+    float jacobian = dstJacobian / srcSample.jacobian;
 
-    DIPathSample srcSample = srcResv.pathSample;
+    bool srcSampleValid = false;
+    float dstPHat = 0;
 
-    if (cosTheta > 0) {
+    if (cosTheta > 0 && !isnan(jacobian) && srcSample.jacobian > 0) {
         const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
 
         if (traceVisibility(uTLAS, shadowRayFlags, 0xff, dstSurf.pos, rcSurf.pos)) {
-            float dstJacobian = abs(cosTheta) / square(dist);
-            float jacobian = dstJacobian / srcSample.jacobian;
-
-            float dstSamplePdf;
-
-            if (srcSample.isLightSample) {
-                float sumPower = uLightSampleTable[0].prob;
-                dstSamplePdf = luminance(rcSurf.albedo) / sumPower / dstJacobian;
-            }
-            else {
-                dstSamplePdf = evalPdf(dstMat, dstSurf.norm, wo, wi);
-            }
-
-            if (!isnan(jacobian) && srcSample.jacobian > 1e-6) {
-                vec3 contrib = srcSample.Li * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, wi) * satDot(dstSurf.norm, wi) / srcSample.samplePdf;
-                resampleWeight = luminance(contrib) * float(count);
-            }
+            srcSampleValid = true;
+            vec3 Li = srcResv.pathSample.Li * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, wi) * satDot(dstSurf.norm, wi) / srcSample.samplePdf;
+            dstPHat = luminance(Li * jacobian);
         }
     }
-    if (isnan(resampleWeight) || resampleWeight < 0) {
-        resampleWeight = 0;
+    if (DIReservoirIsValid(srcResv)) {
+        float dstSamplePdf;
+
+        if (srcSample.isLightSample) {
+            float sumPower = uLightSampleTable[0].prob;
+            dstSamplePdf = luminance(rcSurf.albedo) / sumPower / dstJacobian;
+        }
+        else {
+            dstSamplePdf = evalPdf(dstMat, dstSurf.norm, wo, wi);
+        }
+
+        if (srcSampleValid) {
+            srcSample.jacobian = dstJacobian;
+            //srcSample.samplePdf /= jacobian;
+            srcSample.samplePdf = dstSamplePdf;
+            srcResv.pathSample = srcSample;
+            srcResv.resampleWeight *= dstPHat / srcResv.weight;
+        }
+        else {
+            srcResv.resampleWeight = 0;
+        }
+
+        DIReservoirMerge(dstResv, srcResv, sample1f(rng));
     }
-    //DIReservoirAddSample(dstResv, srcSample, resampleWeight, count, sample1f(rng));
 }
 
 void DIReservoirReuseAndMerge(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir srcResv, SurfaceInfo srcSurf, vec3 wo, inout uint rng) {

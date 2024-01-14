@@ -23,7 +23,7 @@ bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     Ray ray = pinholeCameraSampleRay(uPrevCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
     vec3 posPrev = ray.ori + ray.dir * (depthPrev - 1e-4);
 
-    if (matMeshIdPrev != matMeshId || dot(normalPrev, normal) < 0.95 || abs(depthPrev - depth) > 0.1 * depth) {
+    if (matMeshIdPrev != matMeshId || dot(normalPrev, normal) < 0.95 || distance(pos, posPrev) > 0.5) {
         return false;
     }
     resv = uDIReservoirPrev[index1D(uvec2(pixelId))];

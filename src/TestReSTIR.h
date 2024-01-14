@@ -26,7 +26,7 @@ public:
 	void GUI(bool& resetFrame, bool& clearReservoir);
 
 public:
-	Settings settings = { Replay, BSDF, 0, 1 };
+	Settings settings = { Reconnection, Light, 0, 1 };
 
 private:
 	std::unique_ptr<RayTracing> mPathTracePass;
