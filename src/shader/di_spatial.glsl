@@ -1,21 +1,10 @@
-#ifndef DI_RESAMPLE_TEMPORAL_GLSL
-#define DI_RESAMPLE_TEMPORAL_GLSL
+#ifndef DI_SPATIAL_GLSL
+#define DI_SPATIAL_GLSL
 
 #include "camera.glsl"
 #include "ray_gbuffer_util.glsl"
 #include "light_sampling.glsl"
 #include "di_reservoir.glsl"
-
-struct Settings {
-    uint shiftMode;
-    uint sampleMode;
-    bool temporalReuse;
-    bool spatialReuse;
-};
-
-layout(push_constant) uniform _Settings{
-    Settings uSettings;
-};
 
 bool findNeighborReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 albedo, int matMeshId, out DIReservoir resv, out SurfaceInfo surf) {
     if (uv.x < 0 || uv.y < 0 || uv.x > 1.0 || uv.y > 1.0) {
@@ -34,134 +23,12 @@ bool findNeighborReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
     vec3 posPrev = ray.ori + ray.dir * (depthPrev - 1e-4);
 
-    if (matMeshIdPrev != matMeshId || dot(normalPrev, normal) < 0.99 || abs(depth - depthPrev) > 0.1 * depth) {
+    if (matMeshIdPrev != matMeshId || dot(normalPrev, normal) < 0.99 || abs(depth - depthPrev) > 0.05 * depth) {
         return false;
     }
     resv = uDIReservoirTemp[index1D(uvec2(pixelId))];
     surf = SurfaceInfo(posPrev, normalPrev, albedoPrev, matMeshIdPrev >> 16, false);
     return true;
-}
-
-void randomReplay(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir srcResv, SurfaceInfo srcSurf, vec3 wo, inout uint rng) {
-    //DIReservoirMerge(dstResv, srcResv, sample1f(rng));
-
-    Material dstMat = uMaterials[dstSurf.matIndex];
-    float resampleWeight = 0;
-    uint count = srcResv.sampleCount;
-    count = 1;
-
-    BSDFSample s;
-
-    DIReservoir newResv;
-    DIReservoirReset(newResv);
-
-    if (uSettings.sampleMode != SampleModeBSDF && !isBSDFDelta(dstMat)) {
-        const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
-
-        vec3 lightRadiance, lightDir;
-        vec2 lightBary;
-        float lightDist, lightPdf, lightJacobian;
-        uint lightId;
-
-        lightRadiance = sampleLight(dstSurf.pos, lightDir, lightDist, lightPdf, lightJacobian, lightBary, lightId, sample4f(srcResv.pathSample.rng));
-
-        bool shadowed = traceShadow(
-            uTLAS,
-            shadowRayFlags, 0xff,
-            dstSurf.pos, MinRayDistance, lightDir, lightDist - MinRayDistance
-        );
-
-        if (!shadowed && lightPdf > 1e-6) {
-            float bsdfPdf = evalPdf(dstMat, dstSurf.norm, wo, lightDir);
-            float weight = MISWeight(lightPdf, bsdfPdf);
-
-            if (uSettings.sampleMode == SampleModeLight) {
-                weight = 1.0;
-            }
-            vec3 contrib = lightRadiance * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, lightDir) * satDot(dstSurf.norm, lightDir) / lightPdf * weight;
-            resampleWeight += luminance(contrib) * float(count);
-        }
-    }
-    if (uSettings.sampleMode != SampleModeLight && sampleBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, sample3f(srcResv.pathSample.rng), s) && s.pdf > 1e-6) {
-        Intersection isec = traceClosestHit(
-            uTLAS,
-            gl_RayFlagsOpaqueEXT, 0xff,
-            dstSurf.pos, MinRayDistance, s.wi, MaxRayDistance
-        );
-
-        if (intersectionIsValid(isec)) {
-            SurfaceInfo surf;
-            loadSurfaceInfo(isec, surf);
-            float cosTheta = -dot(s.wi, surf.norm);
-
-            if (surf.isLight
-#if !SAMPLE_LIGHT_DOUBLE_SIDE
-                && cosTheta > 0
-#endif
-                ) {
-                float dist = length(surf.pos - dstSurf.pos);
-                float sumPower = uLightSampleTable[0].prob;
-                float lightPdf = luminance(surf.albedo) / sumPower * dist * dist / abs(cosTheta);
-                float weight = MISWeight(s.pdf, lightPdf);
-
-                if (uSettings.sampleMode == SampleModeBSDF || isSampleTypeDelta(s.type)) {
-                    weight = 1.0;
-                }
-                float cosTerm = isSampleTypeDelta(s.type) ? 1.0 : satDot(dstSurf.norm, s.wi);
-
-                vec3 wi = normalize(surf.pos - dstSurf.pos);
-                vec3 contrib = surf.albedo * s.bsdf * cosTerm / s.pdf * weight;
-                resampleWeight += luminance(contrib) * float(count);
-            }
-        }
-    }
-    if (isnan(resampleWeight) || resampleWeight < 0) {
-        resampleWeight = 0;
-    }
-    DIReservoirAddSample(dstResv, srcResv.pathSample, resampleWeight, (uSettings.sampleMode == SampleModeBoth ? count : count), sample1f(rng));
-}
-
-void reconnection(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir srcResv, SurfaceInfo srcSurf, vec3 wo, inout uint rng) {
-    Material dstMat = uMaterials[dstSurf.matIndex];
-    float resampleWeight = 0;
-    uint count = srcResv.sampleCount;
-    //count = 1;
-
-    SurfaceInfo rcSurf;
-    loadSurfaceInfo(srcResv.pathSample.isec, rcSurf);
-
-    float dist = distance(rcSurf.pos, dstSurf.pos);
-    vec3 wi = normalize(rcSurf.pos - dstSurf.pos);
-    float cosTheta = -dot(rcSurf.norm, wi);
-
-    DIPathSample srcSample = srcResv.pathSample;
-
-    if (cosTheta > 0) {
-        const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
-
-        if (traceVisibility(uTLAS, shadowRayFlags, 0xff, dstSurf.pos, rcSurf.pos)) {
-            float jacobian = abs(cosTheta) / square(dist);
-            float pdf = srcSample.samplePdf * srcSample.jacobian / jacobian;
-
-            float weight = 1.0;
-
-            vec3 contrib = srcSample.Li * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, wi) * satDot(dstSurf.norm, wi) / pdf * weight;
-            resampleWeight = luminance(contrib) * float(count);
-        }
-    }
-    if (isnan(resampleWeight) || resampleWeight < 0) {
-        resampleWeight = 0;
-    }
-    DIReservoirAddSample(dstResv, srcResv.pathSample, resampleWeight, count, sample1f(rng));
-}
-
-void reuseAndMerge(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir srcResv, SurfaceInfo srcSurf, vec3 wo, inout uint rng) {
-    if (uSettings.shiftMode == Reconnection) {
-        reconnection(dstResv, dstSurf, srcResv, srcSurf, wo, rng);
-    }
-    else if (uSettings.shiftMode == Replay) {
-        randomReplay(dstResv, dstSurf, srcResv, srcSurf, wo, rng);
-    }
 }
 
 vec3 spatialReuse(uvec2 index, uvec2 filmSize) {
@@ -179,7 +46,8 @@ vec3 spatialReuse(uvec2 index, uvec2 filmSize) {
     int matId = matMeshId >> 16;
 
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + index.x, index.y) + 2;
+    uint rng = makeSeed(uCamera.seed, index) ^ 2;
+    uint initRng = rng;
 
     vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
     vec3 wo = -ray.dir;
@@ -206,7 +74,7 @@ vec3 spatialReuse(uvec2 index, uvec2 filmSize) {
 
             if (findNeighborReservoir(neighbor, pos, depth, norm, albedo, matMeshId, neighborResv, srcSurf)) {
                 if (DIReservoirIsValid(neighborResv)) {
-                    reuseAndMerge(resv, dstSurf, neighborResv, srcSurf, wo, rng);
+                    DIReservoirReuseAndMerge(resv, dstSurf, neighborResv, srcSurf, wo, rng);
                 }
             }
         }
@@ -223,8 +91,8 @@ vec3 spatialReuse(uvec2 index, uvec2 filmSize) {
         }
     }
     DIReservoirCapSample(resv, 40);
+    DIReservoirResetIfInvalid(resv);
 
-    //DIReservoirResetIfInvalid(resv);
     uDIReservoir[index1D(uvec2(index))] = resv;
 
     if (DIReservoirIsValid(resv) && DIPathSampleIsValid(resv.pathSample)) {
@@ -243,6 +111,7 @@ vec3 spatialReuse(uvec2 index, uvec2 filmSize) {
             }
         }
     }
+    //radiance = colorWheel(float(resv.pathSample.rng) / float(0xffffffffu));
     return clampColor(radiance);
 }
 

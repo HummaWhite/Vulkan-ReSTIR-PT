@@ -241,6 +241,10 @@ uint makeSeed(uint rand, uint index) {
 	return hash2(rand) + hash2(index);
 }
 
+uint makeSeed(uint seed, uvec2 index) {
+	return makeSeed((seed + index.x) ^ (index.y - 1), index.y * (index.x - 2));
+}
+
 uint urand(inout uint rng) {
 	return rng = hash2(rng);
 }

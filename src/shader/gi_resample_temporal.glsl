@@ -48,7 +48,7 @@ vec3 indirectIllumination(uvec2 index, uvec2 frameSize) {
     int matId = matMeshId >> 16;
     
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + index.x, index.y);
+    uint rng = makeSeed(uCamera.seed, index);
 
     vec3 throughputAfter = vec3(1.0);
     vec3 lastPos;

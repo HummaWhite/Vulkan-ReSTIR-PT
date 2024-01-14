@@ -20,7 +20,7 @@ vec3 directIllumination(uvec2 index, uvec2 frameSize) {
     int matId = matMeshId >> 16;
 
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + index.x, index.y);
+    uint rng = makeSeed(uCamera.seed, index);
 
     vec3 radiance = vec3(0.0);
     vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
@@ -90,7 +90,7 @@ vec3 directIllumination2(uvec2 index, uvec2 frameSize) {
     int matId = matMeshId >> 16;
 
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
-    uint rng = makeSeed(uCamera.seed + index.x, index.y);
+    uint rng = makeSeed(uCamera.seed, index);
 
     vec3 radiance = vec3(0.0);
     vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
