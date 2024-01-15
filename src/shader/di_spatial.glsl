@@ -23,7 +23,7 @@ bool findNeighborReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
     vec3 posPrev = ray.ori + ray.dir * (depthPrev - 1e-4);
 
-    if (dot(normalPrev, normal) < 0.8 || distance(pos, posPrev) > 1) {
+    if (dot(normalPrev, normal) < 0.9 || distance(pos, posPrev) > 0.4) {
         return false;
     }
     resv = uDIReservoirTemp[index1D(uvec2(pixelId))];
@@ -58,7 +58,7 @@ vec3 spatialReuse(uvec2 index, uvec2 filmSize) {
     DIReservoir resv = uDIReservoirTemp[index1D(uvec2(index))];
 
     if (uSettings.spatialReuse) {
-        const uint ResampleNum = 3;
+        const uint ResampleNum = 10;
         const float ResampleRadius = 20.0;
         vec2 texelSize = 1.0 / vec2(filmSize);
 
@@ -92,7 +92,6 @@ vec3 spatialReuse(uvec2 index, uvec2 filmSize) {
     }
     DIReservoirCapSample(resv, 40);
     DIReservoirResetIfInvalid(resv);
-
     uDIReservoir[index1D(uvec2(index))] = resv;
 
     if (DIReservoirIsValid(resv) && DIPathSampleIsValid(resv.pathSample)) {
@@ -109,7 +108,12 @@ vec3 spatialReuse(uvec2 index, uvec2 filmSize) {
             if (!isBlack(Li)) {
                 radiance = Li / luminance(Li) * resv.resampleWeight / float(resv.sampleCount);
             }
+            //radiance = colorWheel(resv.weight / resv.resampleWeight);
         }
+        if (resv.resampleWeight > 1e6) {
+            //radiance = vec3(10, 0, 0);
+        }
+        //radiance = assert(resv.resampleWeight > 1e3);
     }
     //radiance = colorWheel(float(resv.pathSample.rng) / float(0xffffffffu));
     return clampColor(radiance);

@@ -230,44 +230,57 @@ void reconnection(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir sr
 
     float dist = distance(rcSurf.pos, dstSurf.pos);
     vec3 wi = normalize(rcSurf.pos - dstSurf.pos);
+
     float cosTheta = -dot(rcSurf.norm, wi);
     float dstJacobian = abs(cosTheta) / square(dist);
     float jacobian = dstJacobian / srcSample.jacobian;
 
     bool srcSampleValid = false;
     float dstPHat = 0;
+    float dstSamplePdf;
 
-    if (cosTheta > 0 && !isnan(jacobian) && srcSample.jacobian > 0) {
-        const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
+    if (DIPathSampleIsValid(srcSample) && dist > 1e-4) {
+        if (cosTheta > 0 && !isnan(jacobian) && srcSample.jacobian > 0) {
+            const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
 
-        if (traceVisibility(uTLAS, shadowRayFlags, 0xff, dstSurf.pos, rcSurf.pos)) {
-            srcSampleValid = true;
-            vec3 Li = srcResv.pathSample.Li * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, wi) * satDot(dstSurf.norm, wi) / srcSample.samplePdf;
-            dstPHat = luminance(Li * jacobian);
+            if (traceVisibility(uTLAS, shadowRayFlags, 0xff, dstSurf.pos, rcSurf.pos)) {
+                srcSampleValid = true;
+                
+                if (!isnan(srcSample.samplePdf) && srcSample.samplePdf > 1e-6) {
+                    vec3 Li = srcResv.pathSample.Li * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, wi)* satDot(dstSurf.norm, wi) / srcSample.samplePdf;
+                    dstPHat = luminance(Li * jacobian);
+                }
+
+                if (srcSample.isLightSample) {
+                    float sumPower = uLightSampleTable[0].prob;
+                    dstSamplePdf = luminance(rcSurf.albedo) / sumPower / dstJacobian;
+                }
+                else {
+                    dstSamplePdf = evalPdf(dstMat, dstSurf.norm, wo, wi);
+                }
+            }
         }
     }
-    if (DIReservoirIsValid(srcResv)) {
-        float dstSamplePdf;
+    if (srcSampleValid) {
+        srcSample.jacobian = dstJacobian;
+        //srcSample.samplePdf /= jacobian;
+        srcSample.samplePdf = dstSamplePdf;
 
-        if (srcSample.isLightSample) {
-            float sumPower = uLightSampleTable[0].prob;
-            dstSamplePdf = luminance(rcSurf.albedo) / sumPower / dstJacobian;
+        if (srcSample.samplePdf < 1e-6 || isnan(srcSample.samplePdf)) {
+            srcSample.samplePdf = 0;
         }
-        else {
-            dstSamplePdf = evalPdf(dstMat, dstSurf.norm, wo, wi);
-        }
+        srcResv.pathSample = srcSample;
+        srcResv.resampleWeight *= dstPHat / srcResv.weight;
 
-        if (srcSampleValid) {
-            srcSample.jacobian = dstJacobian;
-            //srcSample.samplePdf /= jacobian;
-            srcSample.samplePdf = dstSamplePdf;
-            srcResv.pathSample = srcSample;
-            srcResv.resampleWeight *= dstPHat / srcResv.weight;
-        }
-        else {
+        if (isnan(srcResv.resampleWeight)) {
             srcResv.resampleWeight = 0;
         }
+    }
+    else {
+        srcResv.resampleWeight = 0;
+    }
 
+    if (DIReservoirIsValid(srcResv)) {
         DIReservoirMerge(dstResv, srcResv, sample1f(rng));
     }
 }
