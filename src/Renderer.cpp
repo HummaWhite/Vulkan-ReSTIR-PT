@@ -28,7 +28,7 @@ template<uint32_t N> struct Data32 {
 	uint32_t data[N];
 };
 
-using DIReservoirData = Data32<12 + 4>;
+using DIReservoirData = Data32<0 + 4>;
 using GIReservoirData = Data32<8 + 4>;
 using GRISReservoirData = Data32<24 + 4>;
 using GRISReconnectionData = Data32<12>;
@@ -537,11 +537,11 @@ void Renderer::drawFrame() {
 }
 
 void Renderer::initSettings() {
-	mSettings.directMethod = RayTracingMethod::ResampledDI;
-	mSettings.indirectMethod = RayTracingMethod::None;
+	mSettings.directMethod = RayTracingMethod::None;
+	mSettings.indirectMethod = RayTracingMethod::ResampledPT;
 	mSettings.frameLimit = 0;
 
-	mGRISPass->settings.shiftType = GRISReSTIR::Hybrid;
+	mGRISPass->settings.shiftType = GRISReSTIR::Replay;
 }
 
 void Renderer::processGUI() {

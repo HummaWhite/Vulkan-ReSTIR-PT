@@ -23,12 +23,12 @@ public:
 	void GUI(bool& resetFrame, bool& clearReservoir);
 
 public:
-	Settings settings = { Reconnection, 1.f };
+	Settings settings = { Hybrid, 1.f };
 
 private:
 	std::unique_ptr<RayTracing> mPathTracePass;
 	std::unique_ptr<RayTracing> mRetracePass;
 	std::unique_ptr<RayTracing> mTemporalReusePass;
 	std::unique_ptr<RayTracing> mSpatialReusePass;
-	std::unique_ptr<RayTracing> mMISWeightPass;
+	//std::unique_ptr<RayTracing> mMISWeightPass;
 };
