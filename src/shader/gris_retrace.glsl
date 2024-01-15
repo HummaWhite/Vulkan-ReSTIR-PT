@@ -10,17 +10,9 @@
 const uint Temporal = 0;
 const uint Spatial = 1;
 
-struct GRISRetraceSettings {
-    uint shiftMode;
-    float rrScale;
-};
-
-layout(push_constant) uniform _PushConstant {
-    GRISRetraceSettings uSettings;
-};
-
 #define MAPPING_CHECK 0
 
+/*
 bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 albedo, int matMeshId, out GRISReservoir resv) {
     if (uv.x < 0 || uv.y < 0 || uv.x > 1.0 || uv.y > 1.0) {
         return false;
@@ -45,6 +37,7 @@ bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 alb
     resv = uGRISReservoirPrev[index1D(uvec2(pixelId))];
     return true;
 }
+*/
 
 void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray, uint targetFlags, uint rng, out GRISReconnectionData rcData) {
     const int MaxTracingDepth = 15;
@@ -57,7 +50,7 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
     BSDFSample s;
 
     rcData.rcPrevThroughput = vec3(0.0);
-    intersectionSetInvalid(rcData.rcPrevIsec);
+    GRISReconnectionDataReset(rcData);
 
     uint targetId = GRISPathFlagsRcVertexId(targetFlags);
     uint targetType = GRISPathFlagsRcVertexType(targetFlags);
@@ -135,6 +128,101 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
     }
 }
 
+void GRISReservoirReuseAndMerge(inout GRISReservoir dstResv, SurfaceInfo dstPrimarySurf, Intersection dstPrimaryIsec, Ray primaryRay, GRISReservoir srcResv, SurfaceInfo srcPrimarySurf, inout uint rng) {
+    GRISPathSample srcSample = srcResv.pathSample;
+    GRISReconnectionData dstRcData;
+    SurfaceInfo rcPrevSurf;
+    SurfaceInfo rcSurf;
+    Material rcMat;
+    Material rcPrevMat;
+
+    vec3 wi;
+    vec3 Li = vec3(0.0);
+    bool srcSampleValid = false;
+    float dstJacobian = 0;
+    float jacobian = 0;
+    float dist = 0;
+    float dstPHat = 0;
+    float dstSamplePdf = 0;
+
+    if (GRISPathSampleIsValid(srcSample)) {
+        traceReplayPathForHybridShift(dstPrimaryIsec, dstPrimarySurf, primaryRay, srcSample.flags, srcSample.primaryRng, dstRcData);
+
+        if (GRISReconnectionDataIsValid(dstRcData)) {
+            loadSurfaceInfo(dstRcData.rcPrevIsec, rcPrevSurf);
+            loadSurfaceInfo(srcSample.rcIsec, rcSurf);
+
+            rcMat = uMaterials[rcSurf.matIndex];
+            rcPrevMat = uMaterials[rcPrevSurf.matIndex];
+
+            dist = distance(rcPrevSurf.pos, rcSurf.pos);
+            wi = normalize(rcSurf.pos - rcPrevSurf.pos);
+
+            float cosTheta = -dot(rcSurf.norm, wi);
+            dstJacobian = abs(cosTheta) / square(dist);
+            jacobian = dstJacobian / srcSample.rcJacobian;
+
+            if (dist > GRISDistanceThreshold && cosTheta > 0 && !isnan(jacobian) && srcSample.rcJacobian > 0 &&
+                isBSDFConnectible(rcPrevMat)) {
+                const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
+
+                if (traceVisibility(uTLAS, shadowRayFlags, 0xff, rcPrevSurf.pos, rcSurf.pos)) {
+                    srcSampleValid = true;
+                }
+            }
+        }
+    }
+
+    if (srcSampleValid) {
+        uint rcType = GRISPathFlagsRcVertexType(srcSample.flags);
+
+        if (!isnan(srcSample.rcPrevSamplePdf) && srcSample.rcPrevSamplePdf > 1e-6) {
+            Li = srcSample.rcLi;
+            float pdf2 = 1.0;
+
+            if (rcType == RcVertexTypeSurface && length(srcSample.rcWi) > 0.5) {
+                Li *= evalBSDF(rcMat, rcSurf.albedo, rcSurf.norm, -wi, srcSample.rcWi) * satDot(rcSurf.norm, srcSample.rcWi);
+                pdf2 = evalPdf(rcMat, rcSurf.norm, -wi, srcSample.rcWi);
+            }
+            Li *= evalBSDF(rcPrevMat, rcPrevSurf.albedo, rcPrevSurf.norm, dstRcData.rcPrevWo, wi) * satDot(rcPrevSurf.norm, wi);
+            Li *= dstRcData.rcPrevThroughput;
+            Li /= srcSample.rcPrevSamplePdf;
+
+            if (!isBlack(Li) && !hasNan(Li)) {
+                dstPHat = luminance(Li * jacobian);
+            }
+
+            if (rcType == RcVertexTypeLightSampled) {
+                float sumPower = uLightSampleTable[0].prob;
+                dstSamplePdf = luminance(rcSurf.albedo) / sumPower / dstJacobian;
+            }
+            else {
+                dstSamplePdf = evalPdf(rcPrevMat, rcPrevSurf.norm, dstRcData.rcPrevWo, wi);
+            }
+        }
+        float srcPHat = luminance(srcSample.F);
+
+        srcSample.rcJacobian = dstJacobian;
+        //srcSample.rcPrevSamplePdf /= jacobian;
+        srcSample.rcPrevSamplePdf = dstSamplePdf;
+        srcSample.F = Li;
+
+        if (srcSample.rcPrevSamplePdf < 1e-6 || isnan(srcSample.rcPrevSamplePdf)) {
+            srcSample.rcPrevSamplePdf = 0;
+        }
+        srcResv.pathSample = srcSample;
+        srcResv.resampleWeight *= dstPHat / srcPHat;
+    }
+    else {
+        srcResv.resampleWeight = 0;
+    }
+
+    if (GRISReservoirIsValid(srcResv)) {
+        GRISReservoirMerge(dstResv, srcResv, sample1f(rng));
+    }
+}
+
+/*
 vec3 retrace(uvec2 index, uvec2 frameSize) {
     vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
 
@@ -216,5 +304,6 @@ vec3 retrace(uvec2 index, uvec2 frameSize) {
     //return rcData.rcPrevThroughput;
     //return assert(GRISPathFlagsRcVertexType(temporalSample.flags) == 2);
 }
+*/
 
 #endif

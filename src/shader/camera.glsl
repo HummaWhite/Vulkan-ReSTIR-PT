@@ -1,3 +1,6 @@
+#ifndef CAMERA_GLSL
+#define CAMERA_GLSL
+
 #include "math.glsl"
 
 const uint CameraClearFlag = 0x80000000;
@@ -153,3 +156,5 @@ CameraPdf thinLensCameraPdfIe(Ray ray) {
 	return makeCameraPdf(pdfPos, pdfDir);
 }
 */
+
+#endif

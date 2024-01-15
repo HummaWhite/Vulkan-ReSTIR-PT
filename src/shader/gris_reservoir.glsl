@@ -18,6 +18,17 @@ const uint RcVertexTypeLightSampled = 0;
 const uint RcVertexTypeLightScattered = 1;
 const uint RcVertexTypeSurface = 2;
 
+struct GRISTraceSettings {
+	uint shiftMode;
+	float rrScale;
+	bool temporalReuse;
+	bool spatialReuse;
+};
+
+layout(push_constant) uniform _PushConstant{
+	GRISTraceSettings uSettings;
+};
+
 float GRISToScalar(vec3 color) {
 	return luminance(color);
 }
@@ -70,6 +81,14 @@ bool isResampleWeightInvalid(float weight) {
 	return isnan(weight) || weight == 0;
 }
 
+bool GRISReconnectionDataIsValid(GRISReconnectionData data) {
+	return data.rcPrevIsec.instanceIdx != InvalidHitIndex;
+}
+
+void GRISReconnectionDataReset(inout GRISReconnectionData data) {
+	data.rcPrevIsec.instanceIdx = InvalidHitIndex;
+}
+
 bool GRISReservoirIsValid(GRISReservoir resv) {
 	return !isnan(resv.resampleWeight) && resv.resampleWeight >= 0;
 }
@@ -86,6 +105,17 @@ bool GRISReservoirAddSample(inout GRISReservoir resv, GRISPathSample pathSample,
 
 	if (r * resv.resampleWeight < weight) {
 		resv.pathSample = pathSample;
+		return true;
+	}
+	return false;
+}
+
+bool GRISReservoirMerge(inout GRISReservoir resv, GRISReservoir rhs, float r) {
+	resv.sampleCount += rhs.sampleCount;
+	resv.resampleWeight += rhs.resampleWeight;
+
+	if (r * resv.resampleWeight < rhs.resampleWeight) {
+		resv.pathSample = rhs.pathSample;
 		return true;
 	}
 	return false;

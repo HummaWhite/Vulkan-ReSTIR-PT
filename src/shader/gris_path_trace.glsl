@@ -7,15 +7,6 @@
 #include "material.glsl"
 #include "gris_reservoir.glsl"
 
-struct GRISTraceSettings {
-	uint shiftMode;
-	float rrScale;
-};
-
-layout(push_constant) uniform _PushConstant {
-    GRISTraceSettings uSettings;
-};
-
 struct StreamSampler {
     GRISPathSample pathSample;
     float weight;
@@ -276,12 +267,13 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
         pathSample.F *= streamResv.sumWeight / streamResv.weight;
         pathSample.rcLi *= streamResv.sumWeight / streamResv.weight;
         resv.resampleWeight = luminance(pathSample.F);
-        resv.sampleCount = 1;
     }
     else {
         pathSample.rcIsec.instanceIdx = InvalidHitIndex;
+        pathSample.F = vec3(0);
     }
     resv.pathSample = pathSample;
+    resv.sampleCount = 1;
 
     uGRISReservoir[index1D(index)] = resv;
 
@@ -293,7 +285,7 @@ vec3 tracePath(uvec2 index, uvec2 frameSize) {
         return vec3(0.0);
     }
 
-    radiance = pathSample.F;
+    //radiance = pathSample.F;
     //radiance = pathSample.rcLi;
     //radiance = colorWheel(float(streamResv.sampleCount) / 6.0);
     //radiance = colorWheel(float(rcVertexId) / float(pathLength));

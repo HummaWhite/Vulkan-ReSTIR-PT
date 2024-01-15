@@ -18,11 +18,11 @@ void main() {
     if (index.x >= launchDim.x || index.y >= launchDim.y) {
         return;
     }
-    vec3 color = clampColor(temporalReuse(index, launchDim));
+    vec3 color = temporalReuse(index, launchDim);
 
     float frameCount = float(uCamera.frameIndex & CameraFrameIndexMask);
     vec3 accumulatedColor = imageLoad(uIndirectOutput, ivec2(index)).rgb;
     accumulatedColor = (accumulatedColor * frameCount + color) / (frameCount + 1.0);
 
-    imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedColor, 1.0));
+    //imageStore(uIndirectOutput, ivec2(index), vec4(accumulatedColor, 1.0));
 }

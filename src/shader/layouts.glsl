@@ -191,6 +191,7 @@ layout(set = RayImageDescSet, binding = 10) buffer _GIReservoirThis { GIReservoi
 layout(set = RayImageDescSet, binding = 11) buffer _GIReservoirPrev { GIReservoir uGIReservoirPrev[]; };
 layout(set = RayImageDescSet, binding = 12) buffer _GRISReservoirThis { GRISReservoir uGRISReservoir[]; };
 layout(set = RayImageDescSet, binding = 13) buffer _GRISReservoirPrev { GRISReservoir uGRISReservoirPrev[]; };
-layout(set = RayImageDescSet, binding = 14) buffer _GRISReconnectionData { GRISReconnectionData uGRISReconnectionData[]; };
+layout(set = RayImageDescSet, binding = 14) buffer _GRISReservoirTemp { GRISReservoir uGRISReservoirTemp[]; };
+layout(set = RayImageDescSet, binding = 15) buffer _GRISReconnectionData { GRISReconnectionData uGRISReconnectionData[]; };
 
 #endif

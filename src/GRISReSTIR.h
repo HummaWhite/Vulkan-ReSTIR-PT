@@ -11,6 +11,8 @@ public:
 	struct Settings {
 		uint32_t shiftType;
 		float rrScale;
+		uint32_t temporalReuse;
+		uint32_t spatialReuse;
 	};
 
 public:
@@ -23,11 +25,11 @@ public:
 	void GUI(bool& resetFrame, bool& clearReservoir);
 
 public:
-	Settings settings = { Hybrid, 1.f };
+	Settings settings = { Hybrid, 1.f, false, true };
 
 private:
 	std::unique_ptr<RayTracing> mPathTracePass;
-	std::unique_ptr<RayTracing> mRetracePass;
+	//std::unique_ptr<RayTracing> mRetracePass;
 	std::unique_ptr<RayTracing> mTemporalReusePass;
 	std::unique_ptr<RayTracing> mSpatialReusePass;
 	//std::unique_ptr<RayTracing> mMISWeightPass;

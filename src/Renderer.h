@@ -123,7 +123,7 @@ private:
 	std::unique_ptr<zvk::Buffer> mDIReservoirTemp[NumFramesInFlight];
 	std::unique_ptr<zvk::Buffer> mGIReservoir[NumFramesInFlight][2];
 	std::unique_ptr<zvk::Buffer> mGRISReservoir[NumFramesInFlight][2];
-	std::unique_ptr<zvk::Buffer> mGRISReservoir
+	std::unique_ptr<zvk::Buffer> mGRISReservoirTemp[NumFramesInFlight];
 	std::unique_ptr<zvk::Buffer> mReconnectionData[NumFramesInFlight];
 
 	std::unique_ptr<GBufferPass> mGBufferPass;

@@ -6,83 +6,82 @@
 #include "light_sampling.glsl"
 #include "math.glsl"
 #include "gris_reservoir.glsl"
+#include "gris_retrace.glsl"
+
+bool findPreviousReservoir(vec2 uv, vec3 pos, float depth, vec3 normal, vec3 albedo, int matMeshId, out GRISReservoir resv, out SurfaceInfo surf) {
+    if (uv.x < 0 || uv.y < 0 || uv.x > 1.0 || uv.y > 1.0) {
+        return false;
+    }
+    ivec2 pixelId = ivec2(uv * vec2(uCamera.filmSize.xy));
+
+    float depthPrev;
+    vec3 normalPrev;
+    vec3 albedoPrev;
+    int matMeshIdPrev;
+
+    if (!unpackGBuffer(texture(uDepthNormalPrev, uv), texelFetch(uAlbedoMatIdPrev, pixelId, 0), depthPrev, normalPrev, albedoPrev, matMeshIdPrev)) {
+        return false;
+    }
+    Ray ray = pinholeCameraSampleRay(uPrevCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
+    vec3 posPrev = ray.ori + ray.dir * (depthPrev - 1e-4);
+
+    if (matMeshIdPrev != matMeshId || dot(normalPrev, normal) < 0.95 || distance(pos, posPrev) > 0.5) {
+        return false;
+    }
+    resv = uGRISReservoirPrev[index1D(uvec2(pixelId))];
+    surf = SurfaceInfo(posPrev, normalPrev, albedoPrev, matMeshIdPrev >> 16, false);
+    return true;
+}
 
 vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
-    const int MaxTracingDepth = 15;
     vec2 uv = (vec2(index) + 0.5) / vec2(frameSize);
 
-    GRISReconnectionData rcData = uGRISReconnectionData[index1D(index) * 2 + 0];
+    float depth;
+    vec3 norm;
+    vec3 albedo;
+    int matMeshId;
 
-    if (!intersectionIsValid(rcData.rcPrevIsec)) {
+    if (!unpackGBuffer(texture(uDepthNormal, uv), texelFetch(uAlbedoMatId, ivec2(index), 0), depth, norm, albedo, matMeshId)) {
         return vec3(0.0);
     }
-
-    SurfaceInfo rcSurf, rcPrevSurf;
-
-    if (intersectionIsSpecial(rcData.rcPrevIsec)) {
-        loadSurfaceInfo(rcData.rcPrevIsec.bary, frameSize, rcPrevSurf);
-    }
-    else {
-        loadSurfaceInfo(rcData.rcPrevIsec, rcPrevSurf);
-    }
-
     vec2 motion = texelFetch(uMotionVector, ivec2(index), 0).xy;
-    ivec2 prevIndex = ivec2((uv + motion) * vec2(frameSize));
+    int matId = matMeshId >> 16;
 
-    if (prevIndex.x < 0 || prevIndex.x >= frameSize.x || prevIndex.y < 0 || prevIndex.y >= frameSize.y) {
-        return vec3(0.0);
-    }
-    GRISReservoir temporalResv = uGRISReservoirPrev[index1D(prevIndex)];
+    Ray ray = pinholeCameraSampleRay(uCamera, vec2(uv.x, 1.0 - uv.y), vec2(0));
+    uint rng = makeSeed(uCamera.seed, index) ^ 1;
+    uint resvRng = ~rng;
 
-    GRISPathSample rcSample = temporalResv.pathSample;
+    vec3 pos = ray.ori + ray.dir * (depth - 1e-4);
+    vec3 wo = -ray.dir;
+    Material mat = uMaterials[matId];
 
-    if (!GRISPathSampleIsValid(rcSample)) {
-        return vec3(0.0);
-    }
-    loadSurfaceInfo(rcSample.rcIsec, rcSurf);
+    vec3 radiance = vec3(0.0);
 
-    const uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT;
+    GRISReservoir resv = uGRISReservoir[index1D(uvec2(index))];
 
-    if (!traceVisibility(uTLAS, shadowRayFlags, 0xff, rcPrevSurf.pos, rcSurf.pos)) {
-        return vec3(0.0);
-    }
-    Material rcMat = uMaterials[rcSurf.matIndex];
-    Material rcPrevMat = uMaterials[rcPrevSurf.matIndex];
+    Intersection dstPrimaryIsec;
+    dstPrimaryIsec.instanceIdx = SpecialHitIndex;
+    dstPrimaryIsec.bary = uv;
 
-    vec3 L = vec3(0.0);
-    vec3 rcPrevWi = normalize(rcSurf.pos - rcPrevSurf.pos);
-    float distToPrev = length(rcSurf.pos - rcPrevSurf.pos);
+    if (uSettings.temporalReuse) {
+        GRISReservoir temporalResv;
+        GRISReservoirReset(temporalResv);
 
-    float jacobian = absDot(rcSurf.pos, rcPrevWi) / square(distToPrev);
+        SurfaceInfo dstPrimarySurf = SurfaceInfo(pos, norm, albedo, matId, false);
+        SurfaceInfo srcPrimarySurf;
 
-    //return clampColor(vec3(1.0 / jacobian));
-    //return rcSample.rcLi;
-    //return colorWheel(rcSample.rcPrevSamplePdf);
-
-    uint rcType = GRISPathFlagsRcVertexType(rcSample.flags);
-
-    if (distToPrev > GRISDistanceThreshold) {
-        L = rcSample.rcLi;
-
-        if (rcType == RcVertexTypeSurface && length(rcSample.rcWi) > 0.5) {
-            L *= evalBSDF(rcMat, rcSurf.albedo, rcSurf.norm, -rcPrevWi, rcSample.rcWi) * satDot(rcSurf.norm, rcSample.rcWi);
-        }
-        L *= evalBSDF(rcPrevMat, rcPrevSurf.albedo, rcPrevSurf.norm, rcData.rcPrevWo, rcPrevWi) * satDot(rcPrevSurf.norm, rcPrevWi);
-        L *= rcData.rcPrevThroughput;
-        L /= rcSample.rcPrevSamplePdf;
-
-        //L = vec3(jacobian - rcSample.rcJacobian);
-        L = vec3(rcSample.rcJacobian);
-
-        if (!isBlack(L) && !hasNan(L)) {
-            //L = L / luminance(L) * temporalResv.resampleWeight / temporalResv.sampleCount;
-            //L = L / luminance(rcSample.F) * temporalResv.resampleWeight;
-        }
-        else {
-            L = vec3(0.0);
+        if (((uCamera.frameIndex & CameraClearFlag) == 0) && findPreviousReservoir(uv + motion, pos, depth, norm, albedo, matMeshId, temporalResv, srcPrimarySurf)) {
+            if (GRISReservoirIsValid(temporalResv)) {
+                GRISReservoirReuseAndMerge(resv, dstPrimarySurf, dstPrimaryIsec, ray, temporalResv, srcPrimarySurf, resvRng);
+            }
         }
     }
-    return clampColor(L);
+    GRISReservoirCapSample(resv, 40);
+
+    GRISReservoirResetIfInvalid(resv);
+    uGRISReservoirTemp[index1D(uvec2(index))] = resv;
+
+    return clampColor(radiance);
 }
 
 #endif

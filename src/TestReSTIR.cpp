@@ -64,13 +64,13 @@ void TestReSTIR::GUI(bool& resetFrame, bool& clearReservoir) {
         clearReservoir = true;
     }
 
-    if (ImGui::Checkbox("TemporalReuse", reinterpret_cast<bool*>(&settings.temporalReuse))) {
+    if (ImGui::Checkbox("Temporal Reuse", reinterpret_cast<bool*>(&settings.temporalReuse))) {
         resetFrame = true;
         clearReservoir = true;
     }
     ImGui::SameLine();
 
-    if (ImGui::Checkbox("SpatialReuse", reinterpret_cast<bool*>(&settings.spatialReuse))) {
+    if (ImGui::Checkbox("Spatial Reuse", reinterpret_cast<bool*>(&settings.spatialReuse))) {
         resetFrame = true;
         clearReservoir = true;
     }

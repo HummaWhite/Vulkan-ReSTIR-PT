@@ -247,7 +247,7 @@ void reconnection(inout DIReservoir dstResv, SurfaceInfo dstSurf, DIReservoir sr
                 srcSampleValid = true;
                 
                 if (!isnan(srcSample.samplePdf) && srcSample.samplePdf > 1e-6) {
-                    vec3 Li = srcResv.pathSample.Li * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, wi)* satDot(dstSurf.norm, wi) / srcSample.samplePdf;
+                    vec3 Li = srcResv.pathSample.Li * evalBSDF(dstMat, dstSurf.albedo, dstSurf.norm, wo, wi) * satDot(dstSurf.norm, wi) / srcSample.samplePdf;
                     dstPHat = luminance(Li * jacobian);
                 }
 

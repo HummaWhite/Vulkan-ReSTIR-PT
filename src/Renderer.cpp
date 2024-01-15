@@ -28,10 +28,10 @@ template<uint32_t N> struct Data32 {
 	uint32_t data[N];
 };
 
-using DIReservoirData = Data32<0 + 4>;
+using DIReservoirData = Data32<0 + 1>;
 using GIReservoirData = Data32<8 + 4>;
 using GRISReservoirData = Data32<24 + 4>;
-using GRISReconnectionData = Data32<12>;
+using GRISReconnectionData = Data32</*12*/ 1>;
 
 void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
 	// Log::bracketLine<0>("Resize to " + std::to_string(width) + "x" + std::to_string(height));
@@ -241,6 +241,11 @@ void Renderer::createRayImage() {
 		);
 		zvk::DebugUtils::nameVkObject(mContext->device, mDIReservoirTemp[i]->buffer, std::format("DIReservoirTemp[{}]", i));
 
+		mGRISReservoirTemp[i] = zvk::Memory::createBuffer(
+			mContext.get(), sizeof(GRISReservoirData) * numPixels, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
+		);
+		zvk::DebugUtils::nameVkObject(mContext->device, mGRISReservoirTemp[i]->buffer, std::format("GRISReservoirTemp[{}]", i));
+
 		mReconnectionData[i] = zvk::Memory::createBuffer(
 			mContext.get(), sizeof(GRISReconnectionData) * numPixels * 2, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal
 		);
@@ -261,14 +266,15 @@ void Renderer::createDescriptor() {
 		zvk::Descriptor::makeBinding(4, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
 		zvk::Descriptor::makeBinding(5, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
 		zvk::Descriptor::makeBinding(6, vk::DescriptorType::eCombinedImageSampler, rayImageFlags),
-		zvk::Descriptor::makeBinding( 7, vk::DescriptorType::eStorageBuffer, rayImageFlags),
-		zvk::Descriptor::makeBinding( 8, vk::DescriptorType::eStorageBuffer, rayImageFlags),
-		zvk::Descriptor::makeBinding( 9, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding(7, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding(8, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding(9, vk::DescriptorType::eStorageBuffer, rayImageFlags),
 		zvk::Descriptor::makeBinding(10, vk::DescriptorType::eStorageBuffer, rayImageFlags),
 		zvk::Descriptor::makeBinding(11, vk::DescriptorType::eStorageBuffer, rayImageFlags),
 		zvk::Descriptor::makeBinding(12, vk::DescriptorType::eStorageBuffer, rayImageFlags),
 		zvk::Descriptor::makeBinding(13, vk::DescriptorType::eStorageBuffer, rayImageFlags),
-		zvk::Descriptor::makeBinding(14, vk::DescriptorType::eStorageBuffer, rayImageFlags)
+		zvk::Descriptor::makeBinding(14, vk::DescriptorType::eStorageBuffer, rayImageFlags),
+		zvk::Descriptor::makeBinding(15, vk::DescriptorType::eStorageBuffer, rayImageFlags),
 	};
 	mRayImageDescLayout = std::make_unique<zvk::DescriptorSetLayout>(mContext.get(), rayImageBindings);
 
@@ -316,14 +322,15 @@ void Renderer::initDescriptor() {
 			update.add(rayImageLayout, rayImageSet, 4, zvk::Descriptor::makeImage(mGBufferPass->albedoMatId[i][thisFrame].get()));
 			update.add(rayImageLayout, rayImageSet, 5, zvk::Descriptor::makeImage(mGBufferPass->albedoMatId[i][lastFrame].get()));
 			update.add(rayImageLayout, rayImageSet, 6, zvk::Descriptor::makeImage(mGBufferPass->motionVector[i].get()));
-			update.add(rayImageLayout, rayImageSet,  7, zvk::Descriptor::makeBuffer(mDIReservoir[i][thisFrame].get()));
-			update.add(rayImageLayout, rayImageSet,  8, zvk::Descriptor::makeBuffer(mDIReservoir[i][lastFrame].get()));
-			update.add(rayImageLayout, rayImageSet,  9, zvk::Descriptor::makeBuffer(mDIReservoirTemp[i].get()));
+			update.add(rayImageLayout, rayImageSet, 7, zvk::Descriptor::makeBuffer(mDIReservoir[i][thisFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 8, zvk::Descriptor::makeBuffer(mDIReservoir[i][lastFrame].get()));
+			update.add(rayImageLayout, rayImageSet, 9, zvk::Descriptor::makeBuffer(mDIReservoirTemp[i].get()));
 			update.add(rayImageLayout, rayImageSet, 10, zvk::Descriptor::makeBuffer(mGIReservoir[i][thisFrame].get()));
 			update.add(rayImageLayout, rayImageSet, 11, zvk::Descriptor::makeBuffer(mGIReservoir[i][lastFrame].get()));
 			update.add(rayImageLayout, rayImageSet, 12, zvk::Descriptor::makeBuffer(mGRISReservoir[i][thisFrame].get()));
 			update.add(rayImageLayout, rayImageSet, 13, zvk::Descriptor::makeBuffer(mGRISReservoir[i][lastFrame].get()));
-			update.add(rayImageLayout, rayImageSet, 14, zvk::Descriptor::makeBuffer(mReconnectionData[i].get()));
+			update.add(rayImageLayout, rayImageSet, 14, zvk::Descriptor::makeBuffer(mGRISReservoirTemp[i].get()));
+			update.add(rayImageLayout, rayImageSet, 15, zvk::Descriptor::makeBuffer(mReconnectionData[i].get()));
 			update.flush();
 		}
 		update.add(mCameraDescLayout.get(), mCameraDescSet[i], 0, vk::DescriptorBufferInfo(mCameraBuffer[i]->buffer, 0, mCameraBuffer[i]->size));
@@ -640,6 +647,7 @@ void Renderer::cleanupVulkan() {
 			mGRISReservoir[i][j].reset();
 		}
 		mDIReservoirTemp[i].reset();
+		mGRISReservoirTemp[i].reset();
 		mReconnectionData[i].reset();
 	}
 
