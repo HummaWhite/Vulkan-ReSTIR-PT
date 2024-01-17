@@ -113,6 +113,7 @@ void Swapchain::createSwapchain(const Instance* instance, uint32_t width, uint32
 		nImages = std::min(nImages, capabilities.maxImageCount);
 	}
 	vk::ImageUsageFlags usage = computeTarget ? vk::ImageUsageFlagBits::eStorage : vk::ImageUsageFlagBits::eColorAttachment;
+	usage |= vk::ImageUsageFlagBits::eTransferSrc;
 
 	if (!hasFlagBit(capabilities.supportedUsageFlags, usage)) {
 		Log::exception("zvk::Swapchain image usage not supported");

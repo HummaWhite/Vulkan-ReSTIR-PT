@@ -40,7 +40,7 @@ public:
 
 	void exec();
 
-	void setShoudResetSwapchain(bool reset) { mShouldResetSwapchain = reset; }
+	void setShoudResetSwapchain(bool reset) { mResetSwapchain = reset; }
 
 private:
 	void initWindow();
@@ -51,11 +51,12 @@ private:
 	void initScene();
 	void createCameraBuffer();
 	void createRayImage();
+	void createScreenshotImage();
 
 	void createDescriptor();
 	void initDescriptor();
 	void updateDescriptor();
-	void updateCameraUniform();
+	void memorySyncHostAndDevice();
 	void recreateFrame();
 
 	void createCommandBuffer();
@@ -68,11 +69,10 @@ private:
 	void drawFrame();
 
 	void initSettings();
-
 	void processGUI();
-
+	void cacheSwapchain(vk::CommandBuffer cmd, uint32_t imageIdx);
+	void writeScreenshot();
 	void loop();
-
 	void cleanupVulkan();
 
 private:
@@ -81,7 +81,8 @@ private:
 	int mWidth, mHeight;
 	int mDisplayWidth, mDisplayHeight;
 	GLFWwindow* mMainWindow = nullptr;
-	bool mShouldResetSwapchain = false;
+	bool mResetSwapchain = false;
+	bool mWriteScreenshot = false;
 	Timer mFPSTimer;
 	Timer mRenderTimer;
 	double mLastTime = 0;
@@ -134,6 +135,8 @@ private:
 	std::unique_ptr<GRISReSTIR> mGRISPass;
 	std::unique_ptr<zvk::ComputePipeline> mVisualizeASPass;
 	std::unique_ptr<PostProcessFrag> mPostProcessPass;
+
+	std::unique_ptr<zvk::Image> mScreenshotImage;
 
 	std::unique_ptr<zvk::DescriptorPool> mDescriptorPool;
 	std::unique_ptr<zvk::DescriptorSetLayout> mRayImageDescLayout;

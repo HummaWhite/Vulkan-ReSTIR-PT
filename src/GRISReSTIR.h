@@ -13,6 +13,7 @@ public:
 		float rrScale;
 		uint32_t temporalReuse;
 		uint32_t spatialReuse;
+		uint32_t cap;
 	};
 
 public:
@@ -25,7 +26,7 @@ public:
 	void GUI(bool& resetFrame, bool& clearReservoir);
 
 public:
-	Settings settings = { Hybrid, 1.f, false, true };
+	Settings settings = { Hybrid, 1.f, false, true, 20 };
 
 private:
 	std::unique_ptr<RayTracing> mPathTracePass;

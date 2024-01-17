@@ -12,7 +12,9 @@ namespace WindowInput {
 	double lastCursorY = 0;
 	bool firstCursorMove = true;
 	bool cursorDisabled = true;
+	bool showGUI = true;
 	bool locked = false;
+	bool screenshot = false;
 	double deltaTime = 0;
 	std::set<int> pressedKeys;
 
@@ -26,6 +28,18 @@ namespace WindowInput {
 
 	bool isPressingKey(int keyCode) {
 		return pressedKeys.find(keyCode) != pressedKeys.end();
+	}
+
+	bool displayGUI() {
+		return showGUI;
+	}
+
+	bool shouldCaptureScreen() {
+		return screenshot;
+	}
+
+	bool setShouldCaptureScreen(bool should) {
+		return screenshot = should;
 	}
 
 	void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
@@ -49,6 +63,12 @@ namespace WindowInput {
 			}
 			else if (key == GLFW_KEY_F2) {
 				locked ^= 1;
+			}
+			else if (key == GLFW_KEY_F3) {
+				showGUI ^= 1;
+			}
+			else if (key == GLFW_KEY_O) {
+				screenshot = true;
 			}
 			if (!isPressingKey(GLFW_KEY_LEFT_CONTROL) && !isPressingKey(GLFW_KEY_RIGHT_CONTROL)) {
 				return;

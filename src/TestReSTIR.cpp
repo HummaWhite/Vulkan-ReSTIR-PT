@@ -7,7 +7,6 @@ void TestReSTIR::destroy() {
 }
 
 void TestReSTIR::render(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::DescriptorSetBindingMap& descSetBindings) {
-    return;
     zvk::DebugUtils::cmdBeginLabel(cmd, "Path Gen", { .5f, .2f, 1.f, 1.f }); {
         mPathTracePass->execute(cmd, extent, descSetBindings, &settings);
         zvk::DebugUtils::cmdEndLabel(cmd);
@@ -37,7 +36,6 @@ void TestReSTIR::render(vk::CommandBuffer cmd, vk::Extent2D extent, const zvk::D
 }
 
 void TestReSTIR::createPipeline(zvk::ShaderManager* shaderManager, const std::vector<vk::DescriptorSetLayout>& descLayouts) {
-    return;
     mPathTracePass = std::make_unique<RayTracing>(mCtx);
     mSpatialReusePass = std::make_unique<RayTracing>(mCtx);
     mTemporalReusePass = std::make_unique<RayTracing>(mCtx);

@@ -116,6 +116,15 @@ public:
 		return static_cast<uint32_t>(std::floor(std::log2(std::max(std::max(extent.width, extent.height), extent.depth))) + 1);
 	}
 
+	void mapMemory() {
+		data = mCtx->device.mapMemory(memory, 0, VK_WHOLE_SIZE);
+	}
+
+	void unmapMemory() {
+		mCtx->device.unmapMemory(memory);
+		data = nullptr;
+	}
+
 public:
 	vk::Image image;
 	vk::ImageType type = {};
@@ -129,6 +138,7 @@ public:
 	vk::DeviceMemory memory;
 	uint32_t numMipLevels = 0;
 	uint32_t numArrayLayers = 0;
+	void* data = nullptr;
 };
 
 namespace Memory {

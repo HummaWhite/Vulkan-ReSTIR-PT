@@ -77,6 +77,8 @@ void GRISReSTIR::GUI(bool& resetFrame, bool& clearReservoir) {
     }
     ImGui::SliderFloat("RR Scale", &settings.rrScale, 0.1f, 4.f);
 
+    ImGui::SliderInt("M Cap", reinterpret_cast<int*>(&settings.cap), 1, 100);
+
     if (ImGui::Checkbox("Temporal Reuse", reinterpret_cast<bool*>(&settings.temporalReuse))) {
         resetFrame = true;
         clearReservoir = true;

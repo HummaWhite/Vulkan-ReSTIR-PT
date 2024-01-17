@@ -23,6 +23,7 @@ struct GRISTraceSettings {
 	float rrScale;
 	bool temporalReuse;
 	bool spatialReuse;
+	uint cap;
 };
 
 layout(push_constant) uniform _PushConstant{

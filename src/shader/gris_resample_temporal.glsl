@@ -76,8 +76,6 @@ vec3 temporalReuse(uvec2 index, uvec2 frameSize) {
             }
         }
     }
-    GRISReservoirCapSample(resv, 40);
-
     GRISReservoirResetIfInvalid(resv);
     uGRISReservoirTemp[index1D(uvec2(index))] = resv;
 

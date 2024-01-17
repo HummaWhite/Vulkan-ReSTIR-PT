@@ -2,6 +2,7 @@
 #include "WindowInput.h"
 #include "shader/HostDevice.h"
 #include "util/Error.h"
+#include "util/Math.h"
 
 #include <sstream>
 #include <format>
@@ -28,7 +29,7 @@ template<uint32_t N> struct Data32 {
 	uint32_t data[N];
 };
 
-using DIReservoirData = Data32<0 + 1>;
+using DIReservoirData = Data32<12 + 4>;
 using GIReservoirData = Data32<8 + 4>;
 using GRISReservoirData = Data32<24 + 4>;
 using GRISReconnectionData = Data32</*12*/ 1>;
@@ -111,6 +112,7 @@ void Renderer::initVulkan() {
 
 		createCameraBuffer();
 		createRayImage();
+		createScreenshotImage();
 
 		initScene();
 
@@ -253,6 +255,17 @@ void Renderer::createRayImage() {
 	}
 }
 
+void Renderer::createScreenshotImage() {
+	mScreenshotImage = zvk::Memory::createImage2DAndInitLayout(
+		mContext.get(), zvk::QueueIdx::GeneralUse, mSwapchain->extent(),
+		vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eLinear, vk::ImageLayout::eGeneral,
+		vk::ImageUsageFlagBits::eTransferDst,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+	);
+
+	zvk::DebugUtils::nameVkObject(mContext->device, mScreenshotImage->image, "ScreenshotImage");
+}
+
 void Renderer::createDescriptor() {
 	auto rayImageFlags = RayPipelineShaderStageFlags
 		| RayQueryShaderStageFlags
@@ -341,11 +354,16 @@ void Renderer::initDescriptor() {
 void Renderer::updateDescriptor() {
 }
 
-void Renderer::updateCameraUniform() {
+void Renderer::memorySyncHostAndDevice() {
 	Camera write[] = { mCamera, mPrevCamera };
 	memcpy(mCameraBuffer[mInFlightFrameIdx]->data, write, sizeof(write));
 	mPrevCamera = mCamera;
 	mCamera.nextFrame(mRng);
+
+	if (mWriteScreenshot) {
+		writeScreenshot();
+		mWriteScreenshot = false;
+	}
 }
 
 void Renderer::recreateFrame() {
@@ -469,6 +487,12 @@ void Renderer::recordRenderCommand(vk::CommandBuffer cmd, uint32_t imageIdx) {
 			zvk::DebugUtils::cmdEndLabel(cmd);
 		}
 
+		if (WindowInput::shouldCaptureScreen()) {
+			cacheSwapchain(cmd, imageIdx);
+			WindowInput::setShouldCaptureScreen(false);
+			mWriteScreenshot = true;
+		}
+
 		zvk::DebugUtils::cmdBeginLabel(cmd, "GUI", { .3f, .8f, .5f, 1.f }); {
 			mGUIManager->render(cmd, mPostProcessPass->framebuffers[imageIdx], mSwapchain->extent());
 			zvk::DebugUtils::cmdEndLabel(cmd);
@@ -506,7 +530,7 @@ void Renderer::presentFrame(uint32_t imageIdx, vk::Semaphore waitRenderFinish) {
 		Log::line<0>(e.what());
 		recreateFrame();
 	}
-	if (mShouldResetSwapchain) {
+	if (mResetSwapchain) {
 		recreateFrame();
 	}
 }
@@ -518,7 +542,7 @@ void Renderer::drawFrame() {
 	mContext->device.resetFences(mInFlightFences[mInFlightFrameIdx]);
 	uint32_t imageIdx = acquireFrame(mFrameReadySemaphores[mInFlightFrameIdx]);
 
-	updateCameraUniform();
+	memorySyncHostAndDevice();
 
 	mGCTCmdBuffers[mInFlightFrameIdx]->cmd.reset();
 	recordRenderCommand(mGCTCmdBuffers[mInFlightFrameIdx]->cmd, imageIdx);
@@ -555,7 +579,7 @@ void Renderer::processGUI() {
 	bool resetFrame = false;
 	bool clearReservoir = false;
 
-	if (ImGui::BeginMainMenuBar()) {
+	if (WindowInput::displayGUI() && ImGui::BeginMainMenuBar()) {
 		if (ImGui::BeginMenu("Settings")) {
 			static const char* directMethods[] = { "None", "Naive", "ReSTIR DI", "Visualize AS" };
 			static const char* indirectMethods[] = { "None", "Naive", "ReSTIR GI", "ReSTIR PT" };
@@ -598,7 +622,7 @@ void Renderer::processGUI() {
 			}
 			ImGui::Separator();
 
-			resetFrame |= ImGui::Checkbox("Accumulate", &mSettings.accumulate);
+			ImGui::Checkbox("Accumulate", &mSettings.accumulate);
 
 			const char* toneMappingMethods[] = { "None", "Filmic", "ACES" };
 
@@ -617,14 +641,154 @@ void Renderer::processGUI() {
 			ImGui::EndMenu();
 		}
 
+		if (ImGui::BeginMenu("File")) {
+			if (ImGui::MenuItem("Screenshot", "O")) {
+				WindowInput::setShouldCaptureScreen(true);
+			}
+			ImGui::EndMenu();
+		}
+
 		ImGui::EndMainMenuBar();
 	}
 	if (resetFrame || !mSettings.accumulate) {
 		mCamera.update();
+
 		if (clearReservoir) {
 			mCamera.setClearFlag();
 		}
 	}
+}
+
+void Renderer::cacheSwapchain(vk::CommandBuffer cmd, uint32_t imageIdx) {
+	auto swapchainImage = mSwapchain->images()[imageIdx];
+
+	auto bufferImageBarrier = mScreenshotImage->getImageBarrierAndSetLayout(
+		vk::ImageLayout::eTransferDstOptimal, vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eTransferWrite
+	);
+
+	auto subRange = vk::ImageSubresourceRange()
+		.setAspectMask(vk::ImageAspectFlagBits::eColor)
+		.setBaseMipLevel(0)
+		.setLevelCount(1)
+		.setBaseArrayLayer(0)
+		.setLayerCount(1);
+
+	auto swapchainImageBarrier = vk::ImageMemoryBarrier()
+		.setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
+		.setNewLayout(vk::ImageLayout::eTransferSrcOptimal)
+		.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setImage(swapchainImage)
+		.setSubresourceRange(subRange)
+		.setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite)
+		.setDstAccessMask(vk::AccessFlagBits::eTransferRead);
+
+	cmd.pipelineBarrier(
+		vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer,
+		vk::DependencyFlagBits{ 0 }, {}, {}, bufferImageBarrier
+	);
+
+	cmd.pipelineBarrier(
+		vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eTransfer,
+		vk::DependencyFlagBits{ 0 }, {}, {}, swapchainImageBarrier
+	);
+
+	auto subLayers = vk::ImageSubresourceLayers()
+		.setAspectMask(vk::ImageAspectFlagBits::eColor)
+		.setMipLevel(0)
+		.setBaseArrayLayer(0)
+		.setLayerCount(1);
+
+	auto offset = vk::Offset3D(mSwapchain->extent().width, mSwapchain->extent().height, 1);
+
+	if (false) {
+		auto blit = vk::ImageBlit()
+			.setSrcSubresource(subLayers)
+			.setSrcOffsets({ vk::Offset3D{ 0, 0, 0 }, offset })
+			.setDstSubresource(subLayers)
+			.setDstOffsets({ vk::Offset3D{ 0, 0, 0 }, offset });
+
+		cmd.blitImage(
+			swapchainImage, vk::ImageLayout::eTransferSrcOptimal,
+			mScreenshotImage->image, vk::ImageLayout::eTransferDstOptimal,
+			blit, vk::Filter::eNearest
+		);
+	}
+	else {
+		auto copy = vk::ImageCopy()
+			.setSrcSubresource(subLayers)
+			.setSrcOffset({ 0, 0, 0 })
+			.setDstSubresource(subLayers)
+			.setDstOffset({ 0, 0, 0 })
+			.setExtent(vk::Extent3D(mSwapchain->extent(), 1));
+
+		cmd.copyImage(
+			swapchainImage, vk::ImageLayout::eTransferSrcOptimal,
+			mScreenshotImage->image, vk::ImageLayout::eTransferDstOptimal,
+			copy
+		);
+	}
+
+	bufferImageBarrier = mScreenshotImage->getImageBarrierAndSetLayout(
+		vk::ImageLayout::eGeneral, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eMemoryRead
+	);
+
+	swapchainImageBarrier = vk::ImageMemoryBarrier()
+		.setOldLayout(vk::ImageLayout::eTransferSrcOptimal)
+		.setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
+		.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+		.setImage(swapchainImage)
+		.setSubresourceRange(subRange)
+		.setSrcAccessMask(vk::AccessFlagBits::eTransferRead)
+		.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
+
+	cmd.pipelineBarrier(
+		vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer,
+		vk::DependencyFlagBits{ 0 }, {}, {}, bufferImageBarrier
+	);
+
+	cmd.pipelineBarrier(
+		vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eColorAttachmentOutput,
+		vk::DependencyFlagBits{ 0 }, {}, {}, swapchainImageBarrier
+	);
+}
+
+void Renderer::writeScreenshot() {
+	std::string name = "screenshots/save" + std::to_string((long long)time(0)) + ".png";
+
+	uint32_t size = mSwapchain->width() * mSwapchain->height() * 4;
+	uint32_t alignedSize = util::align(size, 8);
+	auto data = new uint64_t[alignedSize / 8];
+
+	mScreenshotImage->mapMemory();
+	memcpy(data, mScreenshotImage->data, size);
+	mScreenshotImage->unmapMemory();
+
+	auto swizzle = [&](uint32_t begin, uint32_t end) {
+		for (uint32_t i = begin; i < end; i++) {
+			uint64_t& x = data[i];
+			x = (x & 0xff00ff00'ff00ff00ull) | ((x & 0x000000ff'000000ffull) << 16) | ((x & 0x00ff0000'00ff0000ull) >> 16);
+		}
+	};
+
+	uint32_t maxThreads = std::thread::hardware_concurrency();
+	uint32_t blockSize = alignedSize / 8 / maxThreads;
+	std::vector<std::thread> threads(maxThreads);
+
+	for (uint32_t i = 0; i < maxThreads; i++) {
+		threads[i] = std::thread(swizzle, blockSize * i, std::min(blockSize * (i + 1), size / 8));
+	}
+
+	for (auto& thread : threads) {
+		thread.join();
+	}
+
+	stbi_flip_vertically_on_write(false);
+	stbi_write_png(name.c_str(), mSwapchain->width(), mSwapchain->height(), 4, data, mSwapchain->width() * 4);
+	delete[] data;
+
+	Log::line<0>("Capture " + name);
 }
 
 void Renderer::loop() {
@@ -650,6 +814,7 @@ void Renderer::cleanupVulkan() {
 		mGRISReservoirTemp[i].reset();
 		mReconnectionData[i].reset();
 	}
+	mScreenshotImage.reset();
 
 	mDeviceScene.reset();
 	mGBufferPass.reset();

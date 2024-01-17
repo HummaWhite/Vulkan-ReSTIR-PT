@@ -4,6 +4,7 @@ int main() {
     std::string scene;
     //scene = "res/box2.xml";
     //scene = "res/box2_a.xml";
+    //scene = "res/box_fake.xml";
     scene = "res/mis.xml";
     //scene = "res/box5.xml";
     //scene = "res/box6.xml";
@@ -21,6 +22,8 @@ int main() {
     //scene = "res/box3.xml";
     //scene = "res/box4.xml";
     //scene = "res/box4_a.xml";
+    //scene = "res/bidir.xml";
+    //scene = "res/fireplace.xml";
     Renderer renderer("ReSTIR PT", 1920, 1080, scene);
     renderer.exec();
 }

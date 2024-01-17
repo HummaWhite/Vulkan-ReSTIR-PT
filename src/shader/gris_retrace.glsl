@@ -220,6 +220,7 @@ void GRISReservoirReuseAndMerge(inout GRISReservoir dstResv, SurfaceInfo dstPrim
     if (GRISReservoirIsValid(srcResv)) {
         GRISReservoirMerge(dstResv, srcResv, sample1f(rng));
     }
+    GRISReservoirCapSample(dstResv, uSettings.cap);
 }
 
 /*

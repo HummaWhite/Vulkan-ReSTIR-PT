@@ -59,12 +59,12 @@ vec3 spatialReuse(uvec2 index, uvec2 frameSize) {
     dstPrimaryIsec.instanceIdx = SpecialHitIndex;
     dstPrimaryIsec.bary = uv;
 
+    SurfaceInfo dstPrimarySurf = SurfaceInfo(pos, norm, albedo, matId, false);
+
     if (uSettings.spatialReuse) {
         const uint ResampleNum = 3;
         const float ResampleRadius = 20.0;
         vec2 texelSize = 1.0 / vec2(frameSize);
-
-        SurfaceInfo dstPrimarySurf = SurfaceInfo(pos, norm, albedo, matId, false);
         SurfaceInfo srcPrimarySurf;
 
 #pragma unroll
@@ -81,13 +81,48 @@ vec3 spatialReuse(uvec2 index, uvec2 frameSize) {
             }
         }
     }
-    GRISReservoirCapSample(resv, 40);
     GRISReservoirResetIfInvalid(resv);
 
     uGRISReservoir[index1D(index)] = resv;
 
     if (GRISReservoirIsValid(resv) && resv.sampleCount > 0) {
         radiance = resv.pathSample.F / luminance(resv.pathSample.F) * resv.resampleWeight / resv.sampleCount;
+        /*
+        GRISPathSample pathSample = resv.pathSample;
+
+        if (GRISPathSampleIsValid(pathSample)) {
+            GRISReconnectionData rcData;
+            traceReplayPathForHybridShift(dstPrimaryIsec, dstPrimarySurf, ray, pathSample.flags, pathSample.primaryRng, rcData);
+
+            if (GRISReconnectionDataIsValid(rcData)) {
+                SurfaceInfo rcPrevSurf;
+                SurfaceInfo rcSurf;
+
+                loadSurfaceInfo(rcData.rcPrevIsec, rcPrevSurf);
+                loadSurfaceInfo(pathSample.rcIsec, rcSurf);
+
+                Material rcMat = uMaterials[rcSurf.matIndex];
+                Material rcPrevMat = uMaterials[rcPrevSurf.matIndex];
+
+                vec3 Li = pathSample.rcLi;
+
+                uint rcType = GRISPathFlagsRcVertexType(pathSample.flags);
+
+                vec3 wi = normalize(rcSurf.pos - rcPrevSurf.pos);
+
+                if (rcType == RcVertexTypeSurface && length(pathSample.rcWi) > 0.5) {
+                    Li *= evalBSDF(rcMat, rcSurf.albedo, rcSurf.norm, -wi, pathSample.rcWi) * satDot(rcSurf.norm, pathSample.rcWi);
+                }
+                Li *= evalBSDF(rcPrevMat, rcPrevSurf.albedo, rcPrevSurf.norm, rcData.rcPrevWo, wi) * satDot(rcPrevSurf.norm, wi);
+                Li *= rcData.rcPrevThroughput;
+                Li /= pathSample.rcPrevSamplePdf;
+
+                if (!isBlack(Li) && !hasNan(Li)) {
+                    radiance = Li / luminance(Li) * resv.resampleWeight / resv.sampleCount;
+                }
+            }
+        }
+        */
     }
     return clampColor(radiance);
 }
