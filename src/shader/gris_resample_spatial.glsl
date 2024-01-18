@@ -86,10 +86,12 @@ vec3 spatialReuse(uvec2 index, uvec2 frameSize) {
     uGRISReservoir[index1D(index)] = resv;
 
     if (GRISReservoirIsValid(resv) && resv.sampleCount > 0) {
-        radiance = resv.pathSample.F / luminance(resv.pathSample.F) * resv.resampleWeight / resv.sampleCount;
-        /*
+        
         GRISPathSample pathSample = resv.pathSample;
 
+        if (true) {
+            radiance = pathSample.F / luminance(pathSample.F) * resv.resampleWeight / resv.sampleCount;
+        }
         if (GRISPathSampleIsValid(pathSample)) {
             GRISReconnectionData rcData;
             traceReplayPathForHybridShift(dstPrimaryIsec, dstPrimarySurf, ray, pathSample.flags, pathSample.primaryRng, rcData);
@@ -98,7 +100,12 @@ vec3 spatialReuse(uvec2 index, uvec2 frameSize) {
                 SurfaceInfo rcPrevSurf;
                 SurfaceInfo rcSurf;
 
-                loadSurfaceInfo(rcData.rcPrevIsec, rcPrevSurf);
+                if (intersectionIsSpecial(rcData.rcPrevIsec)) {
+                    rcPrevSurf = dstPrimarySurf;
+                }
+                else {
+                    loadSurfaceInfo(rcData.rcPrevIsec, rcPrevSurf);
+                }
                 loadSurfaceInfo(pathSample.rcIsec, rcSurf);
 
                 Material rcMat = uMaterials[rcSurf.matIndex];
@@ -122,7 +129,7 @@ vec3 spatialReuse(uvec2 index, uvec2 frameSize) {
                 }
             }
         }
-        */
+        
     }
     return clampColor(radiance);
 }

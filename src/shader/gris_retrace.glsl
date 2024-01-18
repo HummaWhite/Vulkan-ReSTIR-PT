@@ -55,6 +55,13 @@ void traceReplayPathForHybridShift(Intersection isec, SurfaceInfo surf, Ray ray,
     uint targetId = GRISPathFlagsRcVertexId(targetFlags);
     uint targetType = GRISPathFlagsRcVertexType(targetFlags);
 
+    if (targetId == 1) {
+        rcData.rcPrevIsec = isec;
+        rcData.rcPrevWo = wo;
+        rcData.rcPrevThroughput = throughput;
+        return;
+    }
+
     #pragma unroll
     for (int bounce = 0; bounce < MaxTracingDepth; bounce++) {
         if (bounce > 0) {
@@ -149,7 +156,12 @@ void GRISReservoirReuseAndMerge(inout GRISReservoir dstResv, SurfaceInfo dstPrim
         traceReplayPathForHybridShift(dstPrimaryIsec, dstPrimarySurf, primaryRay, srcSample.flags, srcSample.primaryRng, dstRcData);
 
         if (GRISReconnectionDataIsValid(dstRcData)) {
-            loadSurfaceInfo(dstRcData.rcPrevIsec, rcPrevSurf);
+            if (intersectionIsSpecial(dstRcData.rcPrevIsec)) {
+                rcPrevSurf = dstPrimarySurf;
+            }
+            else {
+                loadSurfaceInfo(dstRcData.rcPrevIsec, rcPrevSurf);
+            }
             loadSurfaceInfo(srcSample.rcIsec, rcSurf);
 
             rcMat = uMaterials[rcSurf.matIndex];
