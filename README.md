@@ -2,6 +2,8 @@
 
 This is another Vulkan ray tracing project, aiming for rebuilding [*EIDOLA*](https://github.com/IwakuraRein/CIS-565-Final-VR-Raytracer) completely from scratch and adding *ReSTIR PT (GRIS)* for indirect illumination.
 
+![](./img/spatiotemporal.jpg)
+
 ### Build and Run
 
 - Run `./build.bat` (for Windows only)
@@ -14,18 +16,18 @@ This is another Vulkan ray tracing project, aiming for rebuilding [*EIDOLA*](htt
 - [x] Standard path tracing with NEE and MIS
 - [ ] ReSTIR DI
   - [x] Temporal reuse
-  - [ ] Spatial reuse
+  - [x] Spatial reuse
 - [ ] ReSTIR GI
   - [x] Temporal reuse
   - [ ] Spatial reuse
 - [ ] ReSTIR PT
   - [x] Reconnection vertex generation
-  - [ ] Shift mapping
+  - [x] Shift mapping
     - [ ] Reconnection
     - [ ] Random Replay
-    - [ ] Hybrid
-  - [ ] Temporal reuse
-  - [ ] Spatial reuse
+    - [x] Hybrid
+  - [x] Temporal reuse
+  - [x] Spatial reuse
   - [ ] MIS
 - [x] Support for both ray tracing pipeline & ray query
 - [x] Batched G-buffer draw call
@@ -36,8 +38,39 @@ This is another Vulkan ray tracing project, aiming for rebuilding [*EIDOLA*](htt
 - [x] Make separate ZVK Vulkan wrapper
 - [ ] Direct3D 12 backend? (Making this project a multi-backend ray tracing engine)
 
-| Naive                   | Resampled                  |      |
-| ----------------------- | -------------------------- | ---- |
-| ![](./img/di_naive.jpg) | ![](./img/di_temporal.jpg) | DI   |
-| ![](./img/gi_naive.jpg) | ![](./img/gi_temporal.jpg) | GI   |
+### Algorithm
 
+#### Reusing Paths
+
+<div align="center">
+    <img src="./img/reuse.jpg" width="49.5%" />
+    <img src="./img/reuse2.jpg" width="49.5%" />
+</div>
+
+#### Path Sample Generation
+
+<div align="center">
+    <img src="./img/rcv2.jpg" width="49.5%" />
+    <img src="./img/path.jpg" width="49.5%" />
+</div>
+
+### Result
+
+#### ReSTIR PT (Not all correct)
+
+<div align="center">
+    <div><img src="./img/spatiotemporal.jpg" width="49.5%" /></div>
+    <img src="./img/spatial.jpg" width="49.5%" />
+    <img src="./img/temporal.jpg" width="49.5%" />
+    <img src="./img/pt.jpg" width="49.5%" />
+</div>
+
+
+
+#### Compared to Paper
+
+![](./img/compare.jpg)
+
+#### More
+
+![](./img/result.jpg)

@@ -89,7 +89,7 @@ vec3 spatialReuse(uvec2 index, uvec2 frameSize) {
         
         GRISPathSample pathSample = resv.pathSample;
 
-        if (true) {
+        if (false) {
             radiance = pathSample.F / luminance(pathSample.F) * resv.resampleWeight / resv.sampleCount;
         }
         if (GRISPathSampleIsValid(pathSample)) {
