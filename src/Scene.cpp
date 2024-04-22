@@ -3,6 +3,7 @@
 #include "shader/HostDevice.h"
 
 #include <sstream>
+#include <thread>
 #include <pugixml.hpp>
 
 inline float luminance(const glm::vec3& color) {

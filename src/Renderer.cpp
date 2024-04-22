@@ -6,6 +6,7 @@
 
 #include <sstream>
 #include <format>
+#include <thread>
 #include <imgui.h>
 
 const std::vector<const char*> InstanceExtensions{

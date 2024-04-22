@@ -88,7 +88,7 @@ vk::AccelerationStructureKHR createAccelerationStructureKHR(
 	);
 
 	if (result != VK_SUCCESS) {
-		vk::throwResultException(vk::Result(result), "zvk::VkExt vkCreateAccelerationStructureKHR failed");
+		vk::detail::throwResultException(vk::Result(result), "zvk::VkExt vkCreateAccelerationStructureKHR failed");
 	}
 	return structure;
 }
@@ -135,7 +135,7 @@ std::vector<uint8_t> getRayTracingShaderGroupHandlesKHR(
 	);
 
 	if (result != VK_SUCCESS) {
-		vk::throwResultException(vk::Result(result), "zvk::VkExt vkGetRayTracingShaderGroupHandlesKHR failed");
+		vk::detail::throwResultException(vk::Result(result), "zvk::VkExt vkGetRayTracingShaderGroupHandlesKHR failed");
 	}
 	return handles;
 }
@@ -196,7 +196,7 @@ vk::DebugUtilsMessengerEXT createDebugUtilsMessengerEXT(
 	);
 
 	if (result != VK_SUCCESS) {
-		vk::throwResultException(vk::Result(result), "zvk::VkExt vkCreateDebugUtilsMessengerEXT failed");
+		vk::detail::throwResultException(vk::Result(result), "zvk::VkExt vkCreateDebugUtilsMessengerEXT failed");
 	}
 	return vk::DebugUtilsMessengerEXT(messenger);
 }
@@ -233,7 +233,7 @@ void setDebugUtilsObjectTagEXT(
 	);
 
 	if (result != VK_SUCCESS) {
-		vk::throwResultException(vk::Result(result), "zvk::VkExt vkDebugMarkerSetObjectTagEXT failed");
+		vk::detail::throwResultException(vk::Result(result), "zvk::VkExt vkDebugMarkerSetObjectTagEXT failed");
 	}
 }
 
@@ -247,7 +247,7 @@ void setDebugUtilsObjectNameEXT(
 	);
 
 	if (result != VK_SUCCESS) {
-		vk::throwResultException(vk::Result(result), "zvk::VkExt vkDebugMarkerSetObjectNameEXT failed");
+		vk::detail::throwResultException(vk::Result(result), "zvk::VkExt vkDebugMarkerSetObjectNameEXT failed");
 	}
 }
 

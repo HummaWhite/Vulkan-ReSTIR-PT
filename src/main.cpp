@@ -17,7 +17,7 @@ int main() {
     //scene = "res/sponza_manylight.xml";
     //scene = "res/sponza_metal2.xml";
     //scene = "res/staircase2.xml";
-    //scene = "res/model/VeachAjar/ajar.xml";
+    scene = "res/model/VeachAjar/ajar.xml";
     //scene = "res/model/VeachAjar/ajar_fake.xml";
     //scene = "res/model/VeachAjar/ajar_fake2.xml";
     //scene = "res/model/San_Miguel/san-miguel.xml";
@@ -25,7 +25,7 @@ int main() {
     //scene = "res/box4.xml";
     //scene = "res/box4_a.xml";
     //scene = "res/zbidir.xml";
-    scene = "res/fireplace.xml";
-    Renderer renderer("ReSTIR PT", 1920, 1080, scene);
+    //scene = "res/fireplace.xml";
+    Renderer renderer("ReSTIR PT", 1280, 720, scene);
     renderer.exec();
 }
