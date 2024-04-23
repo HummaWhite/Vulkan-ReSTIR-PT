@@ -6,10 +6,11 @@ This is another Vulkan ray tracing project, aiming for rebuilding [*EIDOLA*](htt
 
 ### Build and Run
 
+- Clone `git clone [this repo] --recursive`
 - Run `./build.bat` (for Windows only)
 - Extract `.zip` test scene files in `./res/model/`
   - `VeachAjar` from [paper's modified version of 'Veach Ajar' scene](https://github.com/DQLin/ReSTIR_PT/tree/master/Source/RenderPasses/ReSTIRPTPass/Data/VeachAjar)
-  - Note that you will probably need to copy `./res/` to your IDE's working directory for the resourced to be correctly loaded
+  - You will need to copy `./res/` to your IDE's working directory for the resources to be correctly loaded
 
 ### Progress
 
@@ -30,7 +31,7 @@ This is another Vulkan ray tracing project, aiming for rebuilding [*EIDOLA*](htt
   - [x] Spatial reuse
   - [ ] MIS
 - [x] Support for both ray tracing pipeline & ray query
-- [x] Batched G-buffer draw call
+- [x] Batched G-buffer draw calls and bindless resource fetching
 - [ ] Cache & memory improvement as RTXDI
 - [ ] Improve scene definition & GLTF loader
 - [ ] Async command recording & submission
