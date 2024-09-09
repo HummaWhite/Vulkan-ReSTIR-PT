@@ -175,24 +175,9 @@ void GBufferPass::createRenderPass(vk::ImageLayout outLayout) {
 		.setColorAttachments(colorRefs)
 		.setPDepthStencilAttachment(&depthStencilRef);
 
-	auto subpassDependency = vk::SubpassDependency()
-		.setSrcSubpass(VK_SUBPASS_EXTERNAL)
-		.setDstSubpass(0)
-		.setSrcStageMask(
-			vk::PipelineStageFlagBits::eColorAttachmentOutput |
-			vk::PipelineStageFlagBits::eEarlyFragmentTests)
-		.setDstStageMask(
-			vk::PipelineStageFlagBits::eColorAttachmentOutput |
-			vk::PipelineStageFlagBits::eEarlyFragmentTests)
-		.setSrcAccessMask(vk::AccessFlagBits::eNone)
-		.setDstAccessMask(
-			vk::AccessFlagBits::eColorAttachmentWrite |
-			vk::AccessFlagBits::eDepthStencilAttachmentWrite);
-
 	auto createInfo = vk::RenderPassCreateInfo()
 		.setAttachments(attachments)
-		.setSubpasses(subpass)
-		.setDependencies(subpassDependency);
+		.setSubpasses(subpass);
 
 	mRenderPass = mCtx->device.createRenderPass(createInfo);
 }
